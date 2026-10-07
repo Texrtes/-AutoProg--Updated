@@ -19,46 +19,54 @@ Library.__index = Library
 
 Library.Assets = {
     Shadow          = "rbxassetid://1316045217",
-    Minimize        = "rbxassetid://6031094676",
-    Minus           = "rbxassetid://6031094676",
-    Hide            = "rbxassetid://99432006374500",
+    Minimize        = "rbxassetid://118026365011536",
+    Minus           = "rbxassetid://118026365011536",
+    Hide            = "rbxassetid://135928786788378",
+    EyeOff          = "rbxassetid://135928786788378",
+    ["eye-off"]     = "rbxassetid://135928786788378",
     Scale           = "rbxassetid://15082210525",
-    Close           = "rbxassetid://15082305656",
+    Close           = "rbxassetid://110786993356448",
+    X               = "rbxassetid://110786993356448",
     Resize          = "rbxassetid://15082210525",
-    Chevron         = "rbxassetid://14937709869",
-    Arrow           = "rbxassetid://14923748517",
+    Chevron         = "rbxassetid://134243273101015",
+    ChevronDown     = "rbxassetid://134243273101015",
+    ["chevron-down"]= "rbxassetid://134243273101015",
+    Arrow           = "rbxassetid://134243273101015",
     Button          = "rbxassetid://84269270119683",
     ButtonIcon      = "rbxassetid://84269270119683",
-    Search          = "rbxassetid://13847222481",
+    Search          = "rbxassetid://121018724060431",
     Textbox         = "rbxassetid://13868675087",
     GlowDot         = "rbxassetid://105506802034513",
-    ImageLogo       = "rbxassetid://92516147636241",
-    Logo            = "rbxassetid://92516147636241",
-    FloatingToggle  = "rbxassetid://84269270119683",
+    ImageLogo       = "rbxassetid://130551565616516",
+    Logo            = "rbxassetid://130551565616516",
+    FloatingToggle  = "rbxassetid://130551565616516",
     FloatingBadge   = "rbxassetid://84269270119683",
     Discord         = "rbxassetid://119690296342461",
-    Theme           = "rbxassetid://10734950309",
+    Theme           = "rbxassetid://80758916183665",
     Home            = "rbxassetid://80559668453788",
     Overview        = "rbxassetid://80559668453788",
     User            = "rbxassetid://10747373176",
     Key             = "rbxassetid://10709790644",
-    Clock           = "rbxassetid://131119301589529",
-    Trials          = "rbxassetid://131119301589529",
-    AutoTrials      = "rbxassetid://131119301589529",
-    Check           = "rbxassetid://10709790644",
+    Clock           = "rbxassetid://121808839832144",
+    Trials          = "rbxassetid://121808839832144",
+    AutoTrials      = "rbxassetid://121808839832144",
+    Check           = "rbxassetid://93898873302694",
     Globe           = "rbxassetid://10734887376",
     Chat            = "rbxassetid://10734887852",
-    Gear            = "rbxassetid://10734950309",
+    Gear            = "rbxassetid://80758916183665",
+    Settings        = "rbxassetid://80758916183665",
+    ["settings"]    = "rbxassetid://80758916183665",
     Sliders         = "rbxassetid://10734950020",
     Terminal        = "rbxassetid://10734951847",
     Console         = "rbxassetid://10734951847",
-    AutoGold        = "rbxassetid://114765145536264",
-    Gold            = "rbxassetid://114765145536264",
-    Coins           = "rbxassetid://114765145536264",
+    AutoGold        = "rbxassetid://116510979641930",
+    Gold            = "rbxassetid://116510979641930",
+    Coins           = "rbxassetid://116510979641930",
     Package         = "rbxassetid://114765145536264",
-    Zap             = "rbxassetid://128427580522535",
-    AutoEvo         = "rbxassetid://128427580522535",
-    Evo             = "rbxassetid://128427580522535",
+    Zap             = "rbxassetid://130551565616516",
+    AutoEvo         = "rbxassetid://130551565616516",
+    Evo             = "rbxassetid://130551565616516",
+    Shield          = "rbxassetid://110987169760162",
     Background      = "rbxassetid://82941526973068",
     AutoHubBg       = "rbxassetid://82941526973068",
     AutoHubIcon     = "autohub_icon.png",
@@ -66,18 +74,34 @@ Library.Assets = {
 
 -- Refined Glass Theme Palette
 Library.Themes = {
+    LightGray = {
+        Background    = Color3.fromRGB(16, 17, 20),
+        Sidebar       = Color3.fromRGB(12, 13, 16),
+        Surface       = Color3.fromRGB(24, 26, 30),
+        SurfaceHover  = Color3.fromRGB(34, 36, 42),
+        Stroke        = Color3.fromRGB(190, 195, 205),
+        StrokeSoft    = Color3.fromRGB(65, 70, 80),
+        Text          = Color3.fromRGB(250, 250, 252),
+        Muted         = Color3.fromRGB(150, 155, 165),
+        Accent        = Color3.fromRGB(215, 220, 230),
+        AccentHover   = Color3.fromRGB(245, 248, 255),
+        AccentSoft    = Color3.fromRGB(40, 43, 50),
+        Success       = Color3.fromRGB(34, 197, 94),
+        Warning       = Color3.fromRGB(245, 158, 11),
+        Danger        = Color3.fromRGB(239, 68, 68),
+    },
     CyberNeon = {
-        Background    = Color3.fromRGB(11, 12, 19),
-        Sidebar       = Color3.fromRGB(8, 9, 15),
-        Surface       = Color3.fromRGB(17, 19, 31),
-        SurfaceHover  = Color3.fromRGB(24, 27, 44),
-        Stroke        = Color3.fromRGB(168, 85, 247),
-        StrokeSoft    = Color3.fromRGB(48, 52, 78),
-        Text          = Color3.fromRGB(248, 250, 252),
-        Muted         = Color3.fromRGB(148, 163, 184),
-        Accent        = Color3.fromRGB(168, 85, 247),
-        AccentHover   = Color3.fromRGB(192, 132, 252),
-        AccentSoft    = Color3.fromRGB(45, 26, 72),
+        Background    = Color3.fromRGB(16, 17, 20),
+        Sidebar       = Color3.fromRGB(12, 13, 16),
+        Surface       = Color3.fromRGB(24, 26, 30),
+        SurfaceHover  = Color3.fromRGB(34, 36, 42),
+        Stroke        = Color3.fromRGB(190, 195, 205),
+        StrokeSoft    = Color3.fromRGB(65, 70, 80),
+        Text          = Color3.fromRGB(250, 250, 252),
+        Muted         = Color3.fromRGB(150, 155, 165),
+        Accent        = Color3.fromRGB(215, 220, 230),
+        AccentHover   = Color3.fromRGB(245, 248, 255),
+        AccentSoft    = Color3.fromRGB(40, 43, 50),
         Success       = Color3.fromRGB(34, 197, 94),
         Warning       = Color3.fromRGB(245, 158, 11),
         Danger        = Color3.fromRGB(239, 68, 68),
@@ -164,10 +188,10 @@ Library.Themes = {
     }
 }
 
-local THEME_ORDER = { "CyberNeon", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" }
+local THEME_ORDER = { "LightGray", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" }
 
 local function resolveTheme(themeInput: any): { [string]: Color3 }
-    local base = Library.Themes.CyberNeon
+    local base = Library.Themes.LightGray or Library.Themes.CyberNeon
     local resolved = {}
     for k, v in pairs(base) do
         resolved[k] = v
@@ -334,6 +358,12 @@ local function normalizeAsset(image: any): string
         if Library.Assets[image] then
             return Library.Assets[image]
         end
+        local lower = string.lower(image)
+        for k, v in pairs(Library.Assets) do
+            if string.lower(tostring(k)) == lower then
+                return v
+            end
+        end
         local getCustom = (typeof(getcustomasset) == "function" and getcustomasset)
             or (typeof(getsynasset) == "function" and getsynasset)
         if getCustom then
@@ -347,7 +377,7 @@ local function normalizeAsset(image: any): string
             return "rbxassetid://" .. image
         end
         if image:find("%.png$") or image:find("%.jpg$") then
-            return Library.Assets.ImageLogo or "rbxassetid://111362591084511"
+            return Library.Assets.Zap or Library.Assets.ImageLogo or "rbxassetid://130551565616516"
         end
         return image
     end
@@ -2948,8 +2978,8 @@ end
 function Library:Window(props: { [string]: any })
     props = props or {}
     local self = setmetatable({}, Library)
-    self.ThemeName = (type(props.Theme) == "string" and props.Theme) or "CyberNeon"
-    self.Theme = resolveTheme(props.Theme or "CyberNeon")
+    self.ThemeName = (type(props.Theme) == "string" and props.Theme) or "LightGray"
+    self.Theme = resolveTheme(props.Theme or "LightGray")
     self.Tabs = {}
     self.SelectedTab = nil
     self.Keybind = (props.Config and props.Config.Keybind) or props.Keybind or Enum.KeyCode.RightControl
@@ -2957,8 +2987,8 @@ function Library:Window(props: { [string]: any })
     self.DeviceType = detectDeviceType()
     self.TabCount = 0
 
-    local appTitle = tostring(props.Title or "CYBERFLOW // v2.0")
-    local guiName = props.Name or "CyberNeon_Window"
+    local appTitle = tostring(props.Title or "AUTOPROG // v2.0")
+    local guiName = props.Name or "AutoProg_Window"
     local existing = getParentGui():FindFirstChild(guiName)
     if existing then existing:Destroy() end
 
@@ -3497,11 +3527,11 @@ function Library:Window(props: { [string]: any })
     local iconTarget = props.Icon or "autohub_icon.png"
     local resolvedIcon = normalizeAsset(iconTarget)
     if resolvedIcon == "" or resolvedIcon == "autohub_icon.png" then
-        resolvedIcon = Library.Assets.ImageLogo or "rbxassetid://111362591084511"
+        resolvedIcon = Library.Assets.Zap or Library.Assets.ImageLogo or "rbxassetid://130551565616516"
     end
-    local isCustomIcon = tostring(iconTarget):find("%.png") or tostring(iconTarget):find("%.jpg")
+    local isCustomIcon = (tostring(iconTarget):find("%.png") or tostring(iconTarget):find("%.jpg")) and (resolvedIcon:find("http") ~= nil)
     local iconColor = isCustomIcon and Color3.fromRGB(255, 255, 255) or self.Theme.Accent
-    local sideLogo = createIcon(sideLogoWrap, resolvedIcon, 20, iconColor, 0)
+    local sideLogo = createIcon(sideLogoWrap, resolvedIcon, 18, iconColor, 0)
     sideLogo.AnchorPoint = Vector2.new(0.5, 0.5)
     sideLogo.Position = UDim2.fromScale(0.5, 0.5)
 
@@ -3848,8 +3878,6 @@ function Library:Window(props: { [string]: any })
     local function makeTopBtn(name: string, icon: string, callback: () -> ())
         local btn = make("ImageButton", {
             Name = name,
-            Image = normalizeAsset(icon),
-            ImageColor3 = self.Theme.Muted,
             BackgroundColor3 = self.Theme.Surface,
             BackgroundTransparency = 0.45,
             BorderSizePixel = 0,
@@ -3860,12 +3888,26 @@ function Library:Window(props: { [string]: any })
         corner(btn, 7)
         local btnStroke = stroke(btn, self.Theme.StrokeSoft, 1, 0.8)
 
+        local img = make("ImageLabel", {
+            Name = "Icon",
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(15, 15),
+            BackgroundTransparency = 1,
+            Image = normalizeAsset(icon),
+            ImageColor3 = self.Theme.Muted,
+            ScaleType = Enum.ScaleType.Fit,
+            Parent = btn,
+        })
+
         btn.MouseEnter:Connect(function()
-            tween(btn, 0.15, { BackgroundTransparency = 0.15, ImageColor3 = self.Theme.Text })
+            tween(btn, 0.15, { BackgroundTransparency = 0.15 })
+            tween(img, 0.15, { ImageColor3 = self.Theme.Text })
             tween(btnStroke, 0.15, { Color = self.Theme.Accent, Transparency = 0.4 })
         end)
         btn.MouseLeave:Connect(function()
-            tween(btn, 0.15, { BackgroundTransparency = 0.45, ImageColor3 = self.Theme.Muted })
+            tween(btn, 0.15, { BackgroundTransparency = 0.45 })
+            tween(img, 0.15, { ImageColor3 = self.Theme.Muted })
             tween(btnStroke, 0.15, { Color = self.Theme.StrokeSoft, Transparency = 0.8 })
         end)
         btn.MouseButton1Click:Connect(callback)
@@ -3966,6 +4008,16 @@ function Library:Window(props: { [string]: any })
         pBadgeText.TextColor3 = self.Theme.Accent
         floatingOpenBtn.ImageColor3 = self.Theme.Accent
         floatingOpenBtn.UIStroke.Color = self.Theme.Accent
+
+        for _, btn in ipairs(controls:GetChildren()) do
+            if btn:IsA("ImageButton") then
+                btn.BackgroundColor3 = self.Theme.Surface
+                local s = btn:FindFirstChildOfClass("UIStroke")
+                if s then s.Color = self.Theme.StrokeSoft end
+                local ic = btn:FindFirstChild("Icon")
+                if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = self.Theme.Muted end
+            end
+        end
 
         if self.SelectedTab then
             self:SelectTab(self.SelectedTab)
