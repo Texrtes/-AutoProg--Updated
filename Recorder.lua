@@ -834,8 +834,6 @@ return function(ctx)
                         game_info_str = string.format('\nTDS:GameInfo("%s", {%s})', current_map, current_modifiers)
                     end
                     local config_header = string.format([[
-local TDS = shared.TDSTable or e
-
 TDS:Loadout("%s", "%s", "%s", "%s", "%s")
 TDS:Mode("%s")%s
 
