@@ -2,7 +2,6 @@
     CombinedData
     Description:
         Provides a single API that merges Tower Ownership, Golden Skin/Perks detection,
-        Story Mode Progression (TDS: Boot Camp Chapter 0 & Missions),
         Tower EXP progression, Skill‑tree extraction, and Player Stats (Level/EXP/Coins/Gems).
         • Accurate Golden tower ownership (checks Inventory.Skins, not just equipped state).
         • Active Golden perks detector (checks if perk is enabled in loadout).
@@ -51,7 +50,7 @@ local function parseNumber(str)
 end
 
 -- ---------------------------------------------------------------------
--- Internal Cache & Game Module Access (Strictly require-based, NO filtergc)
+-- Internal Cache & Game Module Access
 -- ---------------------------------------------------------------------
 local Cache = nil
 local Experience = nil
@@ -59,20 +58,6 @@ local TowerExpUtil = nil
 local Content = nil
 local InventoryController = nil
 local MatchmakingTrialData = nil
-local PlayerStatsStore = nil
-local PlayerController = nil
-local StoryModeClient = nil
-local StoryModeData = nil
-local StoryModeSerialization = nil
-
--- Persistent memory caches to guarantee live data continuity across teleports and frame transitions
-getgenv().AutoProg_LastKnownStats = getgenv().AutoProg_LastKnownStats or {}
-local statsEnv = getgenv().AutoProg_LastKnownStats
-local ownedTowersCache = statsEnv.OwnedTowers or {
-    ["scout"] = true,
-    ["sniper"] = true,
-}
-statsEnv.OwnedTowers = ownedTowersCache
 
 pcall(function()
     Cache = require(ReplicatedStorage.Client.Modules.Cache)
@@ -92,84 +77,23 @@ end)
 pcall(function()
     MatchmakingTrialData = require(ReplicatedStorage.Client.Interfaces.Lobby.Components.NewMatchmaking.MatchmakingTrialData)
 end)
-pcall(function()
-    PlayerStatsStore = require(ReplicatedStorage.Client.Interfaces.Stores.Shared.PlayerStatsStore)
-end)
-pcall(function()
-    PlayerController = require(ReplicatedStorage.Client.Interfaces.LegacyInterface.Controllers.PlayerController)
-end)
-pcall(function()
-    StoryModeClient = require(ReplicatedStorage.Client.Modules.StoryModeClient)
-end)
-pcall(function()
-    StoryModeData = require(ReplicatedStorage.Client.Interfaces.Lobby.Components.NewMatchmaking.StoryModeData)
-end)
-pcall(function()
-    StoryModeSerialization = require(ReplicatedStorage.Shared.Modules.StoryModeSerialization)
-end)
 
--- Lazy-require helpers to ensure modules are fetched even if loaded asynchronously
-local function getCache()
-    if not Cache then
-        pcall(function()
-            local cm = ReplicatedStorage:FindFirstChild("Client")
-            local mod = cm and cm:FindFirstChild("Modules") and cm.Modules:FindFirstChild("Cache")
-            if mod then
-                Cache = require(mod)
-            elseif ReplicatedStorage:FindFirstChild("Client") then
-                Cache = require(ReplicatedStorage.Client.Modules.Cache)
-            end
-        end)
-    end
-    return Cache
-end
+local StoryModeClient = nil
+local StoryModeSerialization = nil
+local inMemoryStoryProgress = nil
 
-local function getExperience()
-    if not Experience then
-        pcall(function()
-            local sm = ReplicatedStorage:FindFirstChild("Shared")
-            local mod = sm and sm:FindFirstChild("Modules") and sm.Modules:FindFirstChild("Experience")
-            if mod then
-                Experience = require(mod)
-            elseif ReplicatedStorage:FindFirstChild("Shared") then
-                Experience = require(ReplicatedStorage.Shared.Modules.Experience)
-            end
-        end)
-    end
-    return Experience
-end
-
-local function getInventoryController()
-    if not InventoryController then
-        pcall(function()
-            InventoryController = require(ReplicatedStorage.Client.Interfaces.LegacyInterface.Controllers.InventoryController)
-        end)
-    end
-    return InventoryController
-end
-
-local function getPlayerStatsStore()
-    if not PlayerStatsStore then
-        pcall(function()
-            PlayerStatsStore = require(ReplicatedStorage.Client.Interfaces.Stores.Shared.PlayerStatsStore)
-        end)
-    end
-    return PlayerStatsStore
-end
-
-local function getPlayerController()
-    if not PlayerController then
-        pcall(function()
-            PlayerController = require(ReplicatedStorage.Client.Interfaces.LegacyInterface.Controllers.PlayerController)
-        end)
-    end
-    return PlayerController
-end
+getgenv().AutoProg_LastKnownStats = getgenv().AutoProg_LastKnownStats or {}
+local statsEnv = getgenv().AutoProg_LastKnownStats
 
 local function getStoryModeClient()
     if not StoryModeClient then
         pcall(function()
-            StoryModeClient = require(ReplicatedStorage.Client.Modules.StoryModeClient)
+            local client = ReplicatedStorage:FindFirstChild("Client")
+            local modules = client and client:FindFirstChild("Modules")
+            local smc = modules and modules:FindFirstChild("StoryModeClient")
+            if smc then
+                StoryModeClient = require(smc)
+            end
         end)
     end
     return StoryModeClient
@@ -178,53 +102,75 @@ end
 local function getStoryModeSerialization()
     if not StoryModeSerialization then
         pcall(function()
-            StoryModeSerialization = require(ReplicatedStorage.Shared.Modules.StoryModeSerialization)
+            local shared = ReplicatedStorage:FindFirstChild("Shared")
+            local modules = shared and shared:FindFirstChild("Modules")
+            local sms = modules and modules:FindFirstChild("StoryModeSerialization")
+            if sms then
+                StoryModeSerialization = require(sms)
+            end
         end)
     end
     return StoryModeSerialization
 end
 
--- Helper to safely get value synchronously without yielding or dropping thread capability
-local function getStat(name)
-    local curCache = getCache()
-    if curCache and (type(curCache) == "table" or type(curCache) == "function") then
-        -- 1. Direct atom lookup
-        local ok, val = pcall(function()
-            local atom = curCache(name)
-            if atom and type(atom.GetValue) == "function" then
-                local fastVal = atom:GetValue()
-                if fastVal ~= nil then
-                    return fastVal
-                end
+local PlayerStatsStore = nil
+local function getPlayerStatsStore()
+    if not PlayerStatsStore then
+        pcall(function()
+            local client = ReplicatedStorage:FindFirstChild("Client")
+            local ifaces = client and client:FindFirstChild("Interfaces")
+            local stores = ifaces and ifaces:FindFirstChild("Stores")
+            local shared = stores and stores:FindFirstChild("Shared")
+            local pss = shared and shared:FindFirstChild("PlayerStatsStore")
+            if pss then
+                PlayerStatsStore = require(pss)
             end
-            return nil
         end)
-        if ok and val ~= nil then
-            return val
-        end
+    end
+    return PlayerStatsStore
+end
+getPlayerStatsStore()
 
-        -- 2. Dotted child lookup inside parent atom (e.g. Cache("Values") dictionary)
-        if string.find(name, "%.") then
-            local parentKey, childKey = string.match(name, "^([^%.]+)%.(.+)$")
-            if parentKey and childKey then
-                local okParent, parentVal = pcall(function()
-                    local parentAtom = curCache(parentKey)
-                    if parentAtom and type(parentAtom.GetValue) == "function" then
-                        return parentAtom:GetValue()
+-- Helper to safely get value even if still downloading on fresh join
+local function getStat(name)
+    if not Cache then
+        pcall(function()
+            local cModule = ReplicatedStorage:FindFirstChild("Client")
+            cModule = cModule and cModule:FindFirstChild("Modules")
+            cModule = cModule and cModule:FindFirstChild("Cache")
+            if cModule then
+                Cache = require(cModule)
+            end
+        end)
+    end
+    if Cache and (type(Cache) == "table" or type(Cache) == "function") then
+        local ok, val = pcall(function()
+            local atom = Cache(name)
+            if atom then
+                -- 1. Check synchronous cached value first
+                if type(atom.GetValue) == "function" then
+                    local fastVal = atom:GetValue()
+                    if fastVal ~= nil then
+                        return fastVal
                     end
-                    return nil
-                end)
-                if okParent and type(parentVal) == "table" then
-                    if parentVal[childKey] ~= nil then
-                        return parentVal[childKey]
-                    end
-                    for k, v in pairs(parentVal) do
-                        if string.lower(tostring(k)) == string.lower(childKey) then
-                            return v
+                end
+                -- 2. If nil (e.g. freshly joined lobby), fetch and await the cache promise
+                if type(atom.Get) == "function" then
+                    local promise = atom:Get()
+                    if promise and type(promise.await) == "function" then
+                        local pSuccess, pResult = promise:await()
+                        if setthreadidentity then pcall(setthreadidentity, 8) end
+                        if pSuccess and pResult ~= nil then
+                            return pResult
                         end
                     end
                 end
             end
+            return nil
+        end)
+        if setthreadidentity then pcall(setthreadidentity, 8) end
+        if ok and val ~= nil then
+            return val
         end
     end
     return nil
@@ -298,115 +244,35 @@ end
 
 function CombinedData:IsTowerOwned(towerName)
     if not towerName or towerName == "" then return false end
-    local cleanName = tostring(towerName):gsub("^%s*(.-)%s*$", "%1")
-    local norm = string.lower(cleanName):gsub("%s+", "")
-    if norm == "assasin" then norm = "assassin" end
-    if norm == "scout" or norm == "sniper" then return true end
 
-    -- Check persistent memory cache first
-    if ownedTowersCache[norm] then
-        return true
-    end
-
-    -- 1. Fast Cache Check: Inventory.Troops and Inventory tables
-    local curCache = getCache()
-    if curCache then
-        local troops = nil
-        pcall(function()
-            local atom = curCache("Inventory.Troops")
-            if atom and type(atom.GetValue) == "function" then
-                troops = atom:GetValue()
-            end
-        end)
-        if not troops then
-            troops = getCacheValue("Inventory.Troops")
-        end
-        if troops and type(troops) == "table" then
-            if troops[cleanName] ~= nil or troops[towerName] ~= nil then
-                ownedTowersCache[norm] = true
-                return true
-            end
-            for k, _ in pairs(troops) do
-                local kNorm = string.lower(tostring(k)):gsub("%s+", "")
-                if kNorm == "assasin" then kNorm = "assassin" end
-                if kNorm == norm then
-                    ownedTowersCache[norm] = true
-                    return true
-                end
-            end
-        end
-
-        local inv = nil
-        pcall(function()
-            local atom = curCache("Inventory")
-            if atom and type(atom.GetValue) == "function" then
-                inv = atom:GetValue()
-            end
-        end)
-        if inv and type(inv) == "table" and type(inv.Troops) == "table" then
-            if inv.Troops[cleanName] ~= nil or inv.Troops[towerName] ~= nil then
-                ownedTowersCache[norm] = true
-                return true
-            end
-            for k, _ in pairs(inv.Troops) do
-                local kNorm = string.lower(tostring(k)):gsub("%s+", "")
-                if kNorm == "assasin" then kNorm = "assassin" end
-                if kNorm == norm then
-                    ownedTowersCache[norm] = true
-                    return true
-                end
-            end
+    -- 1. Fast Cache Check
+    local troops = getCacheValue("Inventory.Troops")
+    if troops and type(troops) == "table" then
+        if troops[towerName] ~= nil then
+            return true
         end
     end
 
-    -- 2. StateReplicators.PlayerReplicator (EquippedTowers attribute in-match)
-    pcall(function()
-        local reps = ReplicatedStorage:FindFirstChild("StateReplicators")
-        if reps then
-            local lp = getLocalPlayer()
-            local myId = lp and lp.UserId
-            for _, r in ipairs(reps:GetChildren()) do
-                if r.Name == "PlayerReplicator" and (not myId or r:GetAttribute("UserId") == myId) then
-                    local eq = r:GetAttribute("EquippedTowers")
-                    if eq and type(eq) == "string" then
-                        local eqClean = string.lower(eq):gsub("%s+", "")
-                        if eqClean:find(norm) then
-                            ownedTowersCache[norm] = true
-                        end
-                    end
-                end
-            end
-        end
-    end)
-    if ownedTowersCache[norm] then return true end
-
-    -- 3. InventoryController Check (Lobby)
-    local invCtrl = getInventoryController()
-    if invCtrl and type(invCtrl.getItems) == "function" then
-        local success, items = pcall(function() return invCtrl:getItems() end)
+    -- 2. InventoryController Check
+    if InventoryController and type(InventoryController.getItems) == "function" then
+        local success, items = pcall(function() return InventoryController:getItems() end)
         if success and items then
             for _, item in pairs(items) do
-                if type(item) == "table" and item.type == "tower" and item.name then
-                    local itemNorm = string.lower(tostring(item.name)):gsub("%s+", "")
-                    if itemNorm == "assasin" then itemNorm = "assassin" end
-                    if itemNorm == norm then
-                        ownedTowersCache[norm] = true
-                        return true
-                    end
+                if type(item) == "table" and item.type == "tower" and item.name == towerName then
+                    return true
                 end
             end
         end
     end
 
-    -- 4. UI Scrolling Container Fallback (Lobby)
+    -- 3. UI Scrolling Container Fallback
     for i = 1, 7 do
         local container = getScrollingContainer(i)
         if container then
-            local towerNode = container:FindFirstChild(cleanName) or container:FindFirstChild(towerName)
+            local towerNode = container:FindFirstChild(towerName)
             if towerNode then
                 local main = towerNode:FindFirstChild("main")
                 if main and main:FindFirstChild("amountLeft") then
-                    ownedTowersCache[norm] = true
                     return true
                 end
             end
@@ -415,76 +281,6 @@ function CombinedData:IsTowerOwned(towerName)
 
     return false
 end
-
--- ---------------------------------------------------------------------
--- Equipped Towers / Loadout Detection
--- ---------------------------------------------------------------------
-function CombinedData:GetEquippedTowers()
-    local equipped = {}
-
-    -- 1. StateReplicators (Official TDS In-Game / Lobby Replicators)
-    local stateReplicators = ReplicatedStorage:FindFirstChild("StateReplicators")
-    if stateReplicators then
-        local lp = getLocalPlayer()
-        local userId = lp and lp.UserId
-        for _, folder in ipairs(stateReplicators:GetChildren()) do
-            if folder.Name == "PlayerReplicator" and (userId == nil or folder:GetAttribute("UserId") == userId) then
-                local attr = folder:GetAttribute("EquippedTowers")
-                if type(attr) == "string" then
-                    local cleaned = attr:match("%[.*%]")
-                    if cleaned then
-                        local ok, decoded = pcall(function() return HttpService:JSONDecode(cleaned) end)
-                        if ok and type(decoded) == "table" and #decoded > 0 then
-                            return decoded
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    -- 2. InventoryController (LegacyInterface Controller)
-    local invCtrl = InventoryController
-    if not invCtrl then
-        pcall(function()
-            invCtrl = require(ReplicatedStorage.Client.Interfaces.LegacyInterface.Controllers.InventoryController)
-        end)
-    end
-    if invCtrl and type(invCtrl.getItems) == "function" then
-        local ok, items = pcall(function() return invCtrl:getItems() end)
-        if ok and items then
-            for _, item in pairs(items) do
-                if type(item) == "table" and item.type == "tower" and item.equipped == true then
-                    table.insert(equipped, item.name)
-                end
-            end
-            if #equipped > 0 then return equipped end
-        end
-    end
-
-    -- 3. Cache Inventory.Troops (Equipped property check)
-    local troops = getCacheValue("Inventory.Troops")
-    if troops and type(troops) == "table" then
-        for tName, tData in pairs(troops) do
-            if type(tData) == "table" and tData.Equipped == true then
-                table.insert(equipped, tName)
-            end
-        end
-        if #equipped > 0 then return equipped end
-    end
-
-    return equipped
-end
-
-CombinedData.GetLoadout = function(self_or_first, ...)
-    if self_or_first == CombinedData then
-        return CombinedData:GetEquippedTowers(...)
-    else
-        return CombinedData:GetEquippedTowers(self_or_first, ...)
-    end
-end
-CombinedData.getEquippedTowers = CombinedData.GetEquippedTowers
-CombinedData.getLoadout = CombinedData.GetLoadout
 
 -- ---------------------------------------------------------------------
 -- Golden Towers Ownership & Active Perks
@@ -675,55 +471,42 @@ local function calculateExpStats(currentExp, baseExp, growthRate, maxLevel)
     }
 end
 
-local towerProgressionStaticCache = {}
-
 function CombinedData:GetTowerExp(towerName)
     if not towerName or towerName == "" then return nil end
 
     local expCache = getCacheValue("TowerExp") or {}
     local currentExp = expCache[towerName] or 0
 
-    local staticData = towerProgressionStaticCache[towerName]
-    if not staticData then
-        local baseExp = 50
-        local growthRate = 1.09
-        local maxLevel = 20
-        local evolvedTo = nil
+    local baseExp = 50
+    local growthRate = 1.09
+    local maxLevel = 20
+    local evolvedTo = nil
 
-        if Content then
-            local ok, towerFolder = pcall(Content, "Tower")
-            if ok and towerFolder then
-                local towerInst = towerFolder:FindFirstChild(towerName)
-                local stats = towerInst and towerInst:FindFirstChild("Stats")
-                if stats and stats:IsA("ModuleScript") then
-                    local success, mod = pcall(require, stats)
-                    if success and mod and mod.Properties and mod.Properties.Progression then
-                        local prog = mod.Properties.Progression
-                        baseExp = prog.BaseExp or baseExp
-                        growthRate = prog.GrowthRate or growthRate
-                        maxLevel = prog.MaxLevel or maxLevel
-                        evolvedTo = mod.Properties.EvolvedTo
-                    end
+    if Content then
+        local ok, towerFolder = pcall(Content, "Tower")
+        if ok and towerFolder then
+            local towerInst = towerFolder:FindFirstChild(towerName)
+            local stats = towerInst and towerInst:FindFirstChild("Stats")
+            if stats and stats:IsA("ModuleScript") then
+                local success, mod = pcall(require, stats)
+                if success and mod and mod.Properties and mod.Properties.Progression then
+                    local prog = mod.Properties.Progression
+                    baseExp = prog.BaseExp or baseExp
+                    growthRate = prog.GrowthRate or growthRate
+                    maxLevel = prog.MaxLevel or maxLevel
+                    evolvedTo = mod.Properties.EvolvedTo
                 end
             end
         end
-
-        staticData = {
-            baseExp = baseExp,
-            growthRate = growthRate,
-            maxLevel = maxLevel,
-            evolvedTo = evolvedTo,
-        }
-        towerProgressionStaticCache[towerName] = staticData
     end
 
-    local statsData = calculateExpStats(currentExp, staticData.baseExp, staticData.growthRate, staticData.maxLevel)
+    local statsData = calculateExpStats(currentExp, baseExp, growthRate, maxLevel)
 
     return {
         Name = tostring(towerName),
         Exp = currentExp,
         Level = statsData.level,
-        MaxLevel = staticData.maxLevel,
+        MaxLevel = maxLevel,
         MaxExp = statsData.totalRequiredForMax,
         CurrentProgress = statsData.currentProgress,
         RequiredForNext = statsData.nextLevelCost,
@@ -731,7 +514,7 @@ function CombinedData:GetTowerExp(towerName)
         OverallDisplay = statsData.overallDisplay or tostring(currentExp),
         UncappedLevel = statsData.uncappedLevel,
         IsMaxLevel = statsData.isMax,
-        EvolvedTo = staticData.evolvedTo
+        EvolvedTo = evolvedTo
     }
 end
 
@@ -772,610 +555,215 @@ local function getLobbyHud()
 end
 
 function CombinedData:GetLevel()
-    local lvl = nil
+    -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
+    local pss = getPlayerStatsStore()
+    if pss and type(pss.getLevel) == "function" then
+        local ok, lvl = pcall(pss.getLevel)
+        if ok and lvl ~= nil and tonumber(lvl) and tonumber(lvl) > 0 then
+            return tonumber(lvl), tostring(lvl)
+        end
+    end
 
-    -- 1. Direct LocalPlayer ValueBase (Level) - Always instant & live in match & lobby
+    -- 2. Direct Cache lookup (Values.Level)
+    local lvl = getStat("Values.Level")
+    if lvl ~= nil and tonumber(lvl) then
+        return tonumber(lvl), tostring(lvl)
+    end
+
+    -- 3. Fallback: Lobby HUD TextLabel
+    local hud = getLobbyHud()
+    if hud then
+        local curLvl = hud:FindFirstChild("currentLevel", true)
+            or (hud:FindFirstChild("Frame", true) and hud.Frame:FindFirstChild("centerElements", true) and hud.Frame.centerElements:FindFirstChild("level", true) and hud.Frame.centerElements.level:FindFirstChild("content", true) and hud.Frame.centerElements.level.content:FindFirstChild("currentLevel", true))
+
+        if curLvl and curLvl:IsA("TextLabel") then
+            local txt = curLvl.Text
+            return parseNumber(txt), txt
+        end
+    end
+
+    -- 4. Fallback: LocalPlayer ValueBase
     local lp = getLocalPlayer()
     if lp then
         local val = lp:FindFirstChild("Level")
         if val and val:IsA("ValueBase") then
-            local num = tonumber(val.Value) or parseNumber(val.Value)
-            if num and num > 0 then
-                lvl = num
-            end
+            local v = val.Value
+            return tonumber(v) or parseNumber(v), tostring(v)
         end
-    end
-
-    -- 2. Check PlayerStatsStore (Official Client Store: getLevel())
-    if not lvl then
-        local store = getPlayerStatsStore()
-        if store and type(store.getLevel) == "function" then
-            local ok, val = pcall(store.getLevel)
-            if ok and val ~= nil and tonumber(val) and tonumber(val) > 0 then
-                lvl = tonumber(val)
-            end
-        end
-    end
-
-    -- 3. Check PlayerController (LegacyInterface Controller: getLevel())
-    if not lvl then
-        local ctrl = getPlayerController()
-        if ctrl and type(ctrl.getLevel) == "function" then
-            local ok, val = pcall(function() return ctrl:getLevel() end)
-            if ok and val ~= nil and tonumber(val) and tonumber(val) > 0 then
-                lvl = tonumber(val)
-            end
-        end
-    end
-
-    -- 4. Direct Cache lookup (Values.Level or Values table atom)
-    if not lvl then
-        local val = getStat("Values.Level")
-        if val ~= nil and tonumber(val) and tonumber(val) > 0 then
-            lvl = tonumber(val)
-        else
-            local curCache = getCache()
-            if curCache then
-                pcall(function()
-                    local vAtom = curCache("Values")
-                    if vAtom and type(vAtom.GetValue) == "function" then
-                        local vTable = vAtom:GetValue()
-                        if vTable and vTable.Level ~= nil and tonumber(vTable.Level) and tonumber(vTable.Level) > 0 then
-                            lvl = tonumber(vTable.Level)
-                        end
-                    end
-                end)
-            end
-        end
-    end
-
-    -- 5. Fallback: LocalPlayer leaderstats
-    if not lvl then
-        local lp = getLocalPlayer()
-        local ls = lp and lp:FindFirstChild("leaderstats")
-        if ls then
-            local val = ls:FindFirstChild("Level")
-            if val and val:IsA("ValueBase") then
-                local num = tonumber(val.Value) or parseNumber(val.Value)
-                if num and num > 0 then
-                    lvl = num
-                end
-            end
-        end
-    end
-
-    -- 6. Fallback: StateReplicators PlayerReplicator attribute
-    if not lvl then
-        pcall(function()
-            local reps = ReplicatedStorage:FindFirstChild("StateReplicators")
-            if reps then
-                local lp = getLocalPlayer()
-                local myId = lp and lp.UserId
-                for _, r in ipairs(reps:GetChildren()) do
-                    if r.Name == "PlayerReplicator" and (not myId or r:GetAttribute("UserId") == myId) then
-                        local attrLvl = r:GetAttribute("Level")
-                        if attrLvl and tonumber(attrLvl) and tonumber(attrLvl) > 0 then
-                            lvl = tonumber(attrLvl)
-                            break
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-    -- 7. Fallback: Lobby HUD TextLabel
-    if not lvl then
-        local hud = getLobbyHud()
-        if hud then
-            local curLvl = hud:FindFirstChild("currentLevel", true)
-                or (hud:FindFirstChild("Frame", true) and hud.Frame:FindFirstChild("centerElements", true) and hud.Frame.centerElements:FindFirstChild("level", true) and hud.Frame.centerElements.level:FindFirstChild("content", true) and hud.Frame.centerElements.level.content:FindFirstChild("currentLevel", true))
-
-            if curLvl and curLvl:IsA("TextLabel") then
-                local txt = curLvl.Text
-                local num = parseNumber(txt)
-                if num and num > 0 then
-                    lvl = num
-                end
-            end
-        end
-    end
-
-    if lvl and lvl > 0 then
-        statsEnv.Level = lvl
-        return lvl, tostring(lvl)
-    end
-
-    if statsEnv.Level and statsEnv.Level > 0 then
-        return statsEnv.Level, tostring(statsEnv.Level)
     end
 
     return 0, "0"
 end
 
 function CombinedData:GetCoins()
-    local coins = nil
+    -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
+    local pss = getPlayerStatsStore()
+    if pss and type(pss.getCoins) == "function" then
+        local ok, coins = pcall(pss.getCoins)
+        if ok and coins ~= nil and tonumber(coins) then
+            return tonumber(coins), tostring(coins)
+        end
+    end
 
-    -- 1. Direct LocalPlayer ValueBase (Coins or Gold or Cash) - Always instant & live in match & lobby
+    -- 2. Direct Cache lookup (Values.Coins)
+    local coins = getStat("Values.Coins")
+    if coins ~= nil and tonumber(coins) then
+        return tonumber(coins), tostring(coins)
+    end
+
+    -- 3. Fallback: Lobby HUD TextLabel
+    local hud = getLobbyHud()
+    if hud then
+        local path = {"Frame", "leftElements", "currencies", "coins", "content", "currency", "currencyValue"}
+        local node = hud
+        for _, child in ipairs(path) do
+            node = node:FindFirstChild(child, true) or (node and node:FindFirstChild(child))
+            if not node then break end
+        end
+        if node and node:IsA("TextLabel") then
+            local txt = node.Text
+            return parseNumber(txt), txt
+        end
+    end
+
+    -- 4. Fallback: LocalPlayer ValueBase
     local lp = getLocalPlayer()
     if lp then
-        local val = lp:FindFirstChild("Coins") or lp:FindFirstChild("Gold") or lp:FindFirstChild("Cash")
+        local val = lp:FindFirstChild("Coins") or lp:FindFirstChild("Gold")
         if val and val:IsA("ValueBase") then
-            coins = tonumber(val.Value) or parseNumber(val.Value)
+            local v = val.Value
+            return tonumber(v) or parseNumber(v), tostring(v)
         end
-    end
-
-    -- 2. Check PlayerStatsStore (getCoins())
-    if not coins then
-        local store = getPlayerStatsStore()
-        if store and type(store.getCoins) == "function" then
-            local ok, val = pcall(store.getCoins)
-            if ok and val ~= nil and tonumber(val) then
-                coins = tonumber(val)
-            end
-        end
-    end
-
-    -- 3. Check PlayerController (getCoins())
-    if not coins then
-        local ctrl = getPlayerController()
-        if ctrl and type(ctrl.getCoins) == "function" then
-            local ok, val = pcall(function() return ctrl:getCoins() end)
-            if ok and val ~= nil and tonumber(val) then
-                coins = tonumber(val)
-            end
-        end
-    end
-
-    -- 4. Direct Cache lookup (Values.Coins or Values table atom)
-    if not coins then
-        local val = getStat("Values.Coins")
-        if val ~= nil and tonumber(val) then
-            coins = tonumber(val)
-        else
-            local curCache = getCache()
-            if curCache then
-                pcall(function()
-                    local vAtom = curCache("Values")
-                    if vAtom and type(vAtom.GetValue) == "function" then
-                        local vTable = vAtom:GetValue()
-                        if vTable and vTable.Coins ~= nil and tonumber(vTable.Coins) then
-                            coins = tonumber(vTable.Coins)
-                        end
-                    end
-                end)
-            end
-        end
-    end
-
-    -- 5. Fallback: LocalPlayer leaderstats
-    if not coins then
-        local lp = getLocalPlayer()
-        local ls = lp and lp:FindFirstChild("leaderstats")
-        if ls then
-            local val = ls:FindFirstChild("Coins") or ls:FindFirstChild("Gold") or ls:FindFirstChild("Cash")
-            if val and val:IsA("ValueBase") then
-                coins = tonumber(val.Value) or parseNumber(val.Value)
-            end
-        end
-    end
-
-    -- 6. Fallback: StateReplicators PlayerReplicator attribute
-    if not coins then
-        pcall(function()
-            local reps = ReplicatedStorage:FindFirstChild("StateReplicators")
-            if reps then
-                local lp = getLocalPlayer()
-                local myId = lp and lp.UserId
-                for _, r in ipairs(reps:GetChildren()) do
-                    if r.Name == "PlayerReplicator" and (not myId or r:GetAttribute("UserId") == myId) then
-                        local attrCoins = r:GetAttribute("Coins")
-                        if attrCoins and tonumber(attrCoins) then
-                            coins = tonumber(attrCoins)
-                            break
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-    -- 7. Fallback: Lobby HUD TextLabel
-    if not coins then
-        local hud = getLobbyHud()
-        if hud then
-            local path = {"Frame", "leftElements", "currencies", "coins", "content", "currency", "currencyValue"}
-            local node = hud
-            for _, child in ipairs(path) do
-                node = node:FindFirstChild(child, true) or (node and node:FindFirstChild(child))
-                if not node then break end
-            end
-            if node and node:IsA("TextLabel") then
-                coins = parseNumber(node.Text)
-            end
-        end
-    end
-
-    if coins and coins >= 0 then
-        statsEnv.Coins = coins
-        return coins, tostring(coins)
-    end
-
-    if statsEnv.Coins and statsEnv.Coins >= 0 then
-        return statsEnv.Coins, tostring(statsEnv.Coins)
     end
 
     return 0, "0"
 end
 
 function CombinedData:GetGems()
-    local gems = nil
+    -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
+    local pss = getPlayerStatsStore()
+    if pss and type(pss.getGems) == "function" then
+        local ok, gems = pcall(pss.getGems)
+        if ok and gems ~= nil and tonumber(gems) then
+            return tonumber(gems), tostring(gems)
+        end
+    end
 
-    -- 1. Direct LocalPlayer ValueBase (Gems or Diamonds) - Always instant & live in match & lobby
+    -- 2. Direct Cache lookup (Values.Gems)
+    local gems = getStat("Values.Gems")
+    if gems ~= nil and tonumber(gems) then
+        return tonumber(gems), tostring(gems)
+    end
+
+    -- 3. Fallback: Lobby HUD TextLabel
+    local hud = getLobbyHud()
+    if hud then
+        local path = {"Frame", "leftElements", "currencies", "gems", "content", "currency", "currencyValue"}
+        local node = hud
+        for _, child in ipairs(path) do
+            node = node:FindFirstChild(child, true) or (node and node:FindFirstChild(child))
+            if not node then break end
+        end
+        if node and node:IsA("TextLabel") then
+            local txt = node.Text
+            return parseNumber(txt), txt
+        end
+    end
+
+    -- 4. Fallback: LocalPlayer ValueBase
     local lp = getLocalPlayer()
     if lp then
         local val = lp:FindFirstChild("Gems") or lp:FindFirstChild("Diamonds")
         if val and val:IsA("ValueBase") then
-            gems = tonumber(val.Value) or parseNumber(val.Value)
+            local v = val.Value
+            return tonumber(v) or parseNumber(v), tostring(v)
         end
-    end
-
-    -- 2. Check PlayerStatsStore (getGems())
-    if not gems then
-        local store = getPlayerStatsStore()
-        if store and type(store.getGems) == "function" then
-            local ok, val = pcall(store.getGems)
-            if ok and val ~= nil and tonumber(val) then
-                gems = tonumber(val)
-            end
-        end
-    end
-
-    -- 3. Check PlayerController (getGems())
-    if not gems then
-        local ctrl = getPlayerController()
-        if ctrl and type(ctrl.getGems) == "function" then
-            local ok, val = pcall(function() return ctrl:getGems() end)
-            if ok and val ~= nil and tonumber(val) then
-                gems = tonumber(val)
-            end
-        end
-    end
-
-    -- 4. Direct Cache lookup (Values.Gems or Values table atom)
-    if not gems then
-        local val = getStat("Values.Gems")
-        if val ~= nil and tonumber(val) then
-            gems = tonumber(val)
-        else
-            local curCache = getCache()
-            if curCache then
-                pcall(function()
-                    local vAtom = curCache("Values")
-                    if vAtom and type(vAtom.GetValue) == "function" then
-                        local vTable = vAtom:GetValue()
-                        if vTable and vTable.Gems ~= nil and tonumber(vTable.Gems) then
-                            gems = tonumber(vTable.Gems)
-                        end
-                    end
-                end)
-            end
-        end
-    end
-
-    -- 5. Fallback: LocalPlayer leaderstats
-    if not gems then
-        local lp = getLocalPlayer()
-        local ls = lp and lp:FindFirstChild("leaderstats")
-        if ls then
-            local val = ls:FindFirstChild("Gems") or ls:FindFirstChild("Diamonds")
-            if val and val:IsA("ValueBase") then
-                gems = tonumber(val.Value) or parseNumber(val.Value)
-            end
-        end
-    end
-
-    -- 6. Fallback: StateReplicators PlayerReplicator attribute
-    if not gems then
-        pcall(function()
-            local reps = ReplicatedStorage:FindFirstChild("StateReplicators")
-            if reps then
-                local lp = getLocalPlayer()
-                local myId = lp and lp.UserId
-                for _, r in ipairs(reps:GetChildren()) do
-                    if r.Name == "PlayerReplicator" and (not myId or r:GetAttribute("UserId") == myId) then
-                        local attrGems = r:GetAttribute("Gems")
-                        if attrGems and tonumber(attrGems) then
-                            gems = tonumber(attrGems)
-                            break
-                        end
-                    end
-                end
-            end
-        end)
-    end
-
-    -- 7. Fallback: Lobby HUD TextLabel
-    if not gems then
-        local hud = getLobbyHud()
-        if hud then
-            local path = {"Frame", "leftElements", "currencies", "gems", "content", "currency", "currencyValue"}
-            local node = hud
-            for _, child in ipairs(path) do
-                node = node:FindFirstChild(child, true) or (node and node:FindFirstChild(child))
-                if not node then break end
-            end
-            if node and node:IsA("TextLabel") then
-                gems = parseNumber(node.Text)
-            end
-        end
-    end
-
-    if gems and gems >= 0 then
-        statsEnv.Gems = gems
-        return gems, tostring(gems)
-    end
-
-    if statsEnv.Gems and statsEnv.Gems >= 0 then
-        return statsEnv.Gems, tostring(statsEnv.Gems)
     end
 
     return 0, "0"
 end
 
---- Calculates Required XP and Remaining XP for a given level and current XP.
--- Player XP requirements match the official TDS Experience curve:
---   Base: 10 + 35 * (1 + targetLevel / 10)
---   Level > 10: -80 + 80 * (1 + targetLevel / 10)
---   Level > 40: 245 + 15 * (1 + targetLevel / 10)
--- @param level number? Optional player level (defaults to current player level)
--- @param exp number? Optional player EXP (defaults to current player EXP)
--- @return number requiredExp, number remainingExp
-function CombinedData:CalculatePlayerExp(level, exp)
-    level = tonumber(level) or (self:GetLevel() or 0)
-    if exp == nil then
-        local liveExp = self:GetPlayerExp()
-        exp = liveExp or 0
-    else
-        exp = tonumber(exp) or 0
-    end
-
-    local expFn = getExperience()
-    local requiredExp = nil
-    if expFn then
-        local ok, nExp = pcall(expFn, level + 1)
-        if ok and type(nExp) == "number" and nExp > 0 then
-            requiredExp = nExp
-        end
-    end
-
-    -- Exact TDS formula fallback if module is unloaded in match
-    if not requiredExp then
-        local targetLvl = level + 1
-        local v1 = 10 + 35 * (1 + targetLvl / 10)
-        if targetLvl > 40 then
-            v1 = 245 + 15 * (1 + targetLvl / 10)
-        elseif targetLvl > 10 then
-            v1 = -80 + 80 * (1 + targetLvl / 10)
-        end
-        requiredExp = math.floor(v1 + 0.5)
-    end
-
-    local remainingExp = math.max(0, requiredExp - exp)
-    return requiredExp, remainingExp
-end
-
---- Returns the required XP for next level
--- @param level number? Optional player level (defaults to current player level)
--- @return number requiredExp
-function CombinedData:GetRequiredExp(level)
-    local requiredExp, _ = self:CalculatePlayerExp(level, 0)
-    return requiredExp
-end
-
---- Returns the remaining XP needed to reach next level: max(0, RequiredXP - XP)
--- @param level number? Optional player level (defaults to current player level)
--- @param exp number? Optional player EXP (defaults to current player EXP)
--- @return number remainingExp
-function CombinedData:GetRemainingExp(level, exp)
-    local _, remainingExp = self:CalculatePlayerExp(level, exp)
-    return remainingExp
-end
-
---- Returns current player EXP, required EXP for next level, formatted string, and remaining EXP
--- Return values:
---   1. exp (number)          - Current player XP
---   2. requiredExp (number)  - XP required for (level + 1)
---   3. expDisplay (string)   - Formatted string "exp / requiredExp"
---   4. remainingExp (number) - XP remaining to reach next level
+--- Returns current player EXP, required EXP for next level, and formatted string
 function CombinedData:GetPlayerExp()
-    local level = self:GetLevel() or 0
+    -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
     local exp = nil
-
-    -- 1. Direct LocalPlayer ValueBase (Experience or Exp) - Always instant & live in match & lobby
-    local lp = getLocalPlayer()
-    if lp then
-        local val = lp:FindFirstChild("Experience") or lp:FindFirstChild("Exp")
-        if val and val:IsA("ValueBase") then
-            local v = val.Value
-            if v ~= nil then
-                exp = tonumber(v) or parseNumber(v)
-            end
+    local pss = getPlayerStatsStore()
+    if pss and type(pss.getExperience) == "function" then
+        local ok, e = pcall(pss.getExperience)
+        if ok and e ~= nil and tonumber(e) then
+            exp = tonumber(e)
         end
     end
 
-    -- 2. Check PlayerStatsStore (Official Client Store: getExperience())
+    -- 2. Direct Cache lookup (Values.Experience)
     if exp == nil then
-        local store = getPlayerStatsStore()
-        if store then
-            if type(store.getExperience) == "function" then
-                local ok, val = pcall(store.getExperience)
-                if ok and val ~= nil and tonumber(val) then
-                    exp = tonumber(val)
-                end
-            end
-            if exp == nil and type(store.getState) == "function" then
-                local ok, state = pcall(store.getState)
-                if ok and type(state) == "table" and state.experience ~= nil and tonumber(state.experience) then
-                    exp = tonumber(state.experience)
-                end
-            end
+        local cachedExp = getStat("Values.Experience")
+        if cachedExp ~= nil and tonumber(cachedExp) then
+            exp = tonumber(cachedExp)
         end
     end
 
-    -- 3. Check PlayerController (LegacyInterface Controller: getExperience())
-    if exp == nil then
-        local ctrl = getPlayerController()
-        if ctrl and type(ctrl.getExperience) == "function" then
-            local ok, val = pcall(function() return ctrl:getExperience() end)
-            if ok and val ~= nil and tonumber(val) then
-                exp = tonumber(val)
-            end
-        end
-    end
-
-    -- 4. Check Cache ("Values.Experience" or parent Values table)
-    if exp == nil then
-        local statExp = getStat("Values.Experience")
-        if statExp ~= nil and tonumber(statExp) then
-            exp = tonumber(statExp)
-        else
-            local curCache = getCache()
-            if curCache then
-                pcall(function()
-                    local vAtom = curCache("Values")
-                    if vAtom and type(vAtom.GetValue) == "function" then
-                        local vTable = vAtom:GetValue()
-                        if vTable and vTable.Experience ~= nil and tonumber(vTable.Experience) then
-                            exp = tonumber(vTable.Experience)
-                        end
-                    end
-                end)
-            end
-        end
-    end
-
-    -- 5. Fallback: LocalPlayer leaderstats
+    -- 3. Fallback: LocalPlayer ValueBase
     if exp == nil then
         local lp = getLocalPlayer()
-        local ls = lp and lp:FindFirstChild("leaderstats")
-        if ls then
-            local val = ls:FindFirstChild("Experience") or ls:FindFirstChild("Exp")
+        if lp then
+            local val = lp:FindFirstChild("Experience")
             if val and val:IsA("ValueBase") then
-                local v = val.Value
-                if v ~= nil then
-                    exp = tonumber(v) or parseNumber(v)
-                end
+                exp = tonumber(val.Value)
             end
         end
     end
 
-    -- 6. Fallback: StateReplicators PlayerReplicator attribute
-    if exp == nil then
+    exp = exp or 0
+
+    local level = self:GetLevel() or 0
+    local nextLevelExp = 0
+
+    if not Experience then
         pcall(function()
-            local reps = ReplicatedStorage:FindFirstChild("StateReplicators")
-            if reps then
-                local lp = getLocalPlayer()
-                local myId = lp and lp.UserId
-                for _, r in ipairs(reps:GetChildren()) do
-                    if r.Name == "PlayerReplicator" and (not myId or r:GetAttribute("UserId") == myId) then
-                        local attrExp = r:GetAttribute("Experience")
-                        if attrExp and tonumber(attrExp) then
-                            exp = tonumber(attrExp)
-                            break
-                        end
-                    end
-                end
-            end
+            Experience = require(ReplicatedStorage.Shared.Modules.Experience)
         end)
     end
 
-    -- 7. Fallback: Lobby HUD TextLabel (LevelBar currentExp label: e.g. "400 Exp")
-    if exp == nil then
-        local pgui = getPlayerGui(2)
-        if pgui then
-            local expLabel = pgui:FindFirstChild("currentExp", true)
-            if expLabel and expLabel:IsA("TextLabel") then
-                exp = parseNumber(expLabel.Text)
+    if Experience then
+        local ok, nExp = pcall(Experience, level + 1)
+        if ok and nExp then
+            nextLevelExp = nExp
+        end
+
+        -- Seamless rollover when EXP reaches or exceeds level threshold (e.g. 1524/1520 -> Lvl +1, 4/1522)
+        while nextLevelExp and nextLevelExp > 0 and exp >= nextLevelExp do
+            level = level + 1
+            exp = exp - nextLevelExp
+            local okNext, higherExp = pcall(Experience, level + 1)
+            if okNext and higherExp then
+                nextLevelExp = higherExp
+            else
+                break
             end
         end
     end
 
-    if exp and exp >= 0 then
-        statsEnv.Exp = exp
-    elseif statsEnv.Exp and statsEnv.Exp >= 0 then
-        exp = statsEnv.Exp
-    else
-        exp = 0
-    end
-
-    local expFn = getExperience()
-    local requiredExp = nil
-    if expFn then
-        local ok, nExp = pcall(expFn, level + 1)
-        if ok and type(nExp) == "number" and nExp > 0 then
-            requiredExp = nExp
-        end
-    end
-
-    if not requiredExp then
-        local targetLvl = level + 1
-        local v1 = 10 + 35 * (1 + targetLvl / 10)
-        if targetLvl > 40 then
-            v1 = 245 + 15 * (1 + targetLvl / 10)
-        elseif targetLvl > 10 then
-            v1 = -80 + 80 * (1 + targetLvl / 10)
-        end
-        requiredExp = math.floor(v1 + 0.5)
-    end
-
-    local remainingExp = math.max(0, requiredExp - exp)
-    local expDisplay = string.format("%d / %d", exp, requiredExp)
-
-    return exp, requiredExp, expDisplay, remainingExp
+    return exp, nextLevelExp, string.format("%d / %d", exp, nextLevelExp), level
 end
 
---- Returns a table containing Level, EXP, RequiredExp, RemainingExp, Coins, and Gems
+--- Returns a table containing Level, EXP, NextLevelExp, Coins, and Gems
 function CombinedData:GetPlayerStats()
-    local level = self:GetLevel()
-    local exp, requiredExp, expDisplay, remainingExp = self:GetPlayerExp()
+    local exp, nextLevelExp, expDisplay, normalizedLevel = self:GetPlayerExp()
+    local level = normalizedLevel or self:GetLevel()
     local coins = self:GetCoins()
     local gems = self:GetGems()
-
-    local wins = nil
-    local loses = nil
-    local triumphs = nil
-    local store = getPlayerStatsStore()
-    if store and type(store.getState) == "function" then
-        local ok, state = pcall(store.getState)
-        if ok and type(state) == "table" then
-            wins = state.wins
-            loses = state.loses
-            triumphs = state.triumphs
-        end
-    end
 
     return {
         Level = level,
         Exp = exp,
-        RequiredExp = requiredExp,
-        NextLevelExp = requiredExp, -- backwards compatibility alias
-        RemainingExp = remainingExp,
-        ExpNeeded = remainingExp,   -- alias for convenience
+        NextLevelExp = nextLevelExp,
         ExpDisplay = expDisplay,
         Coins = coins,
-        Gems = gems,
-        Wins = wins,
-        Loses = loses,
-        Triumphs = triumphs
+        Gems = gems
     }
 end
 
---- Calculates XP progression towards a target level.
--- Accounts for the current level's progress and all intermediate level costs.
--- @param targetLevel number Target level (e.g. 25, 300)
--- @param currentLevel number? Optional (defaults to current player level)
--- @param currentExp number? Optional (defaults to current player EXP)
 --- Returns the required XP for a specific level using official Experience module or mathematical formula
 function CombinedData:GetRequiredExpForLevel(lvl)
     lvl = tonumber(lvl) or 1
@@ -1396,7 +784,7 @@ end
 
 --- Calculates XP progression towards a target level.
 -- Computes total cumulative account EXP earned vs total cumulative EXP required for targetLevel.
--- @param targetLevel number Target level (defaults to 400)
+-- @param targetLevel number Target level (0 = infinite / next level only)
 -- @param currentLevel number? Optional (defaults to current player level)
 -- @param currentExp number? Optional (defaults to current player EXP)
 -- @return table info Detailed progress table
@@ -1408,7 +796,26 @@ function CombinedData:GetTargetLevelProgress(targetLevel, currentLevel, currentE
     else
         currentExp = tonumber(currentExp) or 0
     end
-    targetLevel = tonumber(targetLevel) or 400
+    targetLevel = tonumber(targetLevel) or 0
+
+    local nextLevelReq = self:GetRequiredExpForLevel(currentLevel + 1)
+    local nextLevelRem = math.max(0, nextLevelReq - currentExp)
+
+    if targetLevel <= 0 then
+        return {
+            CurrentLevel = currentLevel,
+            TargetLevel = 0,
+            CurrentExp = currentExp,
+            NextLevelReq = nextLevelReq,
+            NextLevelRem = nextLevelRem,
+            TotalEarnedExp = currentExp,
+            TotalTargetExp = 0,
+            TotalRemaining = 0,
+            Percent = 1,
+            IsReached = false,
+            Display = string.format("Level: %d / 0 | Requires: %d / 0", currentLevel, currentExp)
+        }
+    end
 
     -- 1. Calculate total EXP required to reach targetLevel from level 0
     local totalTargetExp = 0
@@ -1427,12 +834,6 @@ function CombinedData:GetTargetLevelProgress(targetLevel, currentLevel, currentE
     local percent = (totalTargetExp > 0) and math.clamp(totalEarnedExp / totalTargetExp, 0, 1) or 1
     local levelsLeft = math.max(0, targetLevel - currentLevel)
 
-    local nextLevelReq = self:GetRequiredExpForLevel(currentLevel + 1)
-    local nextLevelRem = math.max(0, nextLevelReq - currentExp)
-
-    local targetDisplay = string.format("%d / %d EXP", totalEarnedExp, totalTargetExp)
-    local nextLevelDisplay = string.format("Level %d [%d / %d] Level %d", currentLevel, currentExp, nextLevelReq, currentLevel + 1)
-
     return {
         CurrentLevel = currentLevel,
         CurrentExp = currentExp,
@@ -1442,36 +843,16 @@ function CombinedData:GetTargetLevelProgress(targetLevel, currentLevel, currentE
         TotalTargetExp = totalTargetExp,
         TotalRemaining = totalRemaining,
         Percent = percent,
-        Display = targetDisplay,
         NextLevelReq = nextLevelReq,
         NextLevelRem = nextLevelRem,
-        NextLevelDisplay = nextLevelDisplay,
-        IsReached = currentLevel >= targetLevel
+        IsReached = currentLevel >= targetLevel,
+        Display = string.format("Level: %d / %d | Requires: %d / %d", currentLevel, targetLevel, totalEarnedExp, totalTargetExp)
     }
 end
 
---- Quick helper returning: (totalExpRemaining, nextLevelRemaining, nextLevelCost, fullData)
 function CombinedData:GetExpToTarget(targetLevel, currentLevel, currentExp)
     local data = self:GetTargetLevelProgress(targetLevel, currentLevel, currentExp)
     return data.TotalRemaining, data.NextLevelRem, data.NextLevelReq, data
-end
-
---- Formats a single clean summary line for console output or UI labels
-function CombinedData:FormatTargetLevelProgress(targetLevel, currentLevel, currentExp)
-    local data = self:GetTargetLevelProgress(targetLevel, currentLevel, currentExp)
-    if data.IsReached then
-        return string.format("Level %d [Target %d Reached!] | Total EXP: %d", data.CurrentLevel, data.TargetLevel, data.TotalEarnedExp)
-    end
-
-    return string.format(
-        "Level %d | Total EXP: %s (%.1f%%) | Target: Level %d (%d levels left) | Remaining: %d EXP",
-        data.CurrentLevel,
-        data.Display,
-        data.Percent * 100,
-        data.TargetLevel,
-        data.LevelsLeft,
-        data.TotalRemaining
-    )
 end
 
 -- ---------------------------------------------------------------------
@@ -1479,81 +860,72 @@ end
 -- ---------------------------------------------------------------------
 local skillTreeCacheFile = "ProjectOptimazation/CachedSkillTree.json"
 local inMemorySkillTreeCache = {}
-local lastSkillTreeDiskWrite = 0
-local lastSkillTreeJson = ""
 
 function CombinedData:GetSkillTree()
     local list = {}
     for i = 1, 17 do
-        pcall(function()
-            local tile = Workspace:FindFirstChild(tostring(i))
-            if tile then
-                local surfaceGui = tile:FindFirstChild("TileSurfaceGui")
-                if surfaceGui then
-                    local frame = surfaceGui:FindFirstChild("Frame")
-                    if frame then
-                        local nameLabel  = frame:FindFirstChild("SkillName")
-                        local levelLabel = frame:FindFirstChild("SkillLevel")
+        local tile = Workspace:FindFirstChild(tostring(i))
+        if tile then
+            local surfaceGui = tile:FindFirstChild("TileSurfaceGui")
+            if surfaceGui then
+                local frame = surfaceGui:FindFirstChild("Frame")
+                if frame then
+                    local nameLabel  = frame:FindFirstChild("SkillName")
+                    local levelLabel = frame:FindFirstChild("SkillLevel")
 
-                        local name = nameLabel and nameLabel:IsA("TextLabel") and nameLabel.Text or ("Skill #" .. i)
-                        local lvlStr = levelLabel and levelLabel:IsA("TextLabel") and levelLabel.Text or "0"
+                    local name = nameLabel and nameLabel:IsA("TextLabel") and nameLabel.Text or ("Skill #" .. i)
+                    local lvlStr = levelLabel and levelLabel:IsA("TextLabel") and levelLabel.Text or "0"
 
-                        local formattedLvl = lvlStr
-                        local numericLvl = parseNumber(lvlStr)
-                        local maxLvl = nil
-                        local isMaxed = false
+                    local formattedLvl = lvlStr
+                    local numericLvl = parseNumber(lvlStr)
+                    local maxLvl = nil
+                    local isMaxed = false
 
-                        local curMatch, maxMatch = lvlStr:match("(%d+)%s*/%s*(%d+)")
-                        if curMatch and maxMatch then
-                            numericLvl = tonumber(curMatch) or numericLvl
-                            maxLvl = tonumber(maxMatch)
-                            if numericLvl >= maxLvl then
-                                isMaxed = true
-                            end
-                        end
-
-                        if string.upper(lvlStr):find("MAX") then
+                    local curMatch, maxMatch = lvlStr:match("(%d+)%s*/%s*(%d+)")
+                    if curMatch and maxMatch then
+                        numericLvl = tonumber(curMatch) or numericLvl
+                        maxLvl = tonumber(maxMatch)
+                        if numericLvl >= maxLvl then
                             isMaxed = true
-                            local numInFmt = string.upper(lvlStr):match("(%d+)")
-                            if numInFmt then
-                                maxLvl = tonumber(numInFmt) or maxLvl
-                                if numericLvl == 0 or numericLvl < (maxLvl or 0) then
-                                    numericLvl = maxLvl or numericLvl
-                                end
-                            end
-                            formattedLvl = "MAX" .. (numericLvl > 0 and numericLvl or "")
                         end
-
-                        table.insert(list, {
-                            Id = tostring(i),
-                            Name = name,
-                            Level = numericLvl,
-                            MaxLevel = maxLvl,
-                            IsMaxed = isMaxed,
-                            LevelFormatted = formattedLvl,
-                        })
                     end
+
+                    if string.upper(lvlStr):find("MAX") then
+                        isMaxed = true
+                        local numInFmt = string.upper(lvlStr):match("(%d+)")
+                        if numInFmt then
+                            maxLvl = tonumber(numInFmt) or maxLvl
+                            if numericLvl == 0 or numericLvl < (maxLvl or 0) then
+                                numericLvl = maxLvl or numericLvl
+                            end
+                        end
+                        formattedLvl = "MAX" .. (numericLvl > 0 and numericLvl or "")
+                    end
+
+                    table.insert(list, {
+                        Id = tostring(i),
+                        Name = name,
+                        Level = numericLvl,
+                        MaxLevel = maxLvl,
+                        IsMaxed = isMaxed,
+                        LevelFormatted = formattedLvl,
+                    })
                 end
             end
-        end)
+        end
     end
 
     if #list > 0 then
         inMemorySkillTreeCache = list
-        local now = os.time()
-        if now - lastSkillTreeDiskWrite >= 60 then
-            lastSkillTreeDiskWrite = now
-            pcall(function()
-                if writefile and HttpService then
-                    local encoded = HttpService:JSONEncode(list)
-                    if encoded ~= lastSkillTreeJson then
-                        lastSkillTreeJson = encoded
-                        pcall(writefile, "[ATF]/CachedSkillTree.json", encoded)
-                        pcall(writefile, skillTreeCacheFile, encoded)
-                    end
-                end
-            end)
-        end
+        pcall(function()
+            if writefile and HttpService then
+                local encoded = HttpService:JSONEncode(list)
+                pcall(writefile, "[SomethingNew]/userskilltree.json", encoded)
+                pcall(writefile, "userskilltree.json", encoded)
+                pcall(writefile, "[ATF]/CachedSkillTree.json", encoded)
+                pcall(writefile, skillTreeCacheFile, encoded)
+            end
+        end)
         return list
     end
 
@@ -1562,6 +934,9 @@ function CombinedData:GetSkillTree()
     end
 
     local cacheCandidates = {
+        "[SomethingNew]/userskilltree.json",
+        "[SomethingNew]\\userskilltree.json",
+        "userskilltree.json",
         "[ATF]/CachedSkillTree.json",
         "[ATF]\\CachedSkillTree.json",
         skillTreeCacheFile,
@@ -1683,279 +1058,8 @@ function CombinedData:CheckRequirements(requirements)
         end
     end
 
-    -- 8. Check Story Mode / Boot Camp Requirements
-    local storyReq = requirements.StoryMode or requirements.StoryMissions or requirements.BootCamp
-    if storyReq ~= nil then
-        if type(storyReq) == "boolean" and storyReq == true then
-            if not self:IsChapter0Beaten() then
-                passed = false
-                table.insert(missing, "Story Mode Chapter 0 (TDS: Boot Camp) not fully beaten")
-            end
-        elseif type(storyReq) == "table" then
-            for key, val in pairs(storyReq) do
-                local name = tostring(type(key) == "number" and val or key)
-                local clean = string.lower(name):gsub("%s+", "")
-                local beaten = false
-                if clean == "bootcamp" or clean == "mission1" or clean == "1" then
-                    beaten = self:IsBootCampBeaten()
-                elseif clean == "livefire" or clean == "mission2" or clean == "2" then
-                    beaten = self:IsLiveFireBeaten()
-                elseif clean == "breachprotocol" or clean == "breechprotocol" or clean == "mission3" or clean == "3" then
-                    beaten = self:IsBreachProtocolBeaten()
-                elseif clean == "bruteforce" or clean == "mission4" or clean == "4" then
-                    beaten = self:IsBruteForceBeaten()
-                elseif clean == "chapter0" or clean == "all" then
-                    beaten = self:IsChapter0Beaten()
-                end
-
-                if not beaten then
-                    passed = false
-                    table.insert(missing, string.format("Story Mission '%s' - not beaten", name))
-                end
-            end
-        end
-    end
-
     return passed, missing
 end
-
-
--- ---------------------------------------------------------------------
--- Story Mode Progression (Chapter 0: TDS: Boot Camp)
--- ---------------------------------------------------------------------
-CombinedData.Chapter0Missions = {
-    [1] = { Number = 1, Id = "boot-camp", Title = "Boot Camp", Map = "Tutorial" },
-    [2] = { Number = 2, Id = "live-fire", Title = "Live Fire", Map = "Tutorial" },
-    [3] = { Number = 3, Id = "breach-protocol", Title = "Breach Protocol", Map = "Tutorial" },
-    [4] = { Number = 4, Id = "brute-force", Title = "Brute Force", Map = "Tutorial" },
-}
-
-local inMemoryStoryProgress = nil
-
-function CombinedData:GetStoryProgress(forceServerFetch)
-    if setthreadidentity then pcall(setthreadidentity, 8) end
-
-    -- 1. Try in-memory cached progress if not forcing server fetch
-    if not forceServerFetch and inMemoryStoryProgress and inMemoryStoryProgress.Chapters then
-        return inMemoryStoryProgress
-    end
-
-    -- 2. Try Cache("StoryMode") atom from client Cache module
-    local cached = getCacheValue("StoryMode")
-    if (not cached or not cached.Chapters) and Cache then
-        pcall(function()
-            local atom = Cache("StoryMode")
-            if atom and type(atom.GetValue) == "function" then
-                cached = atom:GetValue()
-            end
-        end)
-    end
-
-    if not forceServerFetch and cached and type(cached) == "table" and cached.Chapters then
-        inMemoryStoryProgress = cached
-        return cached
-    end
-
-    -- 3. Fetch from StoryModeClient:getProgress()
-    local client = getStoryModeClient()
-    if client and type(client.getProgress) == "function" then
-        local ok, res = pcall(function()
-            return client.getProgress()
-        end)
-        if ok and type(res) == "table" and res.Chapters then
-            inMemoryStoryProgress = res
-            return res
-        end
-    end
-
-    -- 4. Direct NewNetwork invocation fallback
-    pcall(function()
-        local NewNetwork = require(ReplicatedStorage.Shared.Modules.NewNetwork)
-        local channel = NewNetwork.Channel("Chapters")
-        local raw = channel:invokeServer("GetProgress")
-        local ser = getStoryModeSerialization()
-        local deserialized = (ser and type(ser.deserialize) == "function") and ser.deserialize(raw) or raw
-        if type(deserialized) == "table" and deserialized.Chapters then
-            inMemoryStoryProgress = deserialized
-        end
-    end)
-
-    return inMemoryStoryProgress or cached
-end
-
-function CombinedData:IsStoryMissionCompleted(chapterNumber, missionNumber)
-    if setthreadidentity then pcall(setthreadidentity, 8) end
-    local progress = self:GetStoryProgress()
-    if not progress or type(progress) ~= "table" or not progress.Chapters then
-        return false
-    end
-
-    local numChap = tonumber(chapterNumber)
-    local strChap = tostring(chapterNumber)
-    local chapter = (numChap ~= nil and progress.Chapters[numChap]) or progress.Chapters[strChap]
-    if not chapter or type(chapter) ~= "table" or not chapter.Missions then
-        return false
-    end
-
-    local numMis = tonumber(missionNumber)
-    local strMis = tostring(missionNumber)
-    local mission = (numMis ~= nil and chapter.Missions[numMis]) or chapter.Missions[strMis]
-
-    return mission ~= nil
-end
-
-function CombinedData:GetStoryMissionStars(chapterNumber, missionNumber)
-    if setthreadidentity then pcall(setthreadidentity, 8) end
-    local progress = self:GetStoryProgress()
-    if not progress or type(progress) ~= "table" or not progress.Chapters then
-        return 0
-    end
-
-    local numChap = tonumber(chapterNumber)
-    local strChap = tostring(chapterNumber)
-    local chapter = (numChap ~= nil and progress.Chapters[numChap]) or progress.Chapters[strChap]
-    if not chapter or type(chapter) ~= "table" or not chapter.Missions then
-        return 0
-    end
-
-    local numMis = tonumber(missionNumber)
-    local strMis = tostring(missionNumber)
-    local mission = (numMis ~= nil and chapter.Missions[numMis]) or chapter.Missions[strMis]
-
-    if type(mission) == "table" and type(mission.Stars) == "number" then
-        return math.clamp(math.floor(mission.Stars), 0, 3)
-    elseif mission ~= nil then
-        return 1
-    end
-
-    return 0
-end
-
--- Chapter 0 ("TDS: Boot Camp") specific helpers
-function CombinedData:IsBootCampBeaten()
-    return self:IsStoryMissionCompleted(0, 1)
-end
-
-function CombinedData:IsLiveFireBeaten()
-    return self:IsStoryMissionCompleted(0, 2)
-end
-
-function CombinedData:IsBreachProtocolBeaten()
-    return self:IsStoryMissionCompleted(0, 3)
-end
-
-function CombinedData:IsBruteForceBeaten()
-    return self:IsStoryMissionCompleted(0, 4)
-end
-
-function CombinedData:IsChapter0Beaten()
-    local beaten = self:IsBootCampBeaten() 
-       and self:IsLiveFireBeaten() 
-       and self:IsBreachProtocolBeaten() 
-       and self:IsBruteForceBeaten()
-
-    if beaten then
-        statsEnv.Chapter0Beaten = true
-        return true
-    end
-
-    if statsEnv.Chapter0Beaten then
-        return true
-    end
-
-    -- If player already owns Assassin, Chapter 0 / Boot Camp is guaranteed completed
-    if self:IsTowerOwned("Assassin") then
-        statsEnv.Chapter0Beaten = true
-        return true
-    end
-
-    return false
-end
-
-function CombinedData:GetChapter0Status()
-    local m1 = self:IsBootCampBeaten()
-    local m2 = self:IsLiveFireBeaten()
-    local m3 = self:IsBreachProtocolBeaten()
-    local m4 = self:IsBruteForceBeaten()
-
-    local s1 = self:GetStoryMissionStars(0, 1)
-    local s2 = self:GetStoryMissionStars(0, 2)
-    local s3 = self:GetStoryMissionStars(0, 3)
-    local s4 = self:GetStoryMissionStars(0, 4)
-
-    local completed = (m1 and 1 or 0) + (m2 and 1 or 0) + (m3 and 1 or 0) + (m4 and 1 or 0)
-
-    return {
-        Chapter = 0,
-        Title = "TDS: Boot Camp (Chapter 0)",
-        TotalMissions = 4,
-        CompletedCount = completed,
-        AllBeaten = (completed == 4),
-        Missions = {
-            ["Boot Camp"] = { Number = 1, Id = "boot-camp", Title = "Boot Camp", Beaten = m1, Stars = s1, Status = m1 and "BEATEN" or "NOT BEATEN" },
-            ["Live Fire"] = { Number = 2, Id = "live-fire", Title = "Live Fire", Beaten = m2, Stars = s2, Status = m2 and "BEATEN" or "NOT BEATEN" },
-            ["Breach Protocol"] = { Number = 3, Id = "breach-protocol", Title = "Breach Protocol", Beaten = m3, Stars = s3, Status = m3 and "BEATEN" or "NOT BEATEN" },
-            ["Brute Force"] = { Number = 4, Id = "brute-force", Title = "Brute Force", Beaten = m4, Stars = s4, Status = m4 and "BEATEN" or "NOT BEATEN" },
-        },
-        List = {
-            { Name = "Boot Camp", Number = 1, Id = "boot-camp", Beaten = m1, Stars = s1, Status = m1 and "BEATEN" or "NOT BEATEN" },
-            { Name = "Live Fire", Number = 2, Id = "live-fire", Beaten = m2, Stars = s2, Status = m2 and "BEATEN" or "NOT BEATEN" },
-            { Name = "Breach Protocol", Number = 3, Id = "breach-protocol", Beaten = m3, Stars = s3, Status = m3 and "BEATEN" or "NOT BEATEN" },
-            { Name = "Brute Force", Number = 4, Id = "brute-force", Beaten = m4, Stars = s4, Status = m4 and "BEATEN" or "NOT BEATEN" },
-        }
-    }
-end
-
--- Primary CheckOwnedStoryMode / checkOwnedStoryMode helper method
-function CombinedData:CheckOwnedStoryMode()
-    local status = self:GetChapter0Status()
-    return {
-        AllBeaten = status.AllBeaten,
-        CompletedCount = status.CompletedCount,
-        TotalCount = status.TotalMissions,
-        BootCamp = status.Missions["Boot Camp"].Beaten,
-        LiveFire = status.Missions["Live Fire"].Beaten,
-        BreachProtocol = status.Missions["Breach Protocol"].Beaten,
-        BruteForce = status.Missions["Brute Force"].Beaten,
-        Stars = {
-            BootCamp = status.Missions["Boot Camp"].Stars,
-            LiveFire = status.Missions["Live Fire"].Stars,
-            BreachProtocol = status.Missions["Breach Protocol"].Stars,
-            BruteForce = status.Missions["Brute Force"].Stars,
-        },
-        Details = status.List
-    }
-end
-
--- Aliases to support colon, dot, and camelCase calls
-CombinedData.checkOwnedStoryMode = function(self_or_first, ...)
-    if self_or_first == CombinedData then
-        return CombinedData:CheckOwnedStoryMode(...)
-    else
-        return CombinedData:CheckOwnedStoryMode(self_or_first, ...)
-    end
-end
-
-CombinedData.CheckStoryMode = function(...) return CombinedData:CheckOwnedStoryMode(...) end
-CombinedData.checkStoryMode = function(...) return CombinedData:CheckOwnedStoryMode(...) end
-CombinedData.GetOwnedStoryMode = function(...) return CombinedData:CheckOwnedStoryMode(...) end
-
-function CombinedData:PrintStoryModeStatus()
-    local res = self:CheckOwnedStoryMode()
-    print("========================================")
-    print("   TDS: Story Mode (Chapter 0) Status   ")
-    print("========================================")
-    print(string.format("Progress: %d / %d missions beaten", res.CompletedCount, res.TotalCount))
-    print(string.format("All Beaten: %s", res.AllBeaten and "YES" or "NO"))
-    print("----------------------------------------")
-    for _, m in ipairs(res.Details) do
-        print(string.format("[%s] Mission %d: %-16s | Stars: %d", m.Status, m.Number, m.Name, m.Stars))
-    end
-    print("========================================")
-    return res
-end
-
-CombinedData.printStoryModeStatus = function(...) return CombinedData:PrintStoryModeStatus(...) end
 
 -- ---------------------------------------------------------------------
 -- Trials Data & Progression
@@ -2200,6 +1304,256 @@ function CombinedData:IsTrialWon(trialName)
     end
     return false
 end
+
+-- ---------------------------------------------------------------------
+-- Story Mode Progression (Chapter 0: TDS: Boot Camp)
+-- ---------------------------------------------------------------------
+CombinedData.Chapter0Missions = {
+    [1] = { Number = 1, Id = "boot-camp", Title = "Boot Camp", Map = "Tutorial" },
+    [2] = { Number = 2, Id = "live-fire", Title = "Live Fire", Map = "Tutorial" },
+    [3] = { Number = 3, Id = "breach-protocol", Title = "Breach Protocol", Map = "Tutorial" },
+    [4] = { Number = 4, Id = "brute-force", Title = "Brute Force", Map = "Tutorial" },
+}
+
+function CombinedData:GetStoryProgress(forceServerFetch)
+    if setthreadidentity then pcall(setthreadidentity, 8) end
+
+    -- 1. Try in-memory cached progress if not forcing server fetch
+    if not forceServerFetch and inMemoryStoryProgress and inMemoryStoryProgress.Chapters then
+        return inMemoryStoryProgress
+    end
+
+    -- 2. Try Cache("StoryMode") atom from client Cache module
+    local cached = getCacheValue("StoryMode")
+    if (not cached or not cached.Chapters) and Cache then
+        pcall(function()
+            local atom = Cache("StoryMode")
+            if atom and type(atom.GetValue) == "function" then
+                cached = atom:GetValue()
+            end
+        end)
+    end
+
+    if not forceServerFetch and cached and type(cached) == "table" and cached.Chapters then
+        inMemoryStoryProgress = cached
+        return cached
+    end
+
+    -- 3. Fetch from StoryModeClient:getProgress()
+    local client = getStoryModeClient()
+    if client and type(client.getProgress) == "function" then
+        local ok, res = pcall(function()
+            return client.getProgress()
+        end)
+        if ok and type(res) == "table" and res.Chapters then
+            inMemoryStoryProgress = res
+            return res
+        end
+    end
+
+    -- 4. Direct NewNetwork invocation fallback
+    pcall(function()
+        local shared = ReplicatedStorage:FindFirstChild("Shared")
+        local modules = shared and shared:FindFirstChild("Modules")
+        local nnModule = modules and modules:FindFirstChild("NewNetwork")
+        local NewNetwork = nnModule and require(nnModule)
+        if NewNetwork and type(NewNetwork.Channel) == "function" then
+            local channel = NewNetwork.Channel("Chapters")
+            local raw = channel:invokeServer("GetProgress")
+            local ser = getStoryModeSerialization()
+            local deserialized = (ser and type(ser.deserialize) == "function") and ser.deserialize(raw) or raw
+            if type(deserialized) == "table" and deserialized.Chapters then
+                inMemoryStoryProgress = deserialized
+            end
+        end
+    end)
+
+    return inMemoryStoryProgress or cached
+end
+
+function CombinedData:IsStoryMissionCompleted(chapterNumber, missionNumber)
+    if setthreadidentity then pcall(setthreadidentity, 8) end
+    local progress = self:GetStoryProgress()
+    if not progress or type(progress) ~= "table" or not progress.Chapters then
+        return false
+    end
+
+    local numChap = tonumber(chapterNumber)
+    local strChap = tostring(chapterNumber)
+    local chapter = (numChap ~= nil and progress.Chapters[numChap]) or progress.Chapters[strChap]
+    if not chapter or type(chapter) ~= "table" or not chapter.Missions then
+        return false
+    end
+
+    local numMis = tonumber(missionNumber)
+    local strMis = tostring(missionNumber)
+    local mission = (numMis ~= nil and chapter.Missions[numMis]) or chapter.Missions[strMis]
+
+    return mission ~= nil
+end
+
+function CombinedData:GetStoryMissionStars(chapterNumber, missionNumber)
+    if setthreadidentity then pcall(setthreadidentity, 8) end
+    local progress = self:GetStoryProgress()
+    if not progress or type(progress) ~= "table" or not progress.Chapters then
+        return 0
+    end
+
+    local numChap = tonumber(chapterNumber)
+    local strChap = tostring(chapterNumber)
+    local chapter = (numChap ~= nil and progress.Chapters[numChap]) or progress.Chapters[strChap]
+    if not chapter or type(chapter) ~= "table" or not chapter.Missions then
+        return 0
+    end
+
+    local numMis = tonumber(missionNumber)
+    local strMis = tostring(missionNumber)
+    local mission = (numMis ~= nil and chapter.Missions[numMis]) or chapter.Missions[strMis]
+
+    if type(mission) == "table" and type(mission.Stars) == "number" then
+        return math.clamp(math.floor(mission.Stars), 0, 3)
+    elseif mission ~= nil then
+        return 1
+    end
+
+    return 0
+end
+
+-- Chapter 0 ("TDS: Boot Camp") specific helpers
+function CombinedData:IsBootCampBeaten()
+    return self:IsStoryMissionCompleted(0, 1)
+end
+
+function CombinedData:IsLiveFireBeaten()
+    return self:IsStoryMissionCompleted(0, 2)
+end
+
+function CombinedData:IsBreachProtocolBeaten()
+    return self:IsStoryMissionCompleted(0, 3)
+end
+
+function CombinedData:IsBruteForceBeaten()
+    return self:IsStoryMissionCompleted(0, 4)
+end
+
+function CombinedData:IsChapter0Beaten()
+    local beaten = self:IsBootCampBeaten() 
+       and self:IsLiveFireBeaten() 
+       and self:IsBreachProtocolBeaten() 
+       and self:IsBruteForceBeaten()
+
+    if beaten then
+        statsEnv.Chapter0Beaten = true
+        return true
+    end
+
+    if statsEnv.Chapter0Beaten then
+        return true
+    end
+
+    -- High-level accounts (Level >= 15) are guaranteed past Chapter 0
+    local curLvl = self:GetLevel() or 0
+    if curLvl >= 15 then
+        statsEnv.Chapter0Beaten = true
+        return true
+    end
+
+    return false
+end
+
+function CombinedData:GetChapter0Status()
+    local m1 = self:IsBootCampBeaten()
+    local m2 = self:IsLiveFireBeaten()
+    local m3 = self:IsBreachProtocolBeaten()
+    local m4 = self:IsBruteForceBeaten()
+
+    local s1 = self:GetStoryMissionStars(0, 1)
+    local s2 = self:GetStoryMissionStars(0, 2)
+    local s3 = self:GetStoryMissionStars(0, 3)
+    local s4 = self:GetStoryMissionStars(0, 4)
+
+    local curLvl = self:GetLevel() or 0
+    if curLvl >= 15 and not (m1 and m2 and m3 and m4) then
+        m1, m2, m3, m4 = true, true, true, true
+        if s1 == 0 then s1 = 3 end
+        if s2 == 0 then s2 = 3 end
+        if s3 == 0 then s3 = 3 end
+        if s4 == 0 then s4 = 3 end
+    end
+
+    local completed = (m1 and 1 or 0) + (m2 and 1 or 0) + (m3 and 1 or 0) + (m4 and 1 or 0)
+
+    return {
+        Chapter = 0,
+        Title = "TDS: Boot Camp (Chapter 0)",
+        TotalMissions = 4,
+        CompletedCount = completed,
+        AllBeaten = (completed == 4),
+        Missions = {
+            ["Boot Camp"] = { Number = 1, Id = "boot-camp", Title = "Boot Camp", Beaten = m1, Stars = s1, Status = m1 and "BEATEN" or "NOT BEATEN" },
+            ["Live Fire"] = { Number = 2, Id = "live-fire", Title = "Live Fire", Beaten = m2, Stars = s2, Status = m2 and "BEATEN" or "NOT BEATEN" },
+            ["Breach Protocol"] = { Number = 3, Id = "breach-protocol", Title = "Breach Protocol", Beaten = m3, Stars = s3, Status = m3 and "BEATEN" or "NOT BEATEN" },
+            ["Brute Force"] = { Number = 4, Id = "brute-force", Title = "Brute Force", Beaten = m4, Stars = s4, Status = m4 and "BEATEN" or "NOT BEATEN" },
+        },
+        List = {
+            { Name = "Boot Camp", Number = 1, Id = "boot-camp", Beaten = m1, Stars = s1, Status = m1 and "BEATEN" or "NOT BEATEN" },
+            { Name = "Live Fire", Number = 2, Id = "live-fire", Beaten = m2, Stars = s2, Status = m2 and "BEATEN" or "NOT BEATEN" },
+            { Name = "Breach Protocol", Number = 3, Id = "breach-protocol", Beaten = m3, Stars = s3, Status = m3 and "BEATEN" or "NOT BEATEN" },
+            { Name = "Brute Force", Number = 4, Id = "brute-force", Beaten = m4, Stars = s4, Status = m4 and "BEATEN" or "NOT BEATEN" },
+        }
+    }
+end
+
+-- Primary CheckOwnedStoryMode / checkOwnedStoryMode helper method
+function CombinedData:CheckOwnedStoryMode()
+    local status = self:GetChapter0Status()
+    return {
+        AllBeaten = status.AllBeaten,
+        CompletedCount = status.CompletedCount,
+        TotalCount = status.TotalMissions,
+        BootCamp = status.Missions["Boot Camp"].Beaten,
+        LiveFire = status.Missions["Live Fire"].Beaten,
+        BreachProtocol = status.Missions["Breach Protocol"].Beaten,
+        BruteForce = status.Missions["Brute Force"].Beaten,
+        Stars = {
+            BootCamp = status.Missions["Boot Camp"].Stars,
+            LiveFire = status.Missions["Live Fire"].Stars,
+            BreachProtocol = status.Missions["Breach Protocol"].Stars,
+            BruteForce = status.Missions["Brute Force"].Stars,
+        },
+        Details = status.List
+    }
+end
+
+-- Aliases to support colon, dot, and camelCase calls
+CombinedData.checkOwnedStoryMode = function(self_or_first, ...)
+    if self_or_first == CombinedData then
+        return CombinedData:CheckOwnedStoryMode(...)
+    else
+        return CombinedData:CheckOwnedStoryMode(self_or_first, ...)
+    end
+end
+
+CombinedData.CheckStoryMode = function(...) return CombinedData:CheckOwnedStoryMode(...) end
+CombinedData.checkStoryMode = function(...) return CombinedData:CheckOwnedStoryMode(...) end
+CombinedData.GetOwnedStoryMode = function(...) return CombinedData:CheckOwnedStoryMode(...) end
+
+function CombinedData:PrintStoryModeStatus()
+    local res = self:CheckOwnedStoryMode()
+    print("========================================")
+    print("   TDS: Story Mode (Chapter 0) Status   ")
+    print("========================================")
+    print(string.format("Progress: %d / %d missions beaten", res.CompletedCount, res.TotalCount))
+    print(string.format("All Beaten: %s", res.AllBeaten and "YES" or "NO"))
+    print("----------------------------------------")
+    for _, m in ipairs(res.Details) do
+        print(string.format("[%s] Mission %d: %-16s | Stars: %d", m.Status, m.Number, m.Name, m.Stars))
+    end
+    print("========================================")
+    return res
+end
+
+CombinedData.printStoryModeStatus = function(...) return CombinedData:PrintStoryModeStatus(...) end
 
 return CombinedData
 

@@ -1,7 +1,4 @@
 local Globals = getgenv()
-local ModuleRunning = true
-local errorMessageConnection = nil
-local idleConnection = nil
 
 -- Patched shared.TDSTable check
 
@@ -19,6 +16,7 @@ if not LocalPlayer then
 end
 
 local function SmartTeleportToLobby()
+    if Globals.AutoRestart then return end
     local lobbyId = 3260590327
     pcall(function()
         local platform = UserInputService:GetPlatform()
@@ -53,7 +51,7 @@ local function AntiStuck()
     task.spawn(function()
         local secondsStuck = 0
 
-        while ModuleRunning do 
+        while true do 
             task.wait(1)
             
             local attrLoading = LocalPlayer:GetAttribute("Loading") == true
@@ -83,7 +81,7 @@ end
 
 AntiStuck()
 task.spawn(Reconnect)
-errorMessageConnection = GuiService.ErrorMessageChanged:Connect(Reconnect)
+GuiService.ErrorMessageChanged:Connect(Reconnect)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -97,16 +95,17 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local mouse = LocalPlayer:GetMouse()
 local RemoteFunc = ReplicatedStorage:WaitForChild("RemoteFunction")
 local RemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent")
-local FileName = "API.json"
+local FileName = "APIS.json"
 local Logger
 local StartBackToLobby
 local platform = UserInputService:GetPlatform()
 local IsMobile = (platform == Enum.Platform.IOS or platform == Enum.Platform.Android)
 
-idleConnection = LocalPlayer.Idled:Connect(function()
-    if not ModuleRunning then return end
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new(0, 0))
+task.spawn(function()
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+    end)
 end)
 
 task.spawn(function()
@@ -128,7 +127,7 @@ local GameState = IdentifyGameState()
 local function StartAntiAfk()
     task.spawn(function()
         local LobbyTimer = 0
-        while ModuleRunning and GameState == "LOBBY" do 
+        while GameState == "LOBBY" do 
             task.wait(1)
             LobbyTimer = LobbyTimer + 1
             if LobbyTimer >= 600 then
@@ -220,17 +219,18 @@ local ItemNames = {
 
 local executed_actions = {}
 
-TDS = shared.TDSTable or getgenv().TDS or {}
-TDS.PlacedTowers = TDS.PlacedTowers or {}
-TDS.ActiveStrat = (TDS.ActiveStrat ~= nil) and TDS.ActiveStrat or true
-TDS.IsEquippingLoadout = false
-TDS.LoadoutPending = false
-TDS.MatchmakingMap = TDS.MatchmakingMap or {
-    ["PizzaParty"] = "halloween",
-    ["Badlands"] = "badlands",
-    ["PollutedWasteland"] = "polluted",
-    ["DuckyEasy"] = "ducky2025",
-    ["DuckyHard"] = "ducky2025"
+TDS = {
+    PlacedTowers = {},
+    ActiveStrat = true,
+    IsEquippingLoadout = false,
+    LoadoutPending = false,
+    MatchmakingMap = {
+        ["PizzaParty"] = "halloween",
+        ["Badlands"] = "badlands",
+        ["PollutedWasteland"] = "polluted",
+        ["DuckyEasy"] = "ducky2025",
+        ["DuckyHard"] = "ducky2025"
+    }
 }
 TDS["placed_towers"] = TDS.PlacedTowers
 TDS["active_strat"] = TDS.ActiveStrat
@@ -653,6 +653,58 @@ local function RejoinMatch()
     return res
 end
 
+local function MatchReadyUp()
+    local stateReplicators = ReplicatedStorage:WaitForChild("StateReplicators")
+    local voteReplicator = stateReplicators:WaitForChild("VoteReplicator")
+    local gameStateReplicator = stateReplicators:WaitForChild("GameStateReplicator")
+
+    if gameStateReplicator:GetAttribute("GameStarted") == true then
+        return
+    end
+    
+    local voteTitle = voteReplicator:GetAttribute("Title")
+    if voteTitle == "Ready?" and voteReplicator:GetAttribute("Enabled") == true then
+        RunVoteSkip()
+        return
+    end
+
+    local yieldSignal = Instance.new("BindableEvent")
+    local voteConnection
+    local gameStartedConnection
+
+    voteConnection = voteReplicator.AttributeChanged:Connect(function(attributeName)
+        if attributeName == "Enabled" and voteReplicator:GetAttribute("Enabled") == true then
+            if voteReplicator:GetAttribute("Title") == "Ready?" then
+                RunVoteSkip()
+                yieldSignal:Fire()
+            end
+        elseif attributeName == "Title" and voteReplicator:GetAttribute("Title") ~= "Ready?" then
+            yieldSignal:Fire()
+        elseif attributeName == "VoteCount" or attributeName == "MaxVotes" then
+            local currentVotes = voteReplicator:GetAttribute("VoteCount")
+            local maxVotesRequired = voteReplicator:GetAttribute("MaxVotes")
+            if currentVotes and maxVotesRequired and maxVotesRequired > 0 and currentVotes >= maxVotesRequired then
+                yieldSignal:Fire()
+            end
+        end
+    end)
+
+    gameStartedConnection = gameStateReplicator:GetAttributeChangedSignal("GameStarted"):Connect(function()
+        if gameStateReplicator:GetAttribute("GameStarted") == true then
+            yieldSignal:Fire()
+        end
+    end)
+
+    yieldSignal.Event:Wait()
+
+    if voteConnection then
+        voteConnection:Disconnect()
+    end
+    if gameStartedConnection then
+        gameStartedConnection:Disconnect()
+    end
+    yieldSignal:Destroy()
+end
 
 local function TriggerRestart()
     local UiRoot = PlayerGui:WaitForChild("ReactGameNewRewards")
@@ -946,7 +998,83 @@ function TDS:Mode(difficulty, code)
     return true
 end
 
--- TDS:Loadout and TDS:Loudout are now managed by AutoProg.lua
+function TDS:Loadout(...)
+    if game.PlaceId == 3260590327 then
+        return
+    end
+
+    while IsCurrentlyLoading do
+        task.wait(0.2)
+    end
+
+    IsCurrentlyLoading = true
+    IsEquippingLoadout = true
+    self.IsEquippingLoadout = true
+
+    local towers = {...}
+    local remote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvent")
+    local StateReplicators = ReplicatedStorage:FindFirstChild("StateReplicators")
+
+    local success = pcall(function()
+        local CurrentlyEquipped = {}
+
+        if StateReplicators then
+            for _, folder in ipairs(StateReplicators:GetChildren()) do
+                if folder.Name == "PlayerReplicator" and folder:GetAttribute("UserId") == LocalPlayer.UserId then
+                    local EquippedAttr = folder:GetAttribute("EquippedTowers")
+                    if type(EquippedAttr) == "string" then
+                        local CleanedJson = EquippedAttr:match("%[.*%]") 
+                        local DecodeSuccess, decoded = pcall(function()
+                            return HttpService:JSONDecode(CleanedJson)
+                        end)
+
+                        if DecodeSuccess and type(decoded) == "table" then
+                            CurrentlyEquipped = decoded
+                        end
+                    end
+                end
+            end
+        end
+
+        for _, CurrentTower in ipairs(CurrentlyEquipped) do
+            if CurrentTower ~= "None" then
+                local UnequipDone = false
+                repeat
+                    local ok = pcall(function()
+                        remote:FireServer("Inventory", "Unequip", "Tower", CurrentTower)
+                        task.wait(0.3)
+                    end)
+                    if ok then UnequipDone = true else task.wait(0.2) end
+                until UnequipDone
+            end
+        end
+
+        task.wait(0.5)
+
+        for _, TowerName in ipairs(towers) do
+            if TowerName and TowerName ~= "" then
+                local EquipSuccess = false
+                repeat
+                    local ok = pcall(function()
+                        remote:FireServer("Inventory", "Equip", "Tower", TowerName)
+                        task.wait(0.3)
+                    end)
+                    if ok then EquipSuccess = true else task.wait(0.2) end
+                until EquipSuccess
+            end
+        end
+
+        task.wait(0.5)
+    end)
+
+    IsCurrentlyLoading = false
+    IsEquippingLoadout = false
+    self.IsEquippingLoadout = false
+    self.LoadoutPending = false
+    LastLoadTime = os.clock()
+
+    return success
+end
 
 function TDS:VoteSkip(StartWave, EndWave)
     task.spawn(function()
@@ -1022,6 +1150,14 @@ end
 
 function TDS:StartGame()
     LobbyReadyUp()
+end
+
+function TDS:Ready()
+    if game.PlaceId == 3260590327 then
+        return false 
+    end
+    MatchReadyUp()
+    return true
 end
 
 function TDS:GetWave()
@@ -1218,23 +1354,16 @@ local function GetRoot()
 end
 
 local function StartAutoGatling()
-    if Globals.DisableAPIGatling or Globals.GatlingManagedByMain or Globals.GatlingLoaderLoaded then return end
     if AutoGatlingRunning or not Globals.AutoGatling then return end
     AutoGatlingRunning = true
     task.spawn(function()
-        while Globals.AutoGatling and not Globals.DisableAPIGatling and not Globals.GatlingManagedByMain do
+        while Globals.AutoGatling do
             if GameState == "GAME" then
-                if not GatlingExecuted and not Globals.GatlingLoaderLoaded then
+                if not GatlingExecuted then
                     GatlingExecuted = true 
-                    Globals.GatlingLoaderLoaded = true
                     task.spawn(function()
                         pcall(function()
-                            local selected = Globals.SelectedGatling or "Gatlify"
-                            if selected == "Gatling Gun" then
-                                loadstring(game:HttpGet("https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"))()
-                            else
-                                loadstring(game:HttpGet("https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"))()
-                            end
+                            loadstring(game:HttpGet("https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"))()
                         end)
                     end)
                 end
@@ -1800,20 +1929,12 @@ function TDS:RemoveIndex()
     if UpgradeHistory then
         table.clear(UpgradeHistory)
     end
-
-    ModuleRunning = true
-    if not idleConnection then
-        idleConnection = LocalPlayer.Idled:Connect(function()
-            if not ModuleRunning then return end
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new(0, 0))
-        end)
-    end
+	
 end
 
 task.spawn(function()
     task.wait(2)
-    while ModuleRunning do
+    while true do
 
         if Globals.AutoSkip and not AutoSkipRunning then
             StartAutoSkip()
@@ -1847,7 +1968,7 @@ task.spawn(function()
             StartBackToLobby()
         end
 
-        if Globals.AutoGatling and not AutoGatlingRunning and not Globals.DisableAPIGatling and not Globals.GatlingManagedByMain then
+        if Globals.AutoGatling and not AutoGatlingRunning then
             StartAutoGatling()
         end
 
@@ -1859,6 +1980,10 @@ task.spawn(function()
             StartMedicChain()
         end
 		
+		if Globals.AutoBack and not AutoBackRunning then
+            StartAutoBack()
+        end
+
         task.wait(1)
     end
 end)
