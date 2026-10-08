@@ -1121,6 +1121,48 @@ function TDS:VoteSkip(StartWave, EndWave)
     end)
 end
 
+local function LobbyReadyUp()
+    pcall(function()
+        local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
+        if remoteFunc and remoteFunc:IsA("RemoteFunction") then
+            remoteFunc:InvokeServer("LobbyVoting", "Ready")
+        end
+    end)
+    pcall(function()
+        local remoteEvent = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
+            remoteEvent:FireServer("LobbyVoting", "Ready")
+        end
+    end)
+    pcall(function()
+        local pg = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+        local rgi = pg and pg:FindFirstChild("ReactGameIntermission")
+        local readyBtn = rgi and rgi:FindFirstChild("Frame") and rgi.Frame:FindFirstChild("buttons") and rgi.Frame.buttons:FindFirstChild("ready")
+        if readyBtn then
+            if firesignal and readyBtn:FindFirstChild("Activated") then
+                firesignal(readyBtn.Activated)
+            end
+            if getconnections then
+                for _, conn in ipairs(getconnections(readyBtn.Activated)) do
+                    if conn and conn.Function then pcall(conn.Function) end
+                end
+            end
+        end
+    end)
+    pcall(function()
+        local netMod = game:GetService("ReplicatedStorage"):FindFirstChild("Shared") and game:GetService("ReplicatedStorage").Shared:FindFirstChild("Modules") and game:GetService("ReplicatedStorage").Shared.Modules:FindFirstChild("Network")
+        if netMod then
+            local net = require(netMod)
+            if net and net.Channel then
+                local chan = net.Channel("LobbyVoting")
+                if chan and chan.Broadcast then
+                    chan:Broadcast("Ready")
+                end
+            end
+        end
+    end)
+end
+
 function TDS:GameInfo(name, list)
     if game.PlaceId == 3260590327 then return false end
 
@@ -1136,11 +1178,21 @@ function TDS:GameInfo(name, list)
 
     if MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, 10518590) or (gameStateReplicator and gameStateReplicator:GetAttribute("IsPrivateServer") == true) then
         SelectMapOverride(name, "vip")
-        repeat task.wait(1) until PlayerGui:FindFirstChild("ReactUniversalHotbar")
+        task.wait(0.5)
+        LobbyReadyUp()
+        repeat
+            task.wait(1)
+            LobbyReadyUp()
+        until PlayerGui:FindFirstChild("ReactUniversalHotbar")
         return true 
     elseif IsMapAvailable(name) then
         SelectMapOverride(name)
-        repeat task.wait(1) until PlayerGui:FindFirstChild("ReactUniversalHotbar")
+        task.wait(0.5)
+        LobbyReadyUp()
+        repeat
+            task.wait(1)
+            LobbyReadyUp()
+        until PlayerGui:FindFirstChild("ReactUniversalHotbar")
         return true
     else
         RejoinMatch()
