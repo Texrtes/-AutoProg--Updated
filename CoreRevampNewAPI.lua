@@ -2793,10 +2793,12 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
             LayoutOrder = nextOrder(props.Order),
             Parent = scroll,
         })
+        local gapOffset = math.ceil((8 * (cols - 1)) / cols) + 1
         make("UIGridLayout", {
             CellPadding = UDim2.fromOffset(8, 8),
-            CellSize = UDim2.new(1 / cols, -math.floor((8 * (cols - 1)) / cols), 0, 68),
+            CellSize = UDim2.new(1 / cols, -gapOffset, 0, 68),
             SortOrder = Enum.SortOrder.LayoutOrder,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
             Parent = gridWrap,
         })
 
