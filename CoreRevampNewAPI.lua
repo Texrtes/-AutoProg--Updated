@@ -219,7 +219,15 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
+local function elevateThread()
+    local setid = setthreadidentity or set_thread_identity or (syn and syn.set_thread_identity) or setidentity
+    if setid then
+        pcall(setid, 8)
+    end
+end
+
 local function getTopInset(): number
+    elevateThread()
     local topInset = 36
     pcall(function()
         topInset = GuiService:GetGuiInset().Y
@@ -432,13 +440,19 @@ end
 
 -- Strict Clamping prevents window from going off-screen or under the top notch
 local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customHeight: number?, customWidth: number?)
+    elevateThread()
     local camera = workspace.CurrentCamera
     local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
-    local scale = uiScale and uiScale.Scale or 1
+    local scale = 1
+    pcall(function()
+        if uiScale then
+            scale = uiScale.Scale
+        end
+    end)
     local topInset = getTopInset()
 
-    local effectiveH = customHeight or target.AbsoluteSize.Y
-    local effectiveW = customWidth or target.AbsoluteSize.X
+    local effectiveH = customHeight or (target and target.AbsoluteSize and target.AbsoluteSize.Y) or 500
+    local effectiveW = customWidth or (target and target.AbsoluteSize and target.AbsoluteSize.X) or 600
 
     local halfH = (effectiveH * scale) / 2
     local halfW = (effectiveW * scale) / 2
@@ -456,14 +470,17 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
         maxOffsetX = 0
     end
 
-    local currentOffsetY = target.Position.Y.Offset
-    local currentOffsetX = target.Position.X.Offset
+    local currentOffsetY = (target and target.Position and target.Position.Y.Offset) or 0
+    local currentOffsetX = (target and target.Position and target.Position.X.Offset) or 0
 
     local clampedY = math.clamp(currentOffsetY, minOffsetY, maxOffsetY)
     local clampedX = math.clamp(currentOffsetX, minOffsetX, maxOffsetX)
 
-    target.Position = UDim2.new(0.5, clampedX, 0.5, clampedY)
-    return target.Position
+    if target then
+        target.Position = UDim2.new(0.5, clampedX, 0.5, clampedY)
+        return target.Position
+    end
+    return UDim2.new(0.5, 0, 0.5, 0)
 end
 
 local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
@@ -473,11 +490,13 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
     local startPosition: UDim2? = nil
 
     handle.InputBegan:Connect(function(input)
+        elevateThread()
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPosition = target.Position
             input.Changed:Connect(function()
+                elevateThread()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
                 end
@@ -486,51 +505,60 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
     end)
 
     handle.InputChanged:Connect(function(input)
+        elevateThread()
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
+        elevateThread()
         if dragging and input == dragInput and dragStart and startPosition then
-            local delta = input.Position - dragStart
-            local scale = (uiScale and uiScale.Scale) or 1
-            local camera = workspace.CurrentCamera
-            local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
-            local topInset = getTopInset()
+            pcall(function()
+                local delta = input.Position - dragStart
+                local scale = 1
+                pcall(function()
+                    if uiScale then
+                        scale = uiScale.Scale
+                    end
+                end)
+                local camera = workspace.CurrentCamera
+                local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+                local topInset = getTopInset()
 
-            local rawOffsetX = startPosition.X.Offset + (delta.X / scale)
-            local rawOffsetY = startPosition.Y.Offset + (delta.Y / scale)
+                local rawOffsetX = startPosition.X.Offset + (delta.X / scale)
+                local rawOffsetY = startPosition.Y.Offset + (delta.Y / scale)
 
-            local currentH = target.AbsoluteSize.Y
-            -- If minimized (height <= 80), clamp against full height so it never gets dragged too high to unminimize!
-            local fullH = (currentH <= 80 and 540 or currentH)
-            local halfH = (currentH * scale) / 2
-            local halfTopH = (fullH * scale) / 2
-            local halfW = (target.AbsoluteSize.X * scale) / 2
+                local currentH = target.AbsoluteSize.Y
+                -- If minimized (height <= 80), clamp against full height so it never gets dragged too high to unminimize!
+                local fullH = (currentH <= 80 and 540 or currentH)
+                local halfH = (currentH * scale) / 2
+                local halfTopH = (fullH * scale) / 2
+                local halfW = (target.AbsoluteSize.X * scale) / 2
 
-            local minOffsetY = (topInset + halfTopH + 8 - (vp.Y * 0.5)) / scale
-            local maxOffsetY = ((vp.Y * 0.5) - halfH - 8) / scale
-            if minOffsetY > maxOffsetY then
-                maxOffsetY = minOffsetY
-            end
+                local minOffsetY = (topInset + halfTopH + 8 - (vp.Y * 0.5)) / scale
+                local maxOffsetY = ((vp.Y * 0.5) - halfH - 8) / scale
+                if minOffsetY > maxOffsetY then
+                    maxOffsetY = minOffsetY
+                end
 
-            local minOffsetX = (halfW + 8 - (vp.X * 0.5)) / scale
-            local maxOffsetX = ((vp.X * 0.5) - halfW - 8) / scale
-            if minOffsetX > maxOffsetX then
-                minOffsetX = 0
-                maxOffsetX = 0
-            end
+                local minOffsetX = (halfW + 8 - (vp.X * 0.5)) / scale
+                local maxOffsetX = ((vp.X * 0.5) - halfW - 8) / scale
+                if minOffsetX > maxOffsetX then
+                    minOffsetX = 0
+                    maxOffsetX = 0
+                end
 
-            local clampedY = math.clamp(rawOffsetY, minOffsetY, maxOffsetY)
-            local clampedX = math.clamp(rawOffsetX, minOffsetX, maxOffsetX)
+                local clampedY = math.clamp(rawOffsetY, minOffsetY, maxOffsetY)
+                local clampedX = math.clamp(rawOffsetX, minOffsetX, maxOffsetX)
 
-            target.Position = UDim2.new(
-                0.5,
-                clampedX,
-                0.5,
-                clampedY
-            )
+                target.Position = UDim2.new(
+                    0.5,
+                    clampedX,
+                    0.5,
+                    clampedY
+                )
+            end)
         end
     end)
 end
@@ -542,11 +570,13 @@ local function bindResize(handle: GuiObject, target: GuiObject, minSize: Vector2
     local startSize: UDim2? = nil
 
     handle.InputBegan:Connect(function(input)
+        elevateThread()
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             resizing = true
             startPos = Vector2.new(input.Position.X, input.Position.Y)
             startSize = target.Size
             input.Changed:Connect(function()
+                elevateThread()
                 if input.UserInputState == Enum.UserInputState.End then
                     resizing = false
                 end
@@ -555,20 +585,29 @@ local function bindResize(handle: GuiObject, target: GuiObject, minSize: Vector2
     end)
 
     handle.InputChanged:Connect(function(input)
+        elevateThread()
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             resizeInput = input
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
+        elevateThread()
         if resizing and input == resizeInput and startPos and startSize then
-            local scale = (uiScale and uiScale.Scale) or 1
-            local currentPos = Vector2.new(input.Position.X, input.Position.Y)
-            local delta = (currentPos - startPos) / scale
-            local newX = math.max(minSize.X, startSize.X.Offset + delta.X)
-            local newY = math.max(minSize.Y, startSize.Y.Offset + delta.Y)
-            target.Size = UDim2.fromOffset(newX, newY)
-            clampWindowPosition(target, uiScale)
+            pcall(function()
+                local scale = 1
+                pcall(function()
+                    if uiScale then
+                        scale = uiScale.Scale
+                    end
+                end)
+                local currentPos = Vector2.new(input.Position.X, input.Position.Y)
+                local delta = (currentPos - startPos) / scale
+                local newX = math.max(minSize.X, startSize.X.Offset + delta.X)
+                local newY = math.max(minSize.Y, startSize.Y.Offset + delta.Y)
+                target.Size = UDim2.fromOffset(newX, newY)
+                clampWindowPosition(target, uiScale)
+            end)
         end
     end)
 end
@@ -2014,10 +2053,11 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         end
 
         bar.InputBegan:Connect(function(input)
+            elevateThread()
             if not checkPremium(props) then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
-                fromX(input.Position.X)
+                pcall(function() fromX(input.Position.X) end)
             end
         end)
         bar.InputEnded:Connect(function(input)
@@ -2026,8 +2066,9 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
             end
         end)
         UserInputService.InputChanged:Connect(function(input)
+            elevateThread()
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                fromX(input.Position.X)
+                pcall(function() fromX(input.Position.X) end)
             end
         end)
 
@@ -2182,6 +2223,7 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
 
             if connection then connection:Disconnect() end
             connection = UserInputService.InputBegan:Connect(function(input)
+                elevateThread()
                 if not listening then return end
                 if input.UserInputType == Enum.UserInputType.Keyboard then
                     local chosenKey = input.KeyCode
@@ -2398,9 +2440,10 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
             end
 
             chanBar.InputBegan:Connect(function(input)
+                elevateThread()
                 if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                     dragging = true
-                    updateFromX(input.Position.X)
+                    pcall(function() updateFromX(input.Position.X) end)
                 end
             end)
             chanBar.InputEnded:Connect(function(input)
@@ -2409,8 +2452,9 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 end
             end)
             UserInputService.InputChanged:Connect(function(input)
+                elevateThread()
                 if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    updateFromX(input.Position.X)
+                    pcall(function() updateFromX(input.Position.X) end)
                 end
             end)
 
@@ -4470,6 +4514,7 @@ function Library:Window(props: { [string]: any })
     end
 
     UserInputService.InputBegan:Connect(function(input, processed)
+        elevateThread()
         if processed then return end
         if input.KeyCode == self.Keybind then
             toggleVisibility()
