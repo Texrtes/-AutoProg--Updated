@@ -683,6 +683,42 @@ function CombinedData:GetGems()
     return 0, "0"
 end
 
+function CombinedData:GetTimescaleTickets()
+    -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
+    local pss = getPlayerStatsStore()
+    if pss and type(pss.getTimescaleTickets) == "function" then
+        local ok, tickets = pcall(pss.getTimescaleTickets)
+        if ok and tickets ~= nil and tonumber(tickets) then
+            return tonumber(tickets), tostring(tickets)
+        end
+    end
+    if pss and type(pss.getState) == "function" then
+        local ok, state = pcall(pss.getState, pss)
+        if ok and type(state) == "table" and state.timescaletickets ~= nil then
+            local val = tonumber(state.timescaletickets)
+            if val then return val, tostring(val) end
+        end
+    end
+
+    -- 2. Direct Cache lookup (Values.TimescaleTickets)
+    local tickets = getStat("Values.TimescaleTickets")
+    if tickets ~= nil and tonumber(tickets) then
+        return tonumber(tickets), tostring(tickets)
+    end
+
+    -- 3. Fallback: LocalPlayer ValueBase
+    local lp = getLocalPlayer()
+    if lp then
+        local val = lp:FindFirstChild("TimescaleTickets")
+        if val and val:IsA("ValueBase") then
+            local v = val.Value
+            return tonumber(v) or parseNumber(v), tostring(v)
+        end
+    end
+
+    return 0, "0"
+end
+
 --- Returns current player EXP, required EXP for next level, and formatted string
 function CombinedData:GetPlayerExp()
     -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
@@ -747,12 +783,13 @@ function CombinedData:GetPlayerExp()
     return exp, nextLevelExp, string.format("%d / %d", exp, nextLevelExp), level
 end
 
---- Returns a table containing Level, EXP, NextLevelExp, Coins, and Gems
+--- Returns a table containing Level, EXP, NextLevelExp, Coins, Gems, and TimescaleTickets
 function CombinedData:GetPlayerStats()
     local exp, nextLevelExp, expDisplay, normalizedLevel = self:GetPlayerExp()
     local level = normalizedLevel or self:GetLevel()
     local coins = self:GetCoins()
     local gems = self:GetGems()
+    local timescaleTickets = self:GetTimescaleTickets()
 
     return {
         Level = level,
@@ -760,7 +797,8 @@ function CombinedData:GetPlayerStats()
         NextLevelExp = nextLevelExp,
         ExpDisplay = expDisplay,
         Coins = coins,
-        Gems = gems
+        Gems = gems,
+        TimescaleTickets = timescaleTickets,
     }
 end
 
