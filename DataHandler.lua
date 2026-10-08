@@ -1107,7 +1107,11 @@ local nextTrialCacheFile = "ProjectOptimazation/CachedNextTrial.json"
 local inMemoryCurrentTrial = nil
 local inMemoryNextTrial = nil
 
-function CombinedData:GetCurrentTrial()
+function CombinedData:GetCurrentTrial(forceRefresh: boolean?)
+    if forceRefresh then
+        inMemoryCurrentTrial = nil
+    end
+
     if MatchmakingTrialData then
         local ok, res = pcall(function()
             local currentTime = os.time()
@@ -1155,7 +1159,11 @@ function CombinedData:GetCurrentTrial()
     return inMemoryCurrentTrial
 end
 
-function CombinedData:GetNextTrial()
+function CombinedData:GetNextTrial(forceRefresh: boolean?)
+    if forceRefresh then
+        inMemoryNextTrial = nil
+    end
+
     if MatchmakingTrialData then
         local ok, res = pcall(function()
             local currentTime = os.time()
