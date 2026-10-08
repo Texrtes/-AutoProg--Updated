@@ -240,6 +240,8 @@ local UpgradeHistory = {}
 
 shared.TDSTable = TDS
 shared["TDS_Table"] = TDS
+if getgenv then getgenv().TDS = TDS end
+_G.TDS = TDS
 
 function TDS:ResetAllStates()
     table.clear(self.PlacedTowers)
@@ -2042,4 +2044,6 @@ end)
 
 MissionsUIFix()
 
+if getgenv then getgenv().TDS = TDS end
+_G.TDS = TDS
 return TDS
