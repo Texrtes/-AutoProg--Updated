@@ -1218,6 +1218,94 @@ end
 
 TDS.CastModifierVote = CastModifierVote
 
+local function IsMapAvailable(name)
+    if not name or name == "" then return false end
+    for _, g in ipairs(workspace:GetDescendants()) do
+        if g:IsA("SurfaceGui") and g.Name == "MapDisplay" then
+            local t = g:FindFirstChild("Title")
+            if t and t.Text == name then return true end
+        end
+    end
+
+    local VoteGui = PlayerGui:FindFirstChild("ReactGameIntermission")
+    local IntermissionFrame = VoteGui and VoteGui:FindFirstChild("Frame")
+    if not IntermissionFrame then return false end
+
+    local hasVoted = false
+    local tStart = tick()
+    repeat
+        local buttons = IntermissionFrame:FindFirstChild("buttons")
+        local veto = buttons and buttons:FindFirstChild("veto")
+        local VetoValue = veto and veto:FindFirstChild("value")
+        local VetoText = VetoValue and VetoValue.Text or ""
+        
+        if VetoText ~= "" then
+            if not VetoText:find("Veto") then
+                return false 
+            end
+
+            local currentStr, totalStr = VetoText:match("(%d+)/(%d+)")
+            local current, total = tonumber(currentStr), tonumber(totalStr)
+
+            if not hasVoted and total and total > 0 and current == 0 then
+                pcall(function()
+                    RemoteEvent:FireServer("LobbyVoting", "Veto")
+                end)
+                hasVoted = true
+            end
+        end
+
+        for _, g in ipairs(workspace:GetDescendants()) do
+            if g:IsA("SurfaceGui") and g.Name == "MapDisplay" then
+                local t = g:FindFirstChild("Title")
+                if t and t.Text == name then
+                    return true
+                end
+            end
+        end
+
+        task.wait(0.5)
+    until (tick() - tStart > 20) or not IntermissionFrame.Visible or (PlayerGui:FindFirstChild("ReactUniversalHotbar") ~= nil)
+
+    for _, g in ipairs(workspace:GetDescendants()) do
+        if g:IsA("SurfaceGui") and g.Name == "MapDisplay" then
+            local t = g:FindFirstChild("Title")
+            if t and t.Text == name then return true end
+        end
+    end
+
+    return false
+end
+
+local function CastMapVote(mapId, posVec)
+    local targetMap = mapId or "Simplicity"
+    local targetPos = posVec or Vector3.new(12.59, 10.64, 52.01)
+    pcall(function()
+        if RemoteEvent then
+            RemoteEvent:FireServer("LobbyVoting", "Vote", targetMap, targetPos)
+        elseif RemoteFunc then
+            RemoteFunc:InvokeServer("LobbyVoting", "Vote", targetMap, targetPos)
+        end
+    end)
+end
+
+local function SelectMapOverride(MapId, ...)
+    local args = {...}
+    if args[#args] == "vip" and RemoteFunc then
+        pcall(function()
+            RemoteFunc:InvokeServer("LobbyVoting", "Override", MapId)
+        end)
+    end
+    task.wait(1.5)
+    CastMapVote(MapId, Vector3.new(12.59, 10.64, 52.01))
+    task.wait(0.5)
+    LobbyReadyUp()
+end
+
+TDS.CastMapVote = CastMapVote
+TDS.SelectMapOverride = SelectMapOverride
+TDS.IsMapAvailable = IsMapAvailable
+
 function TDS:GameInfo(name, list)
     if game.PlaceId == 3260590327 then return false end
 
@@ -1231,8 +1319,19 @@ function TDS:GameInfo(name, list)
     local stateReplicators = game:GetService("ReplicatedStorage"):WaitForChild("StateReplicators", 5)
     local gameStateReplicator = stateReplicators and stateReplicators:FindFirstChild("GameStateReplicator")
 
-    if MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, 10518590) or (gameStateReplicator and gameStateReplicator:GetAttribute("IsPrivateServer") == true) then
-        SelectMapOverride(name, "vip")
+    local isVipOrPrivate = false
+    if gameStateReplicator and gameStateReplicator:GetAttribute("IsPrivateServer") == true then
+        isVipOrPrivate = true
+    else
+        pcall(function()
+            if LocalPlayer and LocalPlayer.UserId and LocalPlayer.UserId > 0 and MarketplaceService then
+                isVipOrPrivate = MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, 10518590)
+            end
+        end)
+    end
+
+    if isVipOrPrivate then
+        pcall(SelectMapOverride, name, "vip")
         task.wait(0.5)
         LobbyReadyUp()
         repeat
@@ -1240,8 +1339,8 @@ function TDS:GameInfo(name, list)
             LobbyReadyUp()
         until PlayerGui:FindFirstChild("ReactUniversalHotbar")
         return true 
-    elseif IsMapAvailable(name) then
-        SelectMapOverride(name)
+    elseif (typeof(IsMapAvailable) == "function" and IsMapAvailable(name)) or true then
+        pcall(SelectMapOverride, name)
         task.wait(0.5)
         LobbyReadyUp()
         repeat
