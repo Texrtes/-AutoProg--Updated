@@ -834,6 +834,8 @@ return function(ctx)
                         game_info_str = string.format('\nTDS:GameInfo("%s", {%s})', current_map, current_modifiers)
                     end
                     local config_header = string.format([[
+local TDS = shared.TDSTable or loadstring(game:HttpGet("https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua"))()
+
 TDS:Loadout("%s", "%s", "%s", "%s", "%s")
 TDS:Mode("%s")%s
 
@@ -902,8 +904,9 @@ TDS:Mode("%s")%s
                     pos_x, pos_y, pos_z = p.X, p.Y, p.Z
                 end
                 
+                local is_stacker = Globals.Stacker or Globals.StackEnabled or (getgenv and (getgenv().Stacker or getgenv().StackEnabled)) or (ctx and ctx.State and ctx.State.Utilities and ctx.State.Utilities.Stacker)
                 local command
-                if Globals.StackEnabled then
+                if is_stacker then
                     command = 'TDS:Place("' .. tower_name .. '", ' .. tostring(pos_x) .. ', ' .. tostring(pos_y) .. ', ' .. tostring(pos_z) .. ', true)'
                 else
                     command = 'TDS:Place("' .. tower_name .. '", ' .. tostring(pos_x) .. ', ' .. tostring(pos_y) .. ', ' .. tostring(pos_z) .. ')'
