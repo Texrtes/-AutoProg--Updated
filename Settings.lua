@@ -339,4 +339,113 @@ return {
             },
         },
     },
+	
+	
+	
+	EvoData = {
+    ["Scout"] = { Evo = "EvolvedOperator", Coins = 15000, Gems = 4500, Order = 1 },
+    ["Shotgunner"] = { Evo = "EvolvedEnforcer", Coins = 15000, Gems = 4750, Order = 2 },
+    ["Crook Boss"] = { Evo = "EvolvedKingpin", Coins = 15000, Gems = 5500, Order = 3 },
+    ["Minigunner"] = { Evo = "EvolvedJuggernaut", Coins = 15000, Gems = 6000, Order = 4 },
+},
+
+AutoEvoConfigs = {
+	   Coins = {
+        Lose = {
+            Level = 15,
+            Mode = "Molten",
+            Golden = {},
+            SkillTree = {},
+            Maps = {"Simplicity"},
+            
+            -- You can now customize the Towers for each specific Evo target!
+            Towers = {
+                ["Scout"] = {"Assassin", "Soldier"},
+                ["Shotgunner"] = {"Assassin", "Soldier"},
+                ["Crook Boss"] = {"Assassin", "Soldier"},
+                ["Minigunner"] = {"Assassin", "Soldier"}
+            },
+            
+            -- Dynamic scripts based on the active tower you are farming
+          Scripts = {
+                ["Scout"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Operator.lua",--done
+                },
+                ["Shotgunner"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Enforcer.lua",--done
+                },
+                ["Crook Boss"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Kingpin.lua",--done
+                },
+                ["Minigunner"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Juggernaut.lua",--done
+                }
+            }
+        },
+        Win = {
+            Level = 50,
+            Mode = "Fallen",
+            Golden = {},
+            SkillTree = {},
+            Maps = {"Lay By"},
+			Modifiers = {
+                HiddenEnemies = true, 
+                Fog = true, 
+                Limitation = true, 
+                Committed = true, 
+                Quarantine = true, 
+                ExplodingEnemies = true
+            },
+            Towers = {
+                ["Scout"] = {"Gatling Gun", "Trapper", "Hacker"},
+                ["Shotgunner"] = {"Gatling Gun", "Trapper", "Hacker"},
+                ["Crook Boss"] = {"Gatling Gun", "Trapper", "Hacker"},
+                ["Minigunner"] = {"Gatling Gun", "Trapper", "Hacker"}
+            },
+            Scripts = {
+                ["Scout"] = {
+                    ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Win/Operator.lua",--done
+                },
+                ["Shotgunner"] = {
+                    ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Win/Enforcer.lua",--done
+                },
+                ["Crook Boss"] = {
+                    ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Win/Kingpin.lua",--done
+                },
+                ["Minigunner"] = {
+                    ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Win/Juggernaut.lua",--done
+                }
+            }
+        },
+    },
+    Gems = {
+        Lose = {
+            Level = 50,
+            Mode = "hardcore",
+            Golden = {},
+            SkillTree = {},
+            Maps = {"Wretched Front"},
+            Towers = {
+                ["Scout"] = {"Farm", "Boomerang", "Crook Boss"},
+                ["Shotgunner"] = {"Farm", "Boomerang", "Crook Boss"},
+                ["Crook Boss"] = {"Farm", "Boomerang", "Crook Boss"},
+                ["Minigunner"] = {"Farm", "Boomerang", "Crook Boss"}
+            },
+            Scripts = {
+                ["Scout"] = {
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Operator.lua",--done
+                },
+                ["Shotgunner"] = {
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Enforcer.lua",--done
+                },
+                ["Crook Boss"] = {
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Kingpin.lua",--done
+                },
+                ["Minigunner"] = {
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Juggernaut.lua",--done
+                }
+            }
+        }
+    }
+},
 }
