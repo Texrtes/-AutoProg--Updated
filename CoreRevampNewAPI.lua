@@ -904,6 +904,7 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 descLabel.Visible = (tostring(value or "") ~= "")
             end
         end
+        item.SetText = item.SetDesc
         function item:SetVisible(value: boolean) row.Visible = value end
         return item
     end
