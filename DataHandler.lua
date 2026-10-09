@@ -1230,6 +1230,24 @@ local StaticTrialDefinitions = {
 
 CombinedData.StaticTrialDefinitions = StaticTrialDefinitions
 
+local function buildModifiersLookup(ownedModifiers)
+    local lookup = {}
+    if type(ownedModifiers) == "table" then
+        for _, mod in ipairs(ownedModifiers) do
+            lookup[mod] = true
+            local clean = string.lower(tostring(mod)):gsub("%s+", "")
+            lookup[clean] = true
+            if mod == "JailedTowers" or mod == "Jailed" or clean == "jailedtowers" or clean == "jailed" then
+                lookup["Jailed"] = true
+                lookup["JailedTowers"] = true
+                lookup["jailed"] = true
+                lookup["jailedtowers"] = true
+            end
+        end
+    end
+    return lookup
+end
+
 function CombinedData:GetTrialsStatus()
     if setthreadidentity then pcall(setthreadidentity, 8) end
     local allTrials = nil
@@ -1250,16 +1268,17 @@ function CombinedData:GetTrialsStatus()
     local ownedModifiers = getCacheValue("Inventory.Modifiers") or {}
     if setthreadidentity then pcall(setthreadidentity, 8) end
 
-    local lookup = {}
-    for _, mod in ipairs(ownedModifiers) do
-        lookup[mod] = true
-    end
+    local lookup = buildModifiersLookup(ownedModifiers)
 
     local won = {}
     local notWon = {}
 
     for _, trialName in ipairs(allTrials) do
-        if lookup[trialName] then
+        local isWon = lookup[trialName] == true or lookup[string.lower(tostring(trialName)):gsub("%s+", "")] == true
+        if not isWon and (trialName == "Jailed" or trialName == "JailedTowers") then
+            isWon = (lookup["Jailed"] == true or lookup["JailedTowers"] == true)
+        end
+        if isWon then
             table.insert(won, trialName)
         else
             table.insert(notWon, trialName)
@@ -1277,10 +1296,7 @@ function CombinedData:GetAllTrialsList()
     local ownedModifiers = getCacheValue("Inventory.Modifiers") or {}
     if setthreadidentity then pcall(setthreadidentity, 8) end
 
-    local lookup = {}
-    for _, mod in ipairs(ownedModifiers) do
-        lookup[mod] = true
-    end
+    local lookup = buildModifiersLookup(ownedModifiers)
 
     local list = {}
     local trialNames = nil
@@ -1300,7 +1316,10 @@ function CombinedData:GetAllTrialsList()
             if setthreadidentity then pcall(setthreadidentity, 8) end
             local title = resolved and resolved.title or trialName
             local mapName = resolved and resolved.mapName or "Unknown"
-            local isWon = lookup[trialName] == true
+            local isWon = lookup[trialName] == true or lookup[string.lower(tostring(trialName)):gsub("%s+", "")] == true
+            if not isWon and (trialName == "Jailed" or trialName == "JailedTowers") then
+                isWon = (lookup["Jailed"] == true or lookup["JailedTowers"] == true)
+            end
             table.insert(list, {
                 Name = trialName,
                 Title = title,
@@ -1311,7 +1330,10 @@ function CombinedData:GetAllTrialsList()
         end
     else
         for _, t in ipairs(StaticTrialDefinitions) do
-            local isWon = lookup[t.Name] == true
+            local isWon = lookup[t.Name] == true or lookup[string.lower(tostring(t.Name)):gsub("%s+", "")] == true
+            if not isWon and (t.Name == "Jailed" or t.Name == "JailedTowers") then
+                isWon = (lookup["Jailed"] == true or lookup["JailedTowers"] == true)
+            end
             table.insert(list, {
                 Name = t.Name,
                 Title = t.Title,
@@ -1331,20 +1353,25 @@ function CombinedData:IsTrialWon(trialName)
     local ownedModifiers = getCacheValue("Inventory.Modifiers") or {}
     if setthreadidentity then pcall(setthreadidentity, 8) end
 
-    local target = string.lower(trialName):gsub("%s+", "")
-    for _, mod in ipairs(ownedModifiers) do
-        local modClean = string.lower(mod):gsub("%s+", "")
-        if modClean == target then
-            return true
-        end
+    local lookup = buildModifiersLookup(ownedModifiers)
+    local target = string.lower(tostring(trialName)):gsub("%s+", "")
+    if lookup[trialName] == true or lookup[target] == true then
+        return true
     end
+    if (target == "jailed" or target == "jailedtowers") and (lookup["Jailed"] or lookup["JailedTowers"] or lookup["jailed"] or lookup["jailedtowers"]) then
+        return true
+    end
+
     -- Also check display titles
     for _, t in ipairs(StaticTrialDefinitions) do
-        if string.lower(t.Name):gsub("%s+", "") == target or string.lower(t.Title):gsub("%s+", "") == target then
-            for _, mod in ipairs(ownedModifiers) do
-                if string.lower(mod):gsub("%s+", "") == string.lower(t.Name):gsub("%s+", "") then
-                    return true
-                end
+        local tClean = string.lower(t.Name):gsub("%s+", "")
+        local titleClean = string.lower(t.Title):gsub("%s+", "")
+        if tClean == target or titleClean == target then
+            if lookup[t.Name] or lookup[tClean] then
+                return true
+            end
+            if t.Modifier and (lookup[t.Modifier] or lookup[string.lower(t.Modifier)]) then
+                return true
             end
         end
     end
