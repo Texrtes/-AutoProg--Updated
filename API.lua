@@ -240,8 +240,6 @@ local UpgradeHistory = {}
 
 shared.TDSTable = TDS
 shared["TDS_Table"] = TDS
-if getgenv then getgenv().TDS = TDS end
-_G.TDS = TDS
 
 function TDS:ResetAllStates()
     table.clear(self.PlacedTowers)
@@ -753,16 +751,12 @@ local function DoPlaceTower(TName, TPos)
  
         if ok and CheckResOk(res) then return true end
         retries = retries + 1
-        if retries == 10 or (retries > 10 and retries % 20 == 0) then
-            warn(string.format("[TDS:Place] Waiting to place '%s' (attempt %d)...", tostring(TName), retries))
-        end
         task.wait(0.25)
     end
 end
 
 local function DoUpgradeTower(TObj, PathId)
     if not TObj then
-        warn("[TDS:Upgrade] Error: Attempted to upgrade a nil tower object!")
         return false
     end
     local retries = 0
@@ -775,9 +769,6 @@ local function DoUpgradeTower(TObj, PathId)
         end)
         if ok and CheckResOk(res) then return true end
         retries = retries + 1
-        if retries == 10 or (retries > 10 and retries % 20 == 0) then
-            warn(string.format("[TDS:Upgrade] Waiting to upgrade tower (attempt %d)...", retries))
-        end
         task.wait(0.25)
     end
 end
@@ -1165,6 +1156,68 @@ local function LobbyReadyUp()
     end)
 end
 
+local function CastModifierVote(modsTable)
+    if not modsTable or type(modsTable) ~= "table" or not next(modsTable) then
+        return false
+    end
+
+    local bulkModifiers = nil
+    pcall(function()
+        local net = ReplicatedStorage:FindFirstChild("Network")
+        local modsFolder = net and net:FindFirstChild("Modifiers")
+        bulkModifiers = modsFolder and modsFolder:FindFirstChild("RF:BulkVoteModifiers")
+    end)
+    if not bulkModifiers then
+        pcall(function()
+            bulkModifiers = ReplicatedStorage:FindFirstChild("RF:BulkVoteModifiers", true)
+        end)
+    end
+
+    local modRep = nil
+    pcall(function()
+        local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+        modRep = stateReps and stateReps:FindFirstChild("ModifierReplicator")
+    end)
+    if not modRep then
+        pcall(function()
+            modRep = ReplicatedStorage:FindFirstChild("ModifierReplicator", true)
+        end)
+    end
+
+    local available = {}
+    if modRep then
+        local raw = modRep:GetAttribute("Available")
+        if type(raw) == "string" then
+            local clean = raw:match("{.+}")
+            if clean then
+                pcall(function()
+                    available = HttpService:JSONDecode(clean)
+                end)
+            end
+        end
+    end
+
+    local selectedMods = {}
+    for k, v in pairs(modsTable) do
+        local modName = (type(k) == "string" and k ~= "") and k or (type(v) == "string" and v)
+        if modName and (v == true or type(v) == "string") then
+            if not next(available) or available[modName] == true then
+                selectedMods[modName] = true
+            end
+        end
+    end
+
+    if next(selectedMods) and bulkModifiers then
+        local ok = pcall(function()
+            bulkModifiers:InvokeServer(selectedMods)
+        end)
+        return ok
+    end
+    return false
+end
+
+TDS.CastModifierVote = CastModifierVote
+
 function TDS:GameInfo(name, list)
     if game.PlaceId == 3260590327 then return false end
 
@@ -1417,11 +1470,7 @@ local function StartAutoGatling()
                     GatlingExecuted = true 
                     task.spawn(function()
                         pcall(function()
-                            local sel = Globals.SelectedGatling or "Railgun"
-                            local url = (sel == "Gatlify")
-                                and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
-                                or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
-                            loadstring(game:HttpGet(url))()
+                            loadstring(game:HttpGet("https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"))()
                         end)
                     end)
                 end
@@ -2048,6 +2097,4 @@ end)
 
 MissionsUIFix()
 
-if getgenv then getgenv().TDS = TDS end
-_G.TDS = TDS
 return TDS
