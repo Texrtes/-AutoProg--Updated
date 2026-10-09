@@ -296,9 +296,15 @@ local function calculateDeviceScale(deviceType: string, vp: Vector2, topInset: n
     end
 end
 
-local function tween(object: Instance, time: number, goal: { [string]: any }, style: Enum.EasingStyle?, direction: Enum.EasingDirection?)
-    local info = TweenInfo.new(time, style or Enum.EasingStyle.Quart, direction or Enum.EasingDirection.Out)
-    local anim = TweenService:Create(object, info, goal)
+local function tween(object: Instance, time: any, goal: any, style: Enum.EasingStyle?, direction: Enum.EasingDirection?)
+    if type(time) == "table" and type(goal) == "number" then
+        local tmp = time
+        time = goal
+        goal = tmp
+    end
+    local duration = tonumber(time) or 0.2
+    local info = TweenInfo.new(duration, style or Enum.EasingStyle.Quart, direction or Enum.EasingDirection.Out)
+    local anim = TweenService:Create(object, info, (type(goal) == "table" and goal) or {})
     anim:Play()
     return anim
 end
@@ -3016,6 +3022,570 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         function item:SetVisible(v: boolean) consoleWrap.Visible = v end
         return item
     end
+
+    function api:StrategyManager(props: { [string]: any })
+        props = props or {}
+        local title = tostring(props.Title or "Strategy Manager")
+        local scrollH = tonumber(props.Height) or 170
+        local onSelectCb = props.OnSelect or function() end
+        local onDeleteCb = props.OnDelete or function() end
+        local onExtractCb = props.OnExtract or function() end
+        local onExecuteCb = props.OnExecute or function() end
+        local onAutoExecCb = props.OnAutoExecute or function() end
+        local onFilterCb = props.OnFilter or function() end
+
+        local rawStrats = props.Strats or {}
+        local autoExecValue = (props.AutoExecute == true)
+        local selectedIndex = nil
+        local selectedStrat = nil
+        local filterQuery = ""
+
+        -- Container frame
+        local container = make("Frame", {
+            Name = "StrategyManager",
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundColor3 = window.Theme.Sidebar,
+            BackgroundTransparency = 0.35,
+            BorderSizePixel = 0,
+            LayoutOrder = nextOrder(props.Order),
+            Parent = scroll,
+        })
+        corner(container, 10)
+        stroke(container, window.Theme.StrokeSoft, 1, 0.6)
+        padding(container, 10, 10, 10, 10)
+        list(container, 8)
+
+        -- 1. Top Header Row
+        local header = make("Frame", {
+            Name = "Header",
+            Size = UDim2.new(1, 0, 0, 26),
+            BackgroundTransparency = 1,
+            Parent = container,
+        })
+
+        local hLayout = list(header, 8, Enum.FillDirection.Horizontal)
+        hLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+        local dot1 = make("Frame", { Size = UDim2.fromOffset(8, 8), BackgroundColor3 = window.Theme.Accent, Parent = header })
+        corner(dot1, 4)
+
+        local titleLabel = make("TextLabel", {
+            Name = "Title",
+            Text = string.upper(title),
+            Font = Enum.Font.GothamBold,
+            TextSize = 11,
+            TextColor3 = window.Theme.Accent,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0.6, 0, 1, 0),
+            Parent = header,
+        })
+
+        local countBadge = make("TextLabel", {
+            Name = "CountBadge",
+            Text = "0 Strats",
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            TextColor3 = window.Theme.Muted,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0),
+            Size = UDim2.new(0.35, 0, 1, 0),
+            Parent = header,
+        })
+
+        -- 2. Filter / Search Bar
+        local filterBar = make("Frame", {
+            Name = "FilterBar",
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundColor3 = window.Theme.Surface,
+            BackgroundTransparency = 0.45,
+            BorderSizePixel = 0,
+            Parent = container,
+        })
+        corner(filterBar, 6)
+        stroke(filterBar, window.Theme.StrokeSoft, 1, 0.7)
+        padding(filterBar, 8, 0, 8, 0)
+
+        local searchIcon = make("TextLabel", {
+            Name = "SearchIcon",
+            Text = "🔍",
+            Font = Enum.Font.Gotham,
+            TextSize = 11,
+            TextColor3 = window.Theme.Muted,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 18, 1, 0),
+            Parent = filterBar,
+        })
+
+        local searchBox = make("TextBox", {
+            Name = "SearchBox",
+            PlaceholderText = "Search strategies...",
+            PlaceholderColor3 = window.Theme.Muted,
+            Text = "",
+            Font = Enum.Font.Gotham,
+            TextSize = 11,
+            TextColor3 = window.Theme.Text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundTransparency = 1,
+            ClearTextOnFocus = false,
+            Position = UDim2.new(0, 24, 0, 0),
+            Size = UDim2.new(1, -48, 1, 0),
+            Parent = filterBar,
+        })
+
+        local clearFilterBtn = make("TextButton", {
+            Name = "ClearFilter",
+            Text = "✕",
+            Font = Enum.Font.GothamBold,
+            TextSize = 11,
+            TextColor3 = window.Theme.Muted,
+            BackgroundTransparency = 1,
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0),
+            Size = UDim2.fromOffset(20, 20),
+            Visible = false,
+            Parent = filterBar,
+        })
+
+        -- 3. Scrolling Frame for Strategy List
+        local stratScroll = make("ScrollingFrame", {
+            Name = "StratScroll",
+            Size = UDim2.new(1, 0, 0, scrollH),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = window.Theme.Accent,
+            ScrollBarImageTransparency = 0.4,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Parent = container,
+        })
+        padding(stratScroll, 2, 2, 6, 2)
+        local scrollListLayout = list(stratScroll, 6)
+
+        -- 4. Bottom Action Bar
+        local bottomBar = make("Frame", {
+            Name = "BottomBar",
+            Size = UDim2.new(1, 0, 0, 36),
+            BackgroundColor3 = window.Theme.Surface,
+            BackgroundTransparency = 0.45,
+            BorderSizePixel = 0,
+            Parent = container,
+        })
+        corner(bottomBar, 8)
+        stroke(bottomBar, window.Theme.StrokeSoft, 1, 0.7)
+        padding(bottomBar, 10, 0, 10, 0)
+
+        -- Left: Auto Execute Toggle
+        local toggleWrap = make("TextButton", {
+            Name = "AutoExecWrap",
+            Text = "",
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0.6, 0, 1, 0),
+            Parent = bottomBar,
+        })
+        local tLayout = list(toggleWrap, 8, Enum.FillDirection.Horizontal)
+        tLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+        local switch = make("Frame", {
+            Name = "Switch",
+            Size = UDim2.fromOffset(36, 20),
+            BackgroundColor3 = autoExecValue and window.Theme.Success or window.Theme.Sidebar,
+            BackgroundTransparency = autoExecValue and 0.15 or 0.35,
+            BorderSizePixel = 0,
+            Parent = toggleWrap,
+        })
+        corner(switch, 10)
+        local switchStroke = stroke(switch, autoExecValue and window.Theme.Success or window.Theme.StrokeSoft, 1, 0.5)
+
+        local knob = make("Frame", {
+            Name = "Knob",
+            Size = UDim2.fromOffset(14, 14),
+            Position = autoExecValue and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0,
+            Parent = switch,
+        })
+        corner(knob, 7)
+
+        local toggleLabel = make("TextLabel", {
+            Name = "ToggleLabel",
+            Text = tostring(props.AutoExecuteTitle or "Auto Execute on Run"),
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            TextColor3 = window.Theme.Text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -44, 1, 0),
+            Parent = toggleWrap,
+        })
+
+        -- Right: Execute Button
+        local executeBtn = make("TextButton", {
+            Name = "ExecuteButton",
+            Text = tostring(props.ExecuteTitle or "▶ EXECUTE"),
+            Font = Enum.Font.GothamBold,
+            TextSize = 11,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundColor3 = window.Theme.Success,
+            BackgroundTransparency = 0.20,
+            BorderSizePixel = 0,
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0),
+            Size = UDim2.fromOffset(105, 26),
+            Parent = bottomBar,
+        })
+        corner(executeBtn, 6)
+        stroke(executeBtn, window.Theme.Success, 1, 0.4)
+
+        -- State management & rendering
+        local stratItems = {}
+        local cardElements = {}
+
+        local function normalizeStrat(entry)
+            if type(entry) == "table" then
+                return {
+                    Name = tostring(entry.Name or entry.File or entry.Title or "Unnamed"),
+                    Mode = tostring(entry.Mode or entry.Difficulty or "?"),
+                    Path = entry.Path,
+                    Content = entry.Content,
+                    Raw = entry,
+                }
+            else
+                return {
+                    Name = tostring(entry),
+                    Mode = "?",
+                    Path = tostring(entry),
+                    Raw = entry,
+                }
+            end
+        end
+
+        for _, s in ipairs(rawStrats) do
+            table.insert(stratItems, normalizeStrat(s))
+        end
+
+        local initialSelected = props.Selected or props.SelectedStrat or props.Default
+        if initialSelected then
+            for i, s in ipairs(stratItems) do
+                if s.Name == tostring(initialSelected) or i == initialSelected then
+                    selectedStrat = s
+                    selectedIndex = i
+                    break
+                end
+            end
+        end
+        if not selectedStrat and #stratItems > 0 then
+            selectedStrat = stratItems[1]
+            selectedIndex = 1
+        end
+
+        local renderList
+
+        local function updateAutoExecVisual(val)
+            autoExecValue = val
+            tween(switch, 0.2, {
+                BackgroundColor3 = val and window.Theme.Success or window.Theme.Sidebar,
+                BackgroundTransparency = val and 0.15 or 0.35
+            })
+            tween(switchStroke, 0.2, {
+                Color = val and window.Theme.Success or window.Theme.StrokeSoft
+            })
+            tween(knob, 0.2, {
+                Position = val and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+            })
+        end
+
+        toggleWrap.MouseButton1Click:Connect(function()
+            local newVal = not autoExecValue
+            updateAutoExecVisual(newVal)
+            pcall(onAutoExecCb, newVal)
+        end)
+
+        executeBtn.MouseButton1Click:Connect(function()
+            if selectedStrat then
+                pcall(onExecuteCb, selectedStrat, selectedIndex)
+            else
+                if window and typeof(window.Notify) == "function" then
+                    window:Notify({
+                        Title = "Strategy Manager",
+                        Desc = "Please click a strategy to select it first!",
+                        Duration = 2.5,
+                        Type = "warning",
+                    })
+                end
+            end
+        end)
+
+        local function selectRow(strat, idx)
+            selectedStrat = strat
+            selectedIndex = idx
+            for i, cardRef in pairs(cardElements) do
+                local isCur = (cardRef.Strat == strat)
+                tween(cardRef.Card, 0.15, {
+                    BackgroundColor3 = isCur and window.Theme.SurfaceHover or window.Theme.Surface,
+                    BackgroundTransparency = isCur and 0.15 or 0.45
+                })
+                tween(cardRef.Stroke, 0.15, {
+                    Color = isCur and window.Theme.Accent or window.Theme.StrokeSoft,
+                    Transparency = isCur and 0.2 or 0.7
+                })
+                cardRef.Stroke.Thickness = isCur and 1.5 or 1
+                cardRef.Bar.Visible = isCur
+                cardRef.NameLabel.TextColor3 = isCur and window.Theme.Accent or window.Theme.Text
+            end
+            pcall(onSelectCb, strat, idx)
+        end
+
+        renderList = function()
+            for _, c in pairs(cardElements) do
+                if c.Card and c.Card.Parent then c.Card:Destroy() end
+            end
+            table.clear(cardElements)
+
+            local q = string.lower(filterQuery):gsub("^%s+", ""):gsub("%s+$", "")
+            local visibleCount = 0
+
+            for i, st in ipairs(stratItems) do
+                local match = true
+                if q ~= "" then
+                    local nameLow = string.lower(st.Name)
+                    local modeLow = string.lower(st.Mode)
+                    match = (string.find(nameLow, q, 1, true) ~= nil) or (string.find(modeLow, q, 1, true) ~= nil)
+                end
+
+                if match then
+                    visibleCount = visibleCount + 1
+                    local isSelected = (selectedStrat ~= nil and selectedStrat.Name == st.Name)
+
+                    local rowCard = make("Frame", {
+                        Name = "StratCard_" .. tostring(i),
+                        Size = UDim2.new(1, 0, 0, 48),
+                        BackgroundColor3 = isSelected and window.Theme.SurfaceHover or window.Theme.Surface,
+                        BackgroundTransparency = isSelected and 0.15 or 0.45,
+                        BorderSizePixel = 0,
+                        Parent = stratScroll,
+                    })
+                    corner(rowCard, 6)
+                    local rowStroke = stroke(rowCard, isSelected and window.Theme.Accent or window.Theme.StrokeSoft, isSelected and 1.5 or 1, isSelected and 0.2 or 0.7)
+                    padding(rowCard, 8, 4, 8, 4)
+
+                    local selectBar = make("Frame", {
+                        Name = "SelectBar",
+                        Size = UDim2.new(0, 3, 1, -8),
+                        Position = UDim2.new(0, -4, 0, 4),
+                        BackgroundColor3 = window.Theme.Accent,
+                        BorderSizePixel = 0,
+                        Visible = isSelected,
+                        Parent = rowCard,
+                    })
+                    corner(selectBar, 2)
+
+                    local clickArea = make("TextButton", {
+                        Name = "ClickArea",
+                        Text = "",
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, -130, 1, 0),
+                        Parent = rowCard,
+                    })
+
+                    local nameLabel = make("TextLabel", {
+                        Name = "StratName",
+                        Text = st.Name,
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 11,
+                        TextColor3 = isSelected and window.Theme.Accent or window.Theme.Text,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 4, 0, 2),
+                        Size = UDim2.new(1, -8, 0, 18),
+                        Parent = clickArea,
+                    })
+
+                    local modeLabel = make("TextLabel", {
+                        Name = "StratMode",
+                        Text = "Mode: " .. tostring(st.Mode or "?"),
+                        Font = Enum.Font.Gotham,
+                        TextSize = 10,
+                        TextColor3 = window.Theme.Muted,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 4, 0, 20),
+                        Size = UDim2.new(1, -8, 0, 16),
+                        Parent = clickArea,
+                    })
+
+                    local btnContainer = make("Frame", {
+                        Name = "BtnContainer",
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, 0, 0.5, 0),
+                        Size = UDim2.fromOffset(130, 26),
+                        BackgroundTransparency = 1,
+                        Parent = rowCard,
+                    })
+                    local bLayout = list(btnContainer, 6, Enum.FillDirection.Horizontal)
+                    bLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+                    bLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+                    local deleteBtn = make("TextButton", {
+                        Name = "DeleteBtn",
+                        Text = "Delete",
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 10,
+                        TextColor3 = Color3.fromRGB(255, 255, 255),
+                        BackgroundColor3 = window.Theme.Danger,
+                        BackgroundTransparency = 0.25,
+                        BorderSizePixel = 0,
+                        Size = UDim2.fromOffset(52, 24),
+                        Parent = btnContainer,
+                    })
+                    corner(deleteBtn, 4)
+
+                    local extractBtn = make("TextButton", {
+                        Name = "ExtractBtn",
+                        Text = "Extract",
+                        Font = Enum.Font.GothamBold,
+                        TextSize = 10,
+                        TextColor3 = Color3.fromRGB(255, 255, 255),
+                        BackgroundColor3 = window.Theme.Accent,
+                        BackgroundTransparency = 0.25,
+                        BorderSizePixel = 0,
+                        Size = UDim2.fromOffset(56, 24),
+                        Parent = btnContainer,
+                    })
+                    corner(extractBtn, 4)
+
+                    clickArea.MouseButton1Click:Connect(function()
+                        selectRow(st, i)
+                    end)
+
+                    deleteBtn.MouseButton1Click:Connect(function()
+                        pcall(onDeleteCb, st, i)
+                    end)
+
+                    extractBtn.MouseButton1Click:Connect(function()
+                        pcall(onExtractCb, st, i)
+                    end)
+
+                    cardElements[i] = {
+                        Card = rowCard,
+                        Stroke = rowStroke,
+                        Bar = selectBar,
+                        NameLabel = nameLabel,
+                        ModeLabel = modeLabel,
+                        Strat = st,
+                        Index = i,
+                    }
+                end
+            end
+
+            countBadge.Text = string.format("%d Strats%s", #stratItems, q ~= "" and (" (" .. visibleCount .. " shown)") or "")
+        end
+
+        searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+            filterQuery = searchBox.Text
+            clearFilterBtn.Visible = (filterQuery ~= "")
+            renderList()
+            pcall(onFilterCb, filterQuery)
+        end)
+
+        clearFilterBtn.MouseButton1Click:Connect(function()
+            searchBox.Text = ""
+        end)
+
+        renderList()
+
+        local item = {}
+        function item:SetStrats(newStrats: { any })
+            stratItems = {}
+            for _, s in ipairs(newStrats or {}) do
+                table.insert(stratItems, normalizeStrat(s))
+            end
+            if selectedStrat then
+                local found = false
+                for _, s in ipairs(stratItems) do
+                    if s.Name == selectedStrat.Name then
+                        selectedStrat = s
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    selectedStrat = nil
+                    selectedIndex = nil
+                end
+            end
+            renderList()
+        end
+
+        function item:AddStrat(s: any)
+            table.insert(stratItems, normalizeStrat(s))
+            renderList()
+        end
+
+        function item:RemoveStrat(nameOrIndex: any)
+            if type(nameOrIndex) == "number" then
+                table.remove(stratItems, nameOrIndex)
+            else
+                for i = #stratItems, 1, -1 do
+                    if stratItems[i].Name == tostring(nameOrIndex) then
+                        table.remove(stratItems, i)
+                        break
+                    end
+                end
+            end
+            if selectedStrat and (selectedStrat.Name == tostring(nameOrIndex) or selectedIndex == nameOrIndex) then
+                selectedStrat = nil
+                selectedIndex = nil
+            end
+            renderList()
+        end
+
+        function item:GetSelected()
+            return selectedStrat, selectedIndex
+        end
+
+        function item:SelectStrat(nameOrIndex: any)
+            if type(nameOrIndex) == "number" then
+                if stratItems[nameOrIndex] then
+                    selectRow(stratItems[nameOrIndex], nameOrIndex)
+                end
+            else
+                for i, s in ipairs(stratItems) do
+                    if s.Name == tostring(nameOrIndex) then
+                        selectRow(s, i)
+                        break
+                    end
+                end
+            end
+        end
+
+        function item:SetAutoExecute(val: boolean)
+            updateAutoExecVisual(val == true)
+        end
+
+        function item:GetAutoExecute()
+            return autoExecValue
+        end
+
+        function item:SetVisible(v: boolean)
+            container.Visible = v
+        end
+
+        function item:Refresh()
+            renderList()
+        end
+
+        return item
+    end
+
+    api.StratManager = api.StrategyManager
+    api.StratList = api.StrategyManager
 
     api.Root = scroll
     return api
