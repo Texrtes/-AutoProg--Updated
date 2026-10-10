@@ -77,6 +77,7 @@ return {
                     Towers = {"Scout", "Soldier"},
                     Golden = {},
                     SkillTree = {},
+					TowersToBuy = { "Assassin", "Soldier" },
                     Maps = {"Simplicity", "Meltdown", "Midnight Issue", "Spring Fever", "Stained Temple"},
                     Scripts = {
                         ["Simplicity"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Coins/Lose/simplicity.lua",
