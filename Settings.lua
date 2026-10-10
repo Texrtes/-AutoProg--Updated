@@ -5,54 +5,67 @@
 --==============================================================================
 
 return {
-    -- Tier Definitions & Descriptions
-    Tiers = {
-        Free = {
-            Name = "Free",
-            Badge = "FREE TIER",
-            Summary = "Standard Progression",
-            Descriptions = "Unlocks all towers all hardcore towers",
-            Features = {
-                "Unlocks all towers",
-                "Unlocks all hardcore towers",
-            },
+    
+	AutoProgress = {
+	
+	   ["Node 0"] = {
+            TowerToBuy = { "Soldier" }, -- Node 0 goal: Buy Assassin before moving to Node 1
+            [1] = {
+                Level = 0, -- Level required: 0 or above
+                TowersCheck = {},
+                TowersToEquip = { },
+                TowerToBuy = { "Assassin" },
+                StoryMode = { "Boot Camp", "Live Fire", "Breach Protocol", "Brute Force" }, -- Story Missions
+                scripts = {
+                    ["Boot Camp"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/Bootcamp.lua",
+                    ["Live Fire"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/LiveFire.lua",
+                    ["Breach Protocol"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/BreachProtocol.lua",
+                    ["Brute Force"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/BruteForce.lua",
+                }
+            }
         },
-        Premium = {
-            Name = "Premium",
-            Badge = "PREMIUM VIP",
-            Summary = "Advanced Progression Engine",
-            Descriptions = "Offers as the free but better prog",
-            Features = {
-                "Offers as the free but better prog",
-                "Unlock all evo",
-                "Unlock all golden skins",
-                "Unlock all Skill tree",
-                "Unlock Special Towers",
-            },
+	  ["Node 1"] = {
+            TowerToBuy = { "Assassin" }, 
+            LevelGoals = 15,
+            [1] = {
+                Level = 0, -- Level required: 0 or above
+                LevelGoals = 15,
+                TowersCheck = { "Scout" },
+                TowersToEquip = { "Scout" },
+                Modes = "Easy", -- Match difficulty / mode
+                TowerToBuy = { "Assassin" }, -- Node 1 things to do: Grind coins until Soldier is purchased
+                Maps = { "Simplicity", "Meltdown", "Midnight Issue", "Spring Fever", "Stained Temple" }, -- Available Maps
+                scripts = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/simplicity.lua",
+                    ["Meltdown"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/meltdown.lua",
+                    ["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/midnight_issue.lua",
+                    ["Spring Fever"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/spring_fever.lua",
+                    ["Stained Temple"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/stained_temple.lua",
+                }
+            }
         },
-    },
-
-    -- Progression Status & State
-    Enabled = false,
-    CurrentlyDoing = "Idle",
-    Target = "None",
-    SelectedTier = "Free", -- "Free" or "Premium"
-
-    -- Tower & Feature Unlock Flags
-    UnlocksAllTowers = true,
-    UnlocksHardcoreTowers = true,
-    BetterProg = false,
-    UnlockAllEvo = false,
-    UnlockAllGoldenSkins = false,
-    UnlockAllSkillTree = false,
-    UnlockSpecialTowers = false,
-
-    -- Tuning Configs
-    StepDelay = 1.0,
-    AutoAdvance = true,
-    AutoRetry = true,
-    Difficulty = "Normal",
-    TargetStage = 100,
+		 ["Node 2"] = {
+            TowerToBuy = { "Farm", "Boomerang" }, -- Node 2 goal
+            TowersToClaim = { "Crook Boss" }, -- Claim Crook Boss (unlocked at Level 30)
+            LevelGoals = 50, -- Level target for Node 2
+            [1] = {
+                Level = 15, -- Level required: 15 or above
+                LevelGoals = 50,
+                TowersCheck = { "Soldier" },
+                TowersToEquip = { "Soldier" },
+                Modes = "Molten", -- Match difficulty / mode
+                TowerToBuy = { "Farm", "Boomerang" },
+                TowersToClaim = { "Crook Boss" },
+                Maps = { "Lighthaos", "Midnight Issue", "Nether", "Wrecked Battlefield II" }, -- Available Maps
+                scripts = {
+                    ["Lighthaos"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/lighthaos.lua",
+                    ["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/midnight_issue.lua",
+                    ["Nether"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/nether.lua",
+                    ["Wrecked Battlefield II"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/wrecked_battlefield_ii.lua",
+                }
+            }
+        },
+	},
 	
 	AutoCurrency = {
       Coins = {
@@ -71,19 +84,6 @@ return {
 						["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Coins/Lose/midnight_issue.lua",
                         ["Spring Fever"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Coins/Lose/sprint_fever.lua",
 						["Stained Temple"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Coins/Lose/stained_temple.lua",
-                    },
-                },
-                Level_5 = {
-                    Level = 5,
-                    Mode = "Intermediate",
-                    TowerRequirments = {"Scout", "Sniper"},
-                    Towers = {"Scout", "Sniper"},
-                    Golden = {},
-                    SkillTree = {},
-                    Maps = {"Simplicity", "Winter Abyss"},
-                    Scripts = {
-                        ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/Simplicity.lua",
-                        ["Winter Abyss"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/WinterAbyss.lua",
                     },
                 },
                 Level_15 = {
@@ -489,4 +489,67 @@ AutoEvoConfigs = {
         }
     }
 },
+
+	    TowerList = {
+        ["Coins"] = {
+            { Name = "Scout", Cost = 0, Type = "Coins", Action = "Buy" },
+            { Name = "Sniper", Cost = 50, Type = "Coins", Action = "Buy" },
+            { Name = "Paintballer", Cost = 100, Type = "Coins", Action = "Buy" },
+            { Name = "Demoman", Cost = 200, Type = "Coins", Action = "Buy" },
+            { Name = "Boomerang", Cost = 300, Type = "Coins", Action = "Buy" },
+            { Name = "Slime Trooper", Cost = 300, Type = "Coins", Action = "Buy" },
+            { Name = "Soldier", Cost = 350, Type = "Coins", Action = "Buy" },
+            { Name = "Freezer", Cost = 650, Type = "Coins", Action = "Buy" },
+            { Name = "Militant", Cost = 800, Type = "Coins", Action = "Buy" },
+            { Name = "Assassin", Cost = 800, Type = "Coins", Action = "Buy" },
+            { Name = "Shotgunner", Cost = 850, Type = "Coins", Action = "Buy" },
+            { Name = "Hunter", Cost = 1000, Type = "Coins", Action = "Buy" },
+            { Name = "Pyromancer", Cost = 1250, Type = "Coins", Action = "Buy" },
+            { Name = "Ace Pilot", Cost = 1500, Type = "Coins", Action = "Buy" },
+            { Name = "Farm", Cost = 2000, Type = "Coins", Action = "Buy" },
+            { Name = "Medic", Cost = 2000, Type = "Coins", Action = "Buy" },
+            { Name = "Rocketeer", Cost = 2500, Type = "Coins", Action = "Buy" },
+            { Name = "Electroshocker", Cost = 2500, Type = "Coins", Action = "Buy" },
+            { Name = "Trapper", Cost = 3000, Type = "Coins", Action = "Buy" },
+            { Name = "Pulse Trooper", Cost = 3250, Type = "Coins", Action = "Buy" },
+            { Name = "Commander", Cost = 4000, Type = "Coins", Action = "Buy" },
+            { Name = "Military Base", Cost = 4000, Type = "Coins", Action = "Buy" },
+            { Name = "DJ Booth", Cost = 5000, Type = "Coins", Action = "Buy" },
+            { Name = "Tesla", Cost = 6000, Type = "Coins", Action = "Buy" },
+            { Name = "Minigunner", Cost = 8000, Type = "Coins", Action = "Buy" },
+            { Name = "Ranger", Cost = 12000, Type = "Coins", Action = "Buy" },
+            { Name = "Pursuit", Cost = 15000, Type = "Coins", Action = "Buy", LevelReq = 100 },
+            { Name = "Gatling Gun", Cost = 35000, Type = "Coins", Action = "Buy", LevelReq = 175 },
+        },
+        ["Levels"] = {
+            { Name = "Crook Boss", Cost = 0, Type = "Levels", Action = "Claim", LevelReq = 30 },
+            { Name = "Turret", Cost = 0, Type = "Levels", Action = "Claim", LevelReq = 50 },
+            { Name = "Mortar", Cost = 0, Type = "Levels", Action = "Claim", LevelReq = 75 },
+            { Name = "Mercenary Base", Cost = 0, Type = "Levels", Action = "Claim", LevelReq = 150 },
+            { Name = "Mercnedary base", Cost = 0, Type = "Levels", Action = "Claim", LevelReq = 150 },
+        },
+        ["Gems"] = {
+            { Name = "Accelerator", Cost = 2500, Type = "Gems", Action = "Buy" },
+            { Name = "Brawler", Cost = 1250, Type = "Gems", Action = "Buy" },
+            { Name = "Necromancer", Cost = 2250, Type = "Gems", Action = "Buy" },
+            { Name = "Engineer", Cost = 4500, Type = "Gems", Action = "Buy" },
+            { Name = "Hacker", Cost = 5500, Type = "Gems", Action = "Buy" },
+        },
+        ["Evo"] = {
+            { Name = "EvolvedOperator", Coins = 15000, Gems = 4500, Type = "Evo", Action = "Craft" },
+            { Name = "EvolvedEnforcer", Coins = 15000, Gems = 5000, Type = "Evo", Action = "Craft" },
+            { Name = "EvolvedKingpin", Coins = 15000, Gems = 5500, Type = "Evo", Action = "Craft" },  
+            { Name = "EvolvedJuggernaut", Coins = 15000, Gems = 6000, Type = "Evo", Action = "Craft" },
+        },
+        ["Golden"] = {
+            { Name = "Golden Scout", Cost = 50000, Type = "Golden", Action = "Buy" },
+            { Name = "Golden Demoman", Cost = 50000, Type = "Golden", Action = "Buy" },
+            { Name = "Golden Soldier", Cost = 50000, Type = "Golden", Action = "Buy" },
+            { Name = "Golden Pyromancer", Cost = 50000, Type = "Golden", Action = "Buy" },
+            { Name = "Golden Crook Boss", Cost = 50000, Type = "Golden", Action = "Buy" },
+            { Name = "Golden Minigunner", Cost = 50000, Type = "Golden", Action = "Buy" },
+            { Name = "Golden Cowboy", Cost = 50000, Type = "Golden", Action = "Buy" },
+        },
+    },
+
 }
