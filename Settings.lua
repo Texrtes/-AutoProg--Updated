@@ -112,7 +112,7 @@ return {
                 HiddenEnemies = true, 
                 Fog = true, 
                 Limitation = true, 
-                Committed = true, 
+                Committed = false, 
                 Quarantine = true, 
                 ExplodingEnemies = true
             },
