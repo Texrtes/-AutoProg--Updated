@@ -220,10 +220,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local function elevateThread()
-    local setid = setthreadidentity or set_thread_identity or (syn and syn.set_thread_identity) or setidentity
-    if setid then
-        pcall(setid, 8)
-    end
+    -- Safe no-op to prevent 'lacking capability Plugin' capability errors on mobile executors like Delta
 end
 
 local function getTopInset(): number
