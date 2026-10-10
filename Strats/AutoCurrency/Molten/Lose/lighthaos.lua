@@ -1,0 +1,54 @@
+TDS:Loadout("Soldier", "None", "None", "None", "None")
+
+TDS:Mode("Molten")
+TDS:GameInfo("Lighthaos")
+
+TDS:VoteSkip()
+
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --1
+TDS:Ready()
+
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --2
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --3
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --4
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --5
+
+for _ = 1, 3 do
+    for index = 1, 5 do
+        TDS:Upgrade(index)
+    end
+end
+
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --6
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --7
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --8
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --9
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --10
+
+for _ = 1, 3 do
+    for index = 6, 10 do
+        TDS:Upgrade(index)
+    end
+end
+
+for index = 1, 10 do
+    TDS:Upgrade(index)
+end
+
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --11
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --12
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --13
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --14
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --15
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --16
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --17
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --18
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --19
+TDS:Place("Soldier", -0.6217041015625, 0.978121280670166, 8.974184036254883, true) --20
+
+for _ = 1, 4 do
+    for index = 11, 20 do
+        TDS:Upgrade(index)
+    end
+end
+
