@@ -113,7 +113,6 @@ return {
                 Fog = true, 
                 Limitation = true, 
                 Committed = false, 
-                Quarantine = true, 
                 ExplodingEnemies = true
             },
                 Scripts = {
