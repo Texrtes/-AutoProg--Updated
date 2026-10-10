@@ -278,6 +278,7 @@ shared.TDSTable = TDS
 shared["TDS_Table"] = TDS
 
 function TDS:ResetAllStates()
+    self.__matchRestarted = true
     table.clear(self.PlacedTowers)
     table.clear(UpgradeHistory)
     table.clear(executed_actions)
@@ -1467,6 +1468,19 @@ function TDS:GameInfo(name, list)
     local targetMap = (type(name) == "table" and name[1]) or name
     if not targetMap or targetMap == "" or targetMap == "Unknown" then
         targetMap = "Simplicity"
+    end
+
+    -- If match is already in-game, match has restarted, or Story Mode:
+    local stateReps = game:GetService("ReplicatedStorage"):FindFirstChild("StateReplicators")
+    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+    local gsrOver = gsr and gsr:GetAttribute("GameOver")
+    local gsrWave = gsr and (gsr:GetAttribute("Wave") or 0)
+    local towersFolder = workspace:FindFirstChild("Towers")
+    local isStory = (gsr and gsr:GetAttribute("StoryMission") ~= nil) or (tostring(gsr and gsr:GetAttribute("Difficulty") or ""):find("Chapter") ~= nil)
+
+    if self.__matchRestarted or TDS.__matchRestarted or isStory or (gsrOver == false and (gsrWave > 0 or towersFolder ~= nil)) then
+        warn(string.format(">>> [TDS:GameInfo] Match already in-game / restarted on '%s'. Bypassing elevator boards check.", tostring(targetMap)))
+        return true
     end
 
     -- 1. WAIT UNTIL USERS ARE FULLY LOADED IN THE INTERMISSION
