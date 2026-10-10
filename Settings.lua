@@ -94,11 +94,14 @@ return {
                     Towers = {"Assassin", "Soldier"},
                     Golden = {},
                     SkillTree = {},
-                    Maps = {"Simplicity", "Winter Abyss"},
+                    Maps = {"Simplicity", "Lighthaos", "Midnight Issue", "Nether", "Winter Abyss", "Wrecked Battlefield II"},
                     Scripts = {
-                        ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/Simplicity.lua",
-                        ["Winter Abyss"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/WinterAbyss.lua",
-                    },
+                        ["Simplicity"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Molten/Lose/simplicity.lua",
+						["Lighthaos"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Molten/Lose/lighthaos.lua",
+						["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Molten/Lose/midnight_issue.lua",
+						["Nether"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Molten/Lose/nether.lua",
+						["Winter Abyss"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Molten/Lose/winter_abyss.lua",
+                        ["Wrecked Battlefield II"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Molten/Lose/wrecked_battlefield_ii.lua",
                 },
             },
             Win = {
