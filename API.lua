@@ -16,19 +16,54 @@ if not LocalPlayer then
 end
 
 local function SmartTeleportToLobby()
-    if Globals.AutoRestart then return end
+    if typeof(Globals) == "table" and typeof(Globals.SmartTeleportToLobby) == "function" then
+        pcall(Globals.SmartTeleportToLobby)
+        return
+    end
+    if typeof(shared) == "table" and typeof(shared.SmartTeleportToLobby) == "function" then
+        pcall(shared.SmartTeleportToLobby)
+        return
+    end
     local lobbyId = 3260590327
-    pcall(function()
-        local platform = UserInputService:GetPlatform()
-        local IsMobile = (platform == Enum.Platform.IOS or platform == Enum.Platform.Android)
-        
-        if not IsMobile and Globals.PrivateCode and Globals.PrivateCode ~= "" then
+    local platform = UserInputService:GetPlatform()
+    local IsMobile = (platform == Enum.Platform.IOS or platform == Enum.Platform.Android)
+    local privCode = (Globals and (Globals.PrivateCode or Globals.PrivateServerCode)) or ""
+
+    if not IsMobile and privCode ~= "" then
+        pcall(function()
             game:GetService("ExperienceService"):LaunchExperience({
                 placeId = lobbyId, 
-                linkCode = Globals.PrivateCode
+                linkCode = privCode
             })
-        else
-            TeleportService:Teleport(lobbyId)
+        end)
+        return
+    end
+
+    -- If no VIP code, solely invoke the game's official lobby remotes
+    pcall(function()
+        local sharedMod = game:GetService("ReplicatedStorage"):FindFirstChild("Shared")
+        local modules = sharedMod and sharedMod:FindFirstChild("Modules")
+        local newNet = modules and modules:FindFirstChild("NewNetwork")
+        if newNet then
+            local NewNetwork = require(newNet)
+            NewNetwork.Channel("Teleport"):fireServer("backToLobby")
+        end
+    end)
+    pcall(function()
+        local netFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Network")
+        local tpFolder = netFolder and netFolder:FindFirstChild("Teleport")
+        local reBack = tpFolder and tpFolder:FindFirstChild("RE:backToLobby")
+        if reBack and reBack:IsA("RemoteEvent") then
+            reBack:FireServer()
+        end
+    end)
+    pcall(function()
+        local remoteEvent = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+        local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
+        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
+            remoteEvent:FireServer("Teleport", "backToLobby")
+        elseif remoteFunc and remoteFunc:IsA("RemoteFunction") then
+            remoteFunc:InvokeServer("Teleport", "backToLobby")
         end
     end)
 end
@@ -157,6 +192,7 @@ local AutoNecroRunning = false
 local AutoMercenaryBaseRunning = false
 local AutoMilitaryBaseRunning = false
 local AutoGatlingRunning = false
+local GatlingExecuted = false
 local IsCurrentlyLoading = false
 local LastLoadTime = 0
 local IsEquippingLoadout = false
@@ -1218,63 +1254,64 @@ end
 
 TDS.CastModifierVote = CastModifierVote
 
-local function IsMapAvailable(name)
-    if not name or name == "" then return false end
+local function MapNamesMatch(str1, str2)
+    if not str1 or not str2 then return false end
+    local s1 = tostring(str1):lower():gsub("[%s%p]+", "")
+    local s2 = tostring(str2):lower():gsub("[%s%p]+", "")
+    return s1 == s2 or s1:find(s2, 1, true) ~= nil or s2:find(s1, 1, true) ~= nil
+end
+
+local function CheckBoardHasMap(targetMap)
+    if not targetMap or targetMap == "" or targetMap == "Unknown" then return false end
     for _, g in ipairs(workspace:GetDescendants()) do
-        if g:IsA("SurfaceGui") and g.Name == "MapDisplay" then
+        if (g:IsA("SurfaceGui") or g:IsA("BillboardGui")) and (g.Name == "MapDisplay" or g.Name:lower():find("mapdisplay") or g.Name:lower():find("mapvote")) then
             local t = g:FindFirstChild("Title")
-            if t and t.Text == name then return true end
-        end
-    end
-
-    local VoteGui = PlayerGui:FindFirstChild("ReactGameIntermission")
-    local IntermissionFrame = VoteGui and VoteGui:FindFirstChild("Frame")
-    if not IntermissionFrame then return false end
-
-    local hasVoted = false
-    local tStart = tick()
-    repeat
-        local buttons = IntermissionFrame:FindFirstChild("buttons")
-        local veto = buttons and buttons:FindFirstChild("veto")
-        local VetoValue = veto and veto:FindFirstChild("value")
-        local VetoText = VetoValue and VetoValue.Text or ""
-        
-        if VetoText ~= "" then
-            if not VetoText:find("Veto") then
-                return false 
-            end
-
-            local currentStr, totalStr = VetoText:match("(%d+)/(%d+)")
-            local current, total = tonumber(currentStr), tonumber(totalStr)
-
-            if not hasVoted and total and total > 0 and current == 0 then
-                pcall(function()
-                    RemoteEvent:FireServer("LobbyVoting", "Veto")
-                end)
-                hasVoted = true
-            end
-        end
-
-        for _, g in ipairs(workspace:GetDescendants()) do
-            if g:IsA("SurfaceGui") and g.Name == "MapDisplay" then
-                local t = g:FindFirstChild("Title")
-                if t and t.Text == name then
+            if t and t:IsA("TextLabel") and t.Text and t.Text ~= "" then
+                if MapNamesMatch(t.Text, targetMap) then
                     return true
                 end
             end
-        end
-
-        task.wait(0.5)
-    until (tick() - tStart > 20) or not IntermissionFrame.Visible or (PlayerGui:FindFirstChild("ReactUniversalHotbar") ~= nil)
-
-    for _, g in ipairs(workspace:GetDescendants()) do
-        if g:IsA("SurfaceGui") and g.Name == "MapDisplay" then
-            local t = g:FindFirstChild("Title")
-            if t and t.Text == name then return true end
+            for _, d in ipairs(g:GetDescendants()) do
+                if (d:IsA("TextLabel") or d:IsA("TextBox")) and d.Visible and d.Text and d.Text ~= "" then
+                    if MapNamesMatch(d.Text, targetMap) then
+                        return true
+                    end
+                end
+            end
         end
     end
-
     return false
+end
+
+local function TriggerLobbyVeto()
+    pcall(function()
+        if RemoteEvent then
+            RemoteEvent:FireServer("LobbyVoting", "Veto")
+        elseif RemoteFunc then
+            RemoteFunc:InvokeServer("LobbyVoting", "Veto")
+        end
+    end)
+    pcall(function()
+        local rf = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
+        local re = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+        if re then re:FireServer("LobbyVoting", "Veto") end
+        if rf then rf:InvokeServer("LobbyVoting", "Veto") end
+    end)
+    pcall(function()
+        local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
+        local rgi = pg and pg:FindFirstChild("ReactGameIntermission")
+        local vetoBtn = rgi and rgi:FindFirstChild("Frame") and rgi.Frame:FindFirstChild("buttons") and rgi.Frame.buttons:FindFirstChild("veto")
+        if vetoBtn then
+            if firesignal and vetoBtn:FindFirstChild("Activated") then
+                firesignal(vetoBtn.Activated)
+            end
+            if getconnections then
+                for _, conn in ipairs(getconnections(vetoBtn.Activated)) do
+                    if conn and conn.Function then pcall(conn.Function) end
+                end
+            end
+        end
+    end)
 end
 
 local function CastMapVote(mapId, posVec)
@@ -1289,69 +1326,255 @@ local function CastMapVote(mapId, posVec)
     end)
 end
 
-local function SelectMapOverride(MapId, ...)
-    local args = {...}
-    if args[#args] == "vip" and RemoteFunc then
+local function WaitForIntermissionLoaded(timeout)
+    timeout = timeout or 25
+    local startTime = tick()
+    local lp = Players.LocalPlayer or LocalPlayer
+    local pg = lp and (lp:FindFirstChild("PlayerGui") or lp:WaitForChild("PlayerGui", 5))
+
+    -- Wait until the loading screen is dismissed
+    while (tick() - startTime < timeout) do
+        local isLoading = false
+        if lp and lp:GetAttribute("Loading") == true then
+            isLoading = true
+        end
+        if pg then
+            local ls = pg:FindFirstChild("LoadingScreen")
+            if ls and ls.Enabled then
+                local content = ls:FindFirstChild("content")
+                if content then
+                    if content.Visible then isLoading = true end
+                else
+                    isLoading = true
+                end
+            end
+            local rol = pg:FindFirstChild("ReactOverridesLoading")
+            if rol and rol.Enabled then
+                local tb = rol:FindFirstChild("TextButton")
+                if tb and tb.Visible then isLoading = true end
+            end
+        end
+        if not isLoading then
+            break
+        end
+        task.wait(0.2)
+    end
+
+    task.wait(0.5) -- Brief settle time for map boards & remotes
+    return true
+end
+
+local function CheckIsVipOrPrivateServer()
+    -- 1. Globals / State flags
+    if Globals then
+        if Globals.PrivateCode and Globals.PrivateCode ~= "" then return true end
+        if Globals.PrivateServerCode and Globals.PrivateServerCode ~= "" then return true end
+        if Globals.IsVIP or Globals.VIP or Globals.PrivateServer then return true end
+    end
+    if State and State.Misc then
+        if (State.Misc.PrivateCode and State.Misc.PrivateCode ~= "") or (State.Misc.PrivateServerCode and State.Misc.PrivateServerCode ~= "") then
+            return true
+        end
+    end
+
+    -- 2. Game PrivateServerId or OwnerId
+    local isPriv = false
+    pcall(function()
+        if game.PrivateServerId and game.PrivateServerId ~= "" then isPriv = true end
+        if game.PrivateServerOwnerId and game.PrivateServerOwnerId ~= 0 then isPriv = true end
+    end)
+    if isPriv then return true end
+
+    -- 3. GameStateReplicator IsPrivateServer / ClientModifiers
+    local rs = game:GetService("ReplicatedStorage")
+    local stateReps = rs:FindFirstChild("StateReplicators")
+    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+    if gsr then
+        if gsr:GetAttribute("IsPrivateServer") == true then return true end
+        local clientMods = gsr:GetAttribute("ClientModifiers")
+        if type(clientMods) == "string" and clientMods:find("LegacyVIP") then return true end
+    end
+
+    -- 4. PlayerReplicator VIP attributes
+    if stateReps then
+        local pr = stateReps:FindFirstChild("PlayerReplicator")
+        if pr then
+            if pr:GetAttribute("LegacyVIP") == true or pr:GetAttribute("VIPPlus") == true then
+                return true
+            end
+        end
+    end
+
+    -- 5. MarketplaceService Gamepass Ownership (VIP, VIP+, Legacy VIP)
+    local lp = Players.LocalPlayer or LocalPlayer
+    if lp and lp.UserId and lp.UserId > 0 then
+        local ms = game:GetService("MarketplaceService")
+        local vipPasses = { 10518590, 6745137, 6912306 }
+        for _, passId in ipairs(vipPasses) do
+            local ok, owned = pcall(function()
+                return ms:UserOwnsGamePassAsync(lp.UserId, passId)
+            end)
+            if ok and owned then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function AttemptMapOverride(targetMap)
+    if not targetMap or targetMap == "" or targetMap == "Unknown" then return false end
+    local overridden = false
+    local rs = game:GetService("ReplicatedStorage")
+    local rf = rs:FindFirstChild("RemoteFunction") or RemoteFunc
+    local re = rs:FindFirstChild("RemoteEvent") or RemoteEvent
+
+    if rf then
+        local ok, res = pcall(function()
+            return rf:InvokeServer("LobbyVoting", "Override", targetMap)
+        end)
+        if ok and (res == true or res == nil) then
+            overridden = true
+        end
+    end
+    if re then
         pcall(function()
-            RemoteFunc:InvokeServer("LobbyVoting", "Override", MapId)
+            re:FireServer("LobbyVoting", "Override", targetMap)
         end)
     end
+
     task.wait(1.5)
-    CastMapVote(MapId, Vector3.new(12.59, 10.64, 52.01))
+    pcall(CastMapVote, targetMap, Vector3.new(12.59, 10.64, 52.01))
     task.wait(0.5)
     LobbyReadyUp()
+    return overridden
+end
+
+local function SelectMapOverride(MapId, ...)
+    AttemptMapOverride(MapId)
 end
 
 TDS.CastMapVote = CastMapVote
 TDS.SelectMapOverride = SelectMapOverride
-TDS.IsMapAvailable = IsMapAvailable
+TDS.CheckIsVipOrPrivateServer = CheckIsVipOrPrivateServer
+TDS.AttemptMapOverride = AttemptMapOverride
+TDS.SmartTeleportToLobby = SmartTeleportToLobby
 
 function TDS:GameInfo(name, list)
     if game.PlaceId == 3260590327 then return false end
 
-    local VoteGui = PlayerGui:WaitForChild("ReactGameIntermission", 30)
-    if not (VoteGui and VoteGui.Enabled and VoteGui:WaitForChild("Frame", 5)) then return end
-
-    local modifiers = (list and next(list)) and list or Globals.Modifiers
-
-    CastModifierVote(modifiers)
-
-    local stateReplicators = game:GetService("ReplicatedStorage"):WaitForChild("StateReplicators", 5)
-    local gameStateReplicator = stateReplicators and stateReplicators:FindFirstChild("GameStateReplicator")
-
-    local isVipOrPrivate = false
-    if gameStateReplicator and gameStateReplicator:GetAttribute("IsPrivateServer") == true then
-        isVipOrPrivate = true
-    else
-        pcall(function()
-            if LocalPlayer and LocalPlayer.UserId and LocalPlayer.UserId > 0 and MarketplaceService then
-                isVipOrPrivate = MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, 10518590)
-            end
-        end)
+    local targetMap = (type(name) == "table" and name[1]) or name
+    if not targetMap or targetMap == "" or targetMap == "Unknown" then
+        targetMap = "Simplicity"
     end
+
+    -- 1. WAIT UNTIL USERS ARE FULLY LOADED IN THE INTERMISSION
+    WaitForIntermissionLoaded(30)
+
+    -- Cast modifiers if specified
+    local modifiers = (list and next(list)) and list or (Globals and Globals.Modifiers)
+    if modifiers and next(modifiers) then
+        pcall(CastModifierVote, modifiers)
+    end
+
+    local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
+    local stateReps = game:GetService("ReplicatedStorage"):FindFirstChild("StateReplicators")
+    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+
+    -- 2. CHECK VIP / PRIVATE SERVER
+    local isVipOrPrivate = CheckIsVipOrPrivateServer()
 
     if isVipOrPrivate then
-        pcall(SelectMapOverride, name, "vip")
+        -- VIP / PRIVATE SERVER: OVERRIDE MAP!
+        warn(string.format(">>> [TDS:GameInfo] VIP / Private Server detected. Overriding map to '%s'...", tostring(targetMap)))
+        AttemptMapOverride(targetMap)
         task.wait(0.5)
         LobbyReadyUp()
+        local hostWait = tick()
         repeat
             task.wait(1)
             LobbyReadyUp()
-        until PlayerGui:FindFirstChild("ReactUniversalHotbar")
-        return true 
-    elseif (typeof(IsMapAvailable) == "function" and IsMapAvailable(name)) or true then
-        pcall(SelectMapOverride, name)
-        task.wait(0.5)
-        LobbyReadyUp()
-        repeat
-            task.wait(1)
-            LobbyReadyUp()
-        until PlayerGui:FindFirstChild("ReactUniversalHotbar")
+            local started = (gsr and (gsr:GetAttribute("GameStarted") == true or (gsr:GetAttribute("Wave") or 0) > 0))
+            local hotbar = pg and (pg:FindFirstChild("ReactUniversalHotbar") ~= nil)
+            if started or hotbar then break end
+        until (tick() - hostWait >= 35)
         return true
-    else
-        RejoinMatch()
-        repeat task.wait(9999) until false
     end
+
+    -- 3. PUBLIC SERVER: Check if map is on boards. If not, Veto. If still not, smartLobby!
+    warn(string.format(">>> [TDS:GameInfo] Public Server: Checking voting boards for '%s'...", tostring(targetMap)))
+
+    local mapFound = false
+    local scanStart = tick()
+    while (tick() - scanStart < 8) do
+        if CheckBoardHasMap(targetMap) then
+            mapFound = true
+            break
+        end
+        task.wait(0.5)
+    end
+
+    if mapFound then
+        warn(string.format(">>> [TDS:GameInfo] Public Server: Target map '%s' found on initial boards! Voting...", tostring(targetMap)))
+        CastMapVote(targetMap, Vector3.new(12.59, 10.64, 52.01))
+        task.wait(0.5)
+        LobbyReadyUp()
+        local hostWait = tick()
+        repeat
+            task.wait(1)
+            LobbyReadyUp()
+            local started = (gsr and (gsr:GetAttribute("GameStarted") == true or (gsr:GetAttribute("Wave") or 0) > 0))
+            local hotbar = pg and (pg:FindFirstChild("ReactUniversalHotbar") ~= nil)
+            if started or hotbar then break end
+        until (tick() - hostWait >= 35)
+        return true
+    end
+
+    -- Map NOT found on boards -> Trigger VETO vote!
+    warn(string.format(">>> [TDS:GameInfo] Public Server: Target map '%s' not found on boards. Triggering Veto vote...", tostring(targetMap)))
+    TriggerLobbyVeto()
+
+    -- Wait for boards to reroll and re-scan
+    local vetoRerollStart = tick()
+    while (tick() - vetoRerollStart < 10) do
+        task.wait(0.5)
+        if CheckBoardHasMap(targetMap) then
+            mapFound = true
+            break
+        end
+    end
+
+    if mapFound then
+        warn(string.format(">>> [TDS:GameInfo] Public Server: Target map '%s' found after Veto! Voting...", tostring(targetMap)))
+        CastMapVote(targetMap, Vector3.new(12.59, 10.64, 52.01))
+        task.wait(0.5)
+        LobbyReadyUp()
+        local hostWait = tick()
+        repeat
+            task.wait(1)
+            LobbyReadyUp()
+            local started = (gsr and (gsr:GetAttribute("GameStarted") == true or (gsr:GetAttribute("Wave") or 0) > 0))
+            local hotbar = pg and (pg:FindFirstChild("ReactUniversalHotbar") ~= nil)
+            if started or hotbar then break end
+        until (tick() - hostWait >= 35)
+        return true
+    end
+
+    -- Map STILL NOT FOUND after Veto -> Return to lobby via smartLobby!
+    warn(string.format(">>> [TDS:GameInfo] Public Server: Target map '%s' STILL NOT FOUND after Veto! Returning to lobby via smartLobby...", tostring(targetMap)))
+    SmartTeleportToLobby()
+    -- Halt execution permanently so the strat never readies up or plays the wrong map
+    while true do
+        task.wait(2)
+        SmartTeleportToLobby()
+    end
+    return false
+end
+
+TDS.Map = TDS.GameInfo
+function TDS:Map(...)
+    return self:GameInfo(...)
 end
 
 function TDS:StartGame()
@@ -1568,8 +1791,13 @@ local function StartAutoGatling()
                 if not GatlingExecuted then
                     GatlingExecuted = true 
                     task.spawn(function()
+                        task.wait(2)
+                        local selected = Globals.SelectedGatling or "Railgun"
+                        local url = (selected == "Gatlify")
+                            and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
+                            or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
                         pcall(function()
-                            loadstring(game:HttpGet("https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"))()
+                            loadstring(game:HttpGet(url))()
                         end)
                     end)
                 end
@@ -2194,6 +2422,109 @@ task.spawn(function()
     end
 end)
 
-MissionsUIFix()
+local function strategyRecordingSetup()
+    local originalMethods = {}
+    local recordableMethods = {
+        "Mode", "Place", "Upgrade", "SetTarget", "Sell", "SellAll", "Ability", "SetOption", "MedicSelect", "MedicChain", "Ready", "VoteSkip", "WaitForWave", "UnlockTimeScale", "TimeScale"
+    }
+
+    local function stringifyArgument(argumentValue)
+        local argumentType = type(argumentValue)
+        if argumentType == "string" then
+            return string.format("%q", argumentValue)
+        elseif argumentType == "number" or argumentType == "boolean" then
+            return tostring(argumentValue)
+        elseif argumentType == "table" then
+            local parts = {}
+            for key, val in pairs(argumentValue) do
+                local keyType = type(key)
+                local formattedKey
+                if keyType == "string" then
+                    formattedKey = string.format("[%q]", key)
+                elseif keyType == "number" then
+                    formattedKey = string.format("[%d]", key)
+                else
+                    formattedKey = string.format("[%s]", tostring(key))
+                end
+                local formattedValue = type(val) == "string" and string.format("%q", val) or tostring(val)
+                table.insert(parts, formattedKey .. " = " .. formattedValue)
+            end
+            return "{" .. table.concat(parts, ", ") .. "}"
+        else
+            return "nil"
+        end
+    end
+
+    for _, methodName in ipairs(recordableMethods) do
+        if typeof(TDS[methodName]) == "function" then
+            originalMethods[methodName] = TDS[methodName]
+            TDS[methodName] = function(self, ...)
+                if not (Globals and Globals.tdsReplaying) and GameState == "GAME" and (Globals and Globals.record_strat) then
+                    local argumentsList = {...}
+                    local stringifiedArguments = {}
+                    for _, argumentValue in ipairs(argumentsList) do
+                        table.insert(stringifiedArguments, stringifyArgument(argumentValue))
+                    end
+
+                    if methodName == "Mode" then
+                        -- Mode marker
+                    else
+                        local shouldRecord = true
+                        local actionString = string.format("TDS:%s(%s)", methodName, table.concat(stringifiedArguments, ", "))
+
+                        if methodName == "VoteSkip" then
+                            local targetWave = tonumber(argumentsList[1])
+                            if not targetWave then
+                                pcall(function()
+                                    local stateReps = game:GetService("ReplicatedStorage"):FindFirstChild("StateReplicators")
+                                    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                    targetWave = gsr and gsr:GetAttribute("Wave") or 0
+                                end)
+                            end
+                            targetWave = targetWave or 0
+                            if Globals.__last_recorded_skip_wave == targetWave then
+                                shouldRecord = false
+                            else
+                                Globals.__last_recorded_skip_wave = targetWave
+                                actionString = string.format("TDS:VoteSkip(%d)", targetWave)
+                            end
+                        elseif methodName == "Ready" then
+                            if Globals.__has_recorded_ready_this_match then
+                                shouldRecord = false
+                            else
+                                Globals.__has_recorded_ready_this_match = true
+                            end
+                        end
+
+                        if shouldRecord then
+                            local curWave = 0
+                            pcall(function()
+                                local stateReps = game:GetService("ReplicatedStorage"):FindFirstChild("StateReplicators")
+                                local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                curWave = gsr and gsr:GetAttribute("Wave") or 0
+                            end)
+                            local wavePrefix = ""
+                            if not Globals.__last_recorded_wave or curWave > Globals.__last_recorded_wave then
+                                Globals.__last_recorded_wave = curWave
+                                wavePrefix = string.format("\n-- [ Wave %d ] --\n", curWave)
+                            end
+                            if typeof(appendfile) == "function" then
+                                pcall(appendfile, "ADS_LastStrat.lua", wavePrefix .. actionString .. "\n")
+                                pcall(appendfile, "Strat.txt", wavePrefix .. actionString .. "\n")
+                                if Globals.__active_record_path then
+                                    pcall(appendfile, Globals.__active_record_path, wavePrefix .. actionString .. "\n")
+                                end
+                            end
+                        end
+                    end
+                end
+
+                return originalMethods[methodName](self, ...)
+            end
+        end
+    end
+end
+
+pcall(strategyRecordingSetup)
 
 return TDS
