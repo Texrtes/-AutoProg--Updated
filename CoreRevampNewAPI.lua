@@ -2116,6 +2116,9 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         local callback = props.Callback or function() end
         local boxWidth = props.Width or (window.DeviceType == "Phone" and 140 or 160)
         local row = createCoreRow(window, scroll, tostring(props.Title or "Textbox"), props.Desc or "", props.Image or "Textbox", props.Height or 64, boxWidth + 18, nextOrder(props.Order), true)
+        if props.Visible ~= nil then
+            row.Visible = props.Visible
+        end
 
         local boxWrap = make("Frame", {
             Name = "InputWrap",
