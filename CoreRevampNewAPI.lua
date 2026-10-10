@@ -296,7 +296,8 @@ local function calculateDeviceScale(deviceType: string, vp: Vector2, topInset: n
     end
 end
 
-local function tween(object: Instance, time: any, goal: any, style: Enum.EasingStyle?, direction: Enum.EasingDirection?)
+local function tween(object: any, time: any, goal: any, style: Enum.EasingStyle?, direction: Enum.EasingDirection?)
+    elevateThread()
     if type(time) == "table" and type(goal) == "number" then
         local tmp = time
         time = goal
@@ -304,8 +305,25 @@ local function tween(object: Instance, time: any, goal: any, style: Enum.EasingS
     end
     local duration = tonumber(time) or 0.2
     local info = TweenInfo.new(duration, style or Enum.EasingStyle.Quart, direction or Enum.EasingDirection.Out)
-    local anim = TweenService:Create(object, info, (type(goal) == "table" and goal) or {})
-    anim:Play()
+    local anim = nil
+    local ok = pcall(function()
+        anim = TweenService:Create(object, info, (type(goal) == "table" and goal) or {})
+        anim:Play()
+    end)
+    if not ok then
+        elevateThread()
+        pcall(function()
+            anim = TweenService:Create(object, info, (type(goal) == "table" and goal) or {})
+            anim:Play()
+        end)
+        if not anim and type(goal) == "table" then
+            pcall(function()
+                for prop, val in pairs(goal) do
+                    object[prop] = val
+                end
+            end)
+        end
+    end
     return anim
 end
 
@@ -4088,9 +4106,11 @@ function Library:Window(props: { [string]: any })
     bindResize(resizeHandle, shadow, Vector2.new(620, 420), uiScale)
 
     resizeHandle.MouseEnter:Connect(function()
+        elevateThread()
         tween(resizeHandle, 0.15, { ImageTransparency = 0.1, ImageColor3 = self.Theme.Accent })
     end)
     resizeHandle.MouseLeave:Connect(function()
+        elevateThread()
         tween(resizeHandle, 0.15, { ImageTransparency = 0.5, ImageColor3 = self.Theme.Muted })
     end)
 
