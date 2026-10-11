@@ -3001,6 +3001,15 @@ if getgenv then
     if not getgenv().HubSessionWins then
         getgenv().HubSessionWins = 0
     end
+    if not getgenv().HubSessionCoinsGained then
+        getgenv().HubSessionCoinsGained = 0
+    end
+    if not getgenv().HubSessionGemsGained then
+        getgenv().HubSessionGemsGained = 0
+    end
+    if not getgenv().HubSessionTimescalesGained then
+        getgenv().HubSessionTimescalesGained = 0
+    end
 end
 local SendAutoCurrencyWebhook = nil
 local SendDiscordWebhook = nil
@@ -8039,83 +8048,187 @@ local function getActiveCurrencyInfo()
     return mode, config
 end
 --==============================================================================
--- Webhook Dispatcher
+-- Trial Timescale Payout & Rewards Scraper
 --==============================================================================
-SendAutoCurrencyWebhook = function(eventTitle: string?, matchResult: string?, extraWave: any?, detailsText: string?)
-    local webhookUrl = (State and State.Misc and State.Misc.WebhookUrl)
-        or (Settings and Settings:Get("WebhookUrl", ""))
-        or ""
-    if webhookUrl == "" or not webhookUrl:find("^https?://") then
-        return false, "No webhook URL configured"
+local currentActiveTrialTitle: string? = nil
+
+local function getTrialTimescaleReward(trialName: string?): (number, number)
+    if not trialName or trialName == "" then return 0, 0 end
+    local norm = string.lower(tostring(trialName)):gsub("%s+", "")
+
+    -- Tier 3: 3 Timescale tickets (Highest payout: Fog, Quarantine, Exploding)
+    if string.find(norm, "fog")
+        or string.find(norm, "quarantine")
+        or string.find(norm, "explod")
+        or string.find(norm, "expload") then
+        return 3, 30
     end
 
-    local isLobby = (game.PlaceId == LOBBY_PLACE_ID)
-    local activeMode, activeConfig = getActiveCurrencyInfo()
-    local condition = (activeConfig and activeConfig.Condition) or "N/A"
-    local isPrem = checkIsPremium()
-    local planText = isPrem and "Premium" or "Free"
+    -- Tier 1: 1 Timescale ticket (Lowest payout: Glass, Limitation, Committed)
+    if string.find(norm, "glass")
+        or string.find(norm, "limitation")
+        or string.find(norm, "commit") then
+        return 1, 10
+    end
 
-    local sessionStart = (getgenv and getgenv().HubSessionStartTime) or (State and State.StartTime) or tick()
-    local currentSecs = math.max(0, tick() - sessionStart)
-    local clockStr, totalHoursStr = formatSessionDuration(currentSecs)
+    -- Tier 2 Easy / Priority: 2 Timescale tickets (Hidden, Flying)
+    -- Flying and Hidden are easier than other 2-ticket trials (like Jailed), so prioritize them!
+    if string.find(norm, "hidden") or string.find(norm, "flying") then
+        return 2, 25
+    end
 
-    local stats = { Coins = 0, Gems = 0, Level = 0, Exp = 0 }
-    if DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
-        pcall(function()
-            local s = DataHandler:GetPlayerStats()
-            if s then
-                stats.Coins = s.Coins or 0
-                stats.Gems = s.Gems or 0
-                stats.Level = s.Level or 0
-                stats.Exp = s.Exp or 0
+    -- Tier 2 Standard: 2 Timescale tickets (Broke, Jailed, Speedy, Inflation, etc.)
+    return 2, 20
+end
+
+local RewardItemNames = {
+    ["17447507910"] = "Timescale Ticket(s)",
+    ["17438486690"] = "Range Flag(s)",
+    ["17438486138"] = "Damage Flag(s)",
+    ["17438487774"] = "Cooldown Flag(s)",
+    ["17429537022"] = "Blizzard(s)",
+    ["17448596749"] = "Napalm Strike(s)",
+    ["18493073533"] = "Spin Ticket(s)",
+    ["17429548305"] = "Supply Drop(s)",
+    ["18443277308"] = "Low Grade Consumable Crate(s)",
+    ["136180382135048"] = "Santa Radio(s)",
+    ["18443277106"] = "Mid Grade Consumable Crate(s)",
+    ["18443277591"] = "High Grade Consumable Crate(s)",
+    ["132155797622156"] = "Christmas Tree(s)",
+    ["124065875200929"] = "Fruit Cake(s)",
+    ["17429541513"] = "Barricade(s)",
+    ["110415073436604"] = "Holy Hand Grenade(s)",
+    ["17429533728"] = "Frag Grenade(s)",
+    ["17437703262"] = "Molotov(s)",
+    ["139414922355803"] = "Present Clusters(s)"
+}
+
+local function GetAllMatchRewards(maxWaitSecs: number?)
+    local timeout = maxWaitSecs or 2.5
+    local t0 = tick()
+    local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
+    local uiRoot = nil
+    local rewardsScreen = nil
+
+    while (tick() - t0) < timeout do
+        if pg then
+            local rgnr = pg:FindFirstChild("ReactGameNewRewards")
+            local frame = rgnr and rgnr:FindFirstChild("Frame")
+            local gameOver = frame and frame:FindFirstChild("gameOver")
+            rewardsScreen = gameOver and gameOver:FindFirstChild("RewardsScreen")
+            uiRoot = rewardsScreen and rewardsScreen:FindFirstChild("RewardsSection")
+            if uiRoot then break end
+        end
+        task.wait(0.2)
+    end
+
+    local results = {
+        Coins = 0,
+        Gems = 0,
+        XP = 0,
+        Timescales = 0,
+        Wave = 0,
+        Level = 0,
+        Time = "00:00",
+        Status = "UNKNOWN",
+        Others = {}
+    }
+
+    if rewardsScreen then
+        local gameStats = rewardsScreen:FindFirstChild("gameStats")
+        local statsList = gameStats and gameStats:FindFirstChild("stats")
+        if statsList then
+            for _, frame in ipairs(statsList:GetChildren()) do
+                local l1 = frame:FindFirstChild("textLabel")
+                local l2 = frame:FindFirstChild("textLabel2")
+                local refLabel = l2 and l2:FindFirstChild("refLabel")
+                if l1 and refLabel and l1.Text:find("Time Completed:") then
+                    results.Time = refLabel.Text
+                    break
+                end
             end
+        end
+
+        local topBanner = rewardsScreen:FindFirstChild("RewardBanner")
+        if topBanner and topBanner:FindFirstChild("textLabel") then
+            local txt = topBanner.textLabel.Text:upper()
+            if txt:find("TRIUMPH") or txt:find("VICTORY") or txt:find("WIN") then
+                results.Status = "WIN"
+            elseif txt:find("LOST") or txt:find("DEFEAT") then
+                results.Status = "DEFEAT"
+            end
+        end
+    end
+
+    -- Fallback level
+    pcall(function()
+        local lvlObj = LocalPlayer and LocalPlayer:FindFirstChild("Level")
+        if lvlObj then
+            results.Level = lvlObj.Value or 0
+        elseif DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
+            local st = DataHandler:GetPlayerStats()
+            if st and st.Level then results.Level = st.Level end
+        end
+    end)
+
+    -- Fallback wave
+    pcall(function()
+        local topDisplay = pg and pg:FindFirstChild("ReactGameTopGameDisplay")
+        local waveVal = topDisplay and topDisplay.Frame and topDisplay.Frame.wave and topDisplay.Frame.wave.container and topDisplay.Frame.wave.container.value
+        if waveVal and waveVal.Text then
+            local wNum = waveVal.Text:match("^(%d+)")
+            if wNum then results.Wave = tonumber(wNum) or 0 end
+        end
+    end)
+    if results.Wave == 0 then
+        pcall(function()
+            local sr = ReplicatedStorage:FindFirstChild("StateReplicators")
+            local gsr = sr and sr:FindFirstChild("GameStateReplicator")
+            if gsr then results.Wave = tonumber(gsr:GetAttribute("Wave")) or 0 end
         end)
     end
 
-    local playerName = (LocalPlayer and LocalPlayer.Name) or "Player"
-    local playerUserId = (LocalPlayer and LocalPlayer.UserId) or 0
-    local nodeName = (State and State.Misc and State.Misc.NodeName)
-        or (Settings and Settings:Get("NodeName", "Node 1"))
-        or "Node 1"
+    -- Scrape RewardsSection
+    if uiRoot then
+        for _, item in ipairs(uiRoot:GetChildren()) do
+            if tonumber(item.Name) then
+                local iconId = "0"
+                local img = item:FindFirstChildWhichIsA("ImageLabel", true)
+                if img and img.Image then
+                    iconId = img.Image:match("%d+") or "0"
+                end
 
-    local sessionMatches = (getgenv and getgenv().HubSessionMatches) or 0
-    local totalMatches = ((Settings and Settings:Get("TotalMatches", 0)) or 0) + sessionMatches
-    local locationText = isLobby and "In Lobby" or "In Match"
+                for _, child in ipairs(item:GetDescendants()) do
+                    if child:IsA("TextLabel") then
+                        local text = child.Text or ""
+                        local amt = tonumber(text:match("(%d+)")) or 0
 
-    local fields = {
-        {
-            name = "👤 Username",
-            value = string.format("`%s`", playerName),
-            inline = true,
-        },
-        {
-            name = "📌 Node:",
-            value = string.format("`%s`", nodeName),
-            inline = true,
-        },
-        {
-            name = "🆔 ID",
-            value = string.format("`%s`", tostring(playerUserId)),
-            inline = true,
-        },
-        {
-            name = "⭐ Plan",
-            value = string.format("`%s`", planText),
-            inline = true,
-        },
-        {
-            name = "⚙️ Active Currency",
-            value = string.format("`%s [%s]`", activeMode, condition),
-            inline = true,
-        },
-        {
-            name = "⏱️ Session Time",
-            value = string.format("`%s (%s)`", clockStr, totalHoursStr),
-            inline = true,
-        },
-    }
+                        if text:find("Coins") or text:find("Gold") then
+                            results.Coins = amt
+                        elseif text:find("Gems") or text:find("Diamonds") then
+                            results.Gems = amt
+                        elseif text:find("XP") or text:find("Exp") then
+                            results.XP = amt
+                        elseif text:lower():find("timescale") or iconId == "17447507910" then
+                            results.Timescales = (results.Timescales or 0) + (amt > 0 and amt or 1)
+                        elseif text:lower():find("x%d+") then
+                            local displayName = RewardItemNames[iconId] or ("Unknown Item (" .. iconId .. ")")
+                            if displayName:find("Timescale Ticket") then
+                                local bonusAmt = tonumber(text:match("(%d+)")) or 1
+                                results.Timescales = (results.Timescales or 0) + bonusAmt
+                            end
+                            table.insert(results.Others, { Amount = text:match("x%d+"), Name = displayName })
+                        end
+                    end
+                end
+            end
+        end
+    end
 
-    -- Target & Progress Bar for Currency
+    return results
+end
+
+local function appendTargetProgressField(fields: {any}, activeMode: string, activeConfig: any, stats: any, condition: string)
     if activeMode == "Auto Coins" then
         local targetVal = tonumber(activeConfig and activeConfig.Target) or 0
         if targetVal > 0 then
@@ -8177,7 +8290,7 @@ SendAutoCurrencyWebhook = function(eventTitle: string?, matchResult: string?, ex
         local tsCount = (DataHandler and typeof(DataHandler.GetTimescaleTickets) == "function" and DataHandler:GetTimescaleTickets()) or 0
         local targetVal = tonumber(activeConfig and activeConfig.Target) or 0
         local curTrial = (DataHandler and typeof(DataHandler.GetCurrentTrial) == "function" and DataHandler:GetCurrentTrial())
-        local trialTitle = curTrial and (curTrial.Title or curTrial.Name) or "N/A"
+        local trialTitle = curTrial and (curTrial.Title or curTrial.Name) or currentActiveTrialTitle or "N/A"
         local fallbackChoice = (activeConfig and activeConfig.Fallback) or "Molten"
         if targetVal > 0 then
             local pct = math.clamp(math.floor((tsCount / targetVal) * 100), 0, 100)
@@ -8203,74 +8316,256 @@ SendAutoCurrencyWebhook = function(eventTitle: string?, matchResult: string?, ex
             inline = false,
         })
     end
+end
 
-    table.insert(fields, {
-        name = "🎮 Match Session Total:",
-        value = string.format("`%d Matches`", sessionMatches),
-        inline = true,
-    })
-    table.insert(fields, {
-        name = "🏆 Total Matches:",
-        value = string.format("`%d Matches`", totalMatches),
-        inline = true,
-    })
-    table.insert(fields, {
-        name = "📍 Current Location:",
-        value = string.format("`%s`", locationText),
-        inline = true,
-    })
-    local tsBalance = (DataHandler and typeof(DataHandler.GetTimescaleTickets) == "function" and DataHandler:GetTimescaleTickets()) or 0
-    table.insert(fields, {
-        name = "💰 Balances",
-        value = string.format("🪙 `%s` Coins • 💎 `%s` Gems • ⌛ `%s` Timescales", formatNumber(stats.Coins), formatNumber(stats.Gems), formatNumber(tsBalance)),
-        inline = false,
-    })
-
-    if matchResult then
-        local resIcon = (matchResult == "WIN" or matchResult == "VICTORY") and "🏆 VICTORY" or "💀 DEFEAT"
-        local waveVal = (extraWave ~= nil) and tostring(extraWave) or "N/A"
-        table.insert(fields, {
-            name = "🎮 Match Result",
-            value = string.format("%s (Wave %s)", resIcon, waveVal),
-            inline = true,
-        })
+--==============================================================================
+-- Webhook Dispatcher
+--==============================================================================
+SendAutoCurrencyWebhook = function(eventTitle: string?, matchResult: string?, extraWave: any?, detailsText: string?, customRewards: any?)
+    local webhookUrl = (State and State.Misc and State.Misc.WebhookUrl)
+        or (Settings and Settings:Get("WebhookUrl", ""))
+        or ""
+    if webhookUrl == "" or not webhookUrl:find("^https?://") then
+        return false, "No webhook URL configured"
     end
 
-    table.insert(fields, {
-        name = "📝 Details",
-        value = string.format("`%s`", detailsText or "Currency farming loop operating normally."),
-        inline = false,
-    })
+    local isLobby = (game.PlaceId == LOBBY_PLACE_ID)
+    local activeMode, activeConfig = getActiveCurrencyInfo()
+    local condition = (activeConfig and activeConfig.Condition) or "N/A"
+    local isPrem = checkIsPremium()
+    local planText = isPrem and "Premium" or "Free"
 
+    local sessionStart = (getgenv and getgenv().HubSessionStartTime) or (State and State.StartTime) or tick()
+    local currentSecs = math.max(0, tick() - sessionStart)
+    local clockStr, totalHoursStr = formatSessionDuration(currentSecs)
+
+    local stats = { Coins = 0, Gems = 0, Level = 0, Exp = 0 }
+    if DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
+        pcall(function()
+            local s = DataHandler:GetPlayerStats()
+            if s then
+                stats.Coins = s.Coins or 0
+                stats.Gems = s.Gems or 0
+                stats.Level = s.Level or 0
+                stats.Exp = s.Exp or 0
+            end
+        end)
+    end
+
+    local playerName = (LocalPlayer and LocalPlayer.Name) or "Player"
+    local playerUserId = (LocalPlayer and LocalPlayer.UserId) or 0
+    local nodeName = (State and State.Misc and State.Misc.NodeName)
+        or (Settings and Settings:Get("NodeName", "Node 1"))
+        or "Node 1"
+
+    local sessionMatches = (getgenv and getgenv().HubSessionMatches) or 0
+    local totalMatches = ((Settings and Settings:Get("TotalMatches", 0)) or 0) + sessionMatches
+    local locationText = isLobby and "In Lobby" or "In Match"
+    local tsBalance = (DataHandler and typeof(DataHandler.GetTimescaleTickets) == "function" and DataHandler:GetTimescaleTickets()) or 0
+
+    local isPostMatch = (matchResult ~= nil) or (customRewards ~= nil) or (eventTitle and eventTitle:find("Match Concluded"))
+
+    local embedTitle = string.format("🔔 Bogus Auto Hub // %s", eventTitle or "Auto Currency Status")
     local embedColor = 0x7C3AED
-    if matchResult then
-        if matchResult == "WIN" or matchResult == "VICTORY" then
-            embedColor = 0x00FF88
-        else
-            embedColor = 0xFF4D4D
+    local overviewDesc = nil
+    local fields = {}
+
+    if isPostMatch then
+        local match = customRewards or {
+            Coins = 0,
+            Gems = 0,
+            XP = 0,
+            Timescales = 0,
+            Wave = extraWave or 0,
+            Level = stats.Level or 0,
+            Time = "00:00",
+            Status = (matchResult == "WIN" or matchResult == "VICTORY") and "WIN" or "DEFEAT",
+            Others = {}
+        }
+
+        local isWin = (match.Status == "WIN" or matchResult == "WIN" or matchResult == "VICTORY")
+        local statusText = isWin and "WIN" or "DEFEAT"
+        embedTitle = isWin and "🏆 TRIUMPH" or "💀 DEFEAT"
+        embedColor = isWin and 0x2ECC71 or 0xE74C3C
+
+        local matchTime = (match.Time and match.Time ~= "" and match.Time ~= "00:00") and match.Time or clockStr
+        local matchLvl = (match.Level and match.Level > 0) and match.Level or stats.Level
+        local matchWave = (extraWave ~= nil) and tostring(extraWave) or ((match.Wave and match.Wave > 0) and tostring(match.Wave) or "N/A")
+
+        overviewDesc = string.format("### 📋 Match Overview\n> **Status:** `%s`\n> **Time:** `%s`\n> **Current Level:** `%s`\n> **Wave:** `%s`\n",
+            statusText, matchTime, tostring(matchLvl), matchWave)
+
+        local esc = string.char(27)
+        local matchCoins = tonumber(match.Coins) or 0
+        local matchGems = tonumber(match.Gems) or 0
+        local matchXP = tonumber(match.XP) or 0
+        local matchTs = tonumber(match.Timescales) or 0
+
+        local rewardsText = "```ansi\n"
+        rewardsText = rewardsText .. string.format("%s[2;33mCoins:      %s[0m +%s\n", esc, esc, formatNumber(matchCoins))
+        rewardsText = rewardsText .. string.format("%s[2;34mGems:       %s[0m +%s\n", esc, esc, formatNumber(matchGems))
+        rewardsText = rewardsText .. string.format("%s[2;32mXP:         %s[0m +%s", esc, esc, formatNumber(matchXP))
+        if activeMode == "Auto Timescales" or matchTs > 0 then
+            rewardsText = rewardsText .. string.format("\n%s[2;36mTimescales: %s[0m +%s", esc, esc, formatNumber(matchTs))
         end
-    elseif eventTitle and eventTitle:find("Target Reached") then
-        embedColor = 0xFFD700
+        rewardsText = rewardsText .. "\n```"
+
+        local bonusString = ""
+        if match.Others and #match.Others > 0 then
+            for _, res in ipairs(match.Others) do
+                bonusString = bonusString .. string.format("🎁 **%s %s**\n", tostring(res.Amount or "x1"), tostring(res.Name or "Reward"))
+            end
+        else
+            bonusString = "_No bonus rewards found._"
+        end
+
+        local curTotalCoins = (getgenv and getgenv().HubSessionCoinsGained) or 0
+        local curTotalGems = (getgenv and getgenv().HubSessionGemsGained) or 0
+        local curTotalTs = (getgenv and getgenv().HubSessionTimescalesGained) or 0
+
+        local sessionTotalText = "```py\n# Total Amount\n"
+        sessionTotalText = sessionTotalText .. string.format("Coins:      %s\n", formatNumber(curTotalCoins))
+        sessionTotalText = sessionTotalText .. string.format("Gems:       %s", formatNumber(curTotalGems))
+        if activeMode == "Auto Timescales" or curTotalTs > 0 then
+            sessionTotalText = sessionTotalText .. string.format("\nTimescales: %s", formatNumber(curTotalTs))
+        end
+        sessionTotalText = sessionTotalText .. string.format("\nMatches:    %d\n```", sessionMatches)
+
+        table.insert(fields, {
+            name = "✨ Rewards",
+            value = rewardsText,
+            inline = false,
+        })
+        table.insert(fields, {
+            name = "🎁 Bonus Items",
+            value = bonusString,
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "📊 Session Totals",
+            value = sessionTotalText,
+            inline = true,
+        })
+
+        appendTargetProgressField(fields, activeMode, activeConfig, stats, condition)
+
+        table.insert(fields, {
+            name = "💰 Balances",
+            value = string.format("🪙 `%s` Coins • 💎 `%s` Gems • ⌛ `%s` Timescales", formatNumber(stats.Coins), formatNumber(stats.Gems), formatNumber(tsBalance)),
+            inline = false,
+        })
+        table.insert(fields, {
+            name = "⚙️ Mode & Plan",
+            value = string.format("`%s [%s]` • Plan: `%s`", activeMode, condition, planText),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "⏱️ Session Runtime",
+            value = string.format("`%s (%s)`", clockStr, totalHoursStr),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "📌 Node / Player",
+            value = string.format("Node: `%s` • User: `%s`", nodeName, playerName),
+            inline = true,
+        })
+        if detailsText and detailsText ~= "" then
+            table.insert(fields, {
+                name = "📝 Details",
+                value = string.format("`%s`", detailsText),
+                inline = false,
+            })
+        end
+    else
+        if eventTitle and eventTitle:find("Target Reached") then
+            embedColor = 0xFFD700
+        end
+
+        table.insert(fields, {
+            name = "👤 Username",
+            value = string.format("`%s`", playerName),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "📌 Node:",
+            value = string.format("`%s`", nodeName),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "🆔 ID",
+            value = string.format("`%s`", tostring(playerUserId)),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "⭐ Plan",
+            value = string.format("`%s`", planText),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "⚙️ Active Currency",
+            value = string.format("`%s [%s]`", activeMode, condition),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "⏱️ Session Time",
+            value = string.format("`%s (%s)`", clockStr, totalHoursStr),
+            inline = true,
+        })
+
+        appendTargetProgressField(fields, activeMode, activeConfig, stats, condition)
+
+        table.insert(fields, {
+            name = "🎮 Match Session Total:",
+            value = string.format("`%d Matches`", sessionMatches),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "🏆 Total Matches:",
+            value = string.format("`%d Matches`", totalMatches),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "📍 Current Location:",
+            value = string.format("`%s`", locationText),
+            inline = true,
+        })
+        table.insert(fields, {
+            name = "💰 Balances",
+            value = string.format("🪙 `%s` Coins • 💎 `%s` Gems • ⌛ `%s` Timescales", formatNumber(stats.Coins), formatNumber(stats.Gems), formatNumber(tsBalance)),
+            inline = false,
+        })
+        if detailsText and detailsText ~= "" then
+            table.insert(fields, {
+                name = "📝 Details",
+                value = string.format("`%s`", detailsText),
+                inline = false,
+            })
+        end
     end
 
     local playerAvatarUrl = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=150&height=150&format=png", playerUserId)
+    local embedObj = {
+        author = {
+            name = string.format("Bogus Auto Hub [%s]", planText),
+            icon_url = playerAvatarUrl,
+        },
+        title = embedTitle,
+        color = embedColor,
+        fields = fields,
+        footer = {
+            text = string.format("Logged for %s • Bogus Auto Hub [%s] • %s", playerName, planText, os.date("%m/%d/%y, %I:%M %p")),
+            icon_url = playerAvatarUrl,
+        },
+        timestamp = DateTime.now():ToIsoDate(),
+    }
+    if overviewDesc and overviewDesc ~= "" then
+        embedObj.description = overviewDesc
+    end
+
     local payload = {
-        embeds = {
-            {
-                author = {
-                    name = string.format("Bogus Auto Hub [%s]", planText),
-                    icon_url = playerAvatarUrl,
-                },
-                title = string.format("🔔 Bogus Auto Hub // %s", eventTitle or "Auto Currency Status"),
-                color = embedColor,
-                fields = fields,
-                footer = {
-                    text = string.format("Bogus Auto Hub %s • Currency Engine • %s", planText, os.date("%m/%d/%y, %I:%M %p")),
-                    icon_url = playerAvatarUrl,
-                },
-                timestamp = DateTime.now():ToIsoDate(),
-            }
-        }
+        username = "TDS AutoStrat",
+        avatar_url = playerAvatarUrl,
+        embeds = { embedObj }
     }
 
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
@@ -8591,7 +8886,7 @@ end)
 local lastCurrencyMatchmakingTime = 0
 local activeInGameCurrencyLoop = false
 local timescalesConsecutiveLosses = 0
-local currentActiveTrialTitle: string? = nil
+currentActiveTrialTitle = nil
 
 local function GetMatchStatus(): string?
     local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
@@ -8764,34 +9059,7 @@ local function functionRestartLogic(): boolean
     return fired
 end
 
-local function getTrialTimescaleReward(trialName: string?): (number, number)
-    if not trialName or trialName == "" then return 0, 0 end
-    local norm = string.lower(tostring(trialName)):gsub("%s+", "")
-
-    -- Tier 3: 3 Timescale tickets (Highest payout: Fog, Quarantine, Exploding)
-    if string.find(norm, "fog")
-        or string.find(norm, "quarantine")
-        or string.find(norm, "explod")
-        or string.find(norm, "expload") then
-        return 3, 30
-    end
-
-    -- Tier 1: 1 Timescale ticket (Lowest payout: Glass, Limitation, Committed)
-    if string.find(norm, "glass")
-        or string.find(norm, "limitation")
-        or string.find(norm, "commit") then
-        return 1, 10
-    end
-
-    -- Tier 2 Easy / Priority: 2 Timescale tickets (Hidden, Flying)
-    -- Flying and Hidden are easier than other 2-ticket trials (like Jailed), so prioritize them!
-    if string.find(norm, "hidden") or string.find(norm, "flying") then
-        return 2, 25
-    end
-
-    -- Tier 2 Standard: 2 Timescale tickets (Broke, Jailed, Speedy, Inflation, etc.)
-    return 2, 20
-end
+-- getTrialTimescaleReward is defined above near Webhook Dispatcher / Reward Scraper
 
 local function shouldPremiumRematchTrial(currentTrialName: string?): (boolean, string)
     if not checkIsPremium() then
@@ -10027,15 +10295,54 @@ task.spawn(function()
                                 Settings:Set("TotalMatches", curTotal + 1)
                             end
 
+                            local matchWave = nil
+                            pcall(function()
+                                local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                if gsr then matchWave = gsr:GetAttribute("Wave") end
+                            end)
+
+                            local rewards = nil
+                            pcall(function()
+                                rewards = GetAllMatchRewards(2.5)
+                            end)
+                            if not rewards then
+                                rewards = {
+                                    Coins = 0,
+                                    Gems = 0,
+                                    XP = 0,
+                                    Timescales = 0,
+                                    Wave = matchWave or 0,
+                                    Level = 0,
+                                    Time = "00:00",
+                                    Status = (matchStatus == "WIN" or matchStatus == "VICTORY") and "WIN" or "DEFEAT",
+                                    Others = {}
+                                }
+                            end
+                            if matchStatus and (rewards.Status == "UNKNOWN" or rewards.Status == "") then
+                                rewards.Status = (matchStatus == "WIN" or matchStatus == "VICTORY") and "WIN" or "DEFEAT"
+                            end
+                            if (matchStatus == "WIN" or matchStatus == "VICTORY") and (rewards.Timescales == 0) and currentActiveTrialTitle then
+                                local tTickets = getTrialTimescaleReward(currentActiveTrialTitle)
+                                if tTickets > 0 then rewards.Timescales = tTickets end
+                            end
+
+                            -- Update session totals
+                            if getgenv then
+                                if (rewards.Coins or 0) > 0 then
+                                    getgenv().HubSessionCoinsGained = (getgenv().HubSessionCoinsGained or 0) + rewards.Coins
+                                end
+                                if (rewards.Gems or 0) > 0 then
+                                    getgenv().HubSessionGemsGained = (getgenv().HubSessionGemsGained or 0) + rewards.Gems
+                                end
+                                if (rewards.Timescales or 0) > 0 then
+                                    getgenv().HubSessionTimescalesGained = (getgenv().HubSessionTimescalesGained or 0) + rewards.Timescales
+                                end
+                            end
+
                             if State.Misc.WebhookAlerts and State.Misc.WebhookUrl ~= "" and SendAutoCurrencyWebhook then
-                                local matchWave = nil
                                 pcall(function()
-                                    local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
-                                    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
-                                    if gsr then matchWave = gsr:GetAttribute("Wave") end
-                                end)
-                                pcall(function()
-                                    SendAutoCurrencyWebhook("Match Concluded", matchStatus, matchWave, "Match concluded! Results recorded.")
+                                    SendAutoCurrencyWebhook("Match Concluded", matchStatus, matchWave, "Match concluded! Results recorded.", rewards)
                                 end)
                             end
                             task.wait(2)
