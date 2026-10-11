@@ -378,8 +378,6 @@ local function loadDataHandler()
     -- 1. Try local workspace files first
     local candidates = {
         "[SomethingNew]/DataHandler.lua",
-        "[SomethingNew]\\DataHandler.lua",
-        "DataHandler.lua",
     }
     local source = nil
     for _, path in ipairs(candidates) do
@@ -556,6 +554,41 @@ local function getLiveSkillTree(): { any }
         end
     end
 
+    if not tree or #tree == 0 then
+        pcall(function()
+            local list = {}
+            for i = 1, 17 do
+                local tile = workspace:FindFirstChild(tostring(i))
+                if tile then
+                    local surfaceGui = tile:FindFirstChild("TileSurfaceGui")
+                    local frame = surfaceGui and surfaceGui:FindFirstChild("Frame")
+                    if frame then
+                        local nameLabel = frame:FindFirstChild("SkillName")
+                        local levelLabel = frame:FindFirstChild("SkillLevel")
+                        local name = nameLabel and nameLabel:IsA("TextLabel") and nameLabel.Text or ("Skill #" .. i)
+                        local lvlStr = levelLabel and levelLabel:IsA("TextLabel") and levelLabel.Text or "0"
+                        local formattedLvl = lvlStr
+                        local curMatch, maxMatch = lvlStr:match("(%d+)%s*/%s*(%d+)")
+                        local numericLvl = tonumber(curMatch) or (tonumber(lvlStr:match("%d+")) or 0)
+                        local maxLvl = tonumber(maxMatch)
+                        local isMaxed = (maxLvl and numericLvl >= maxLvl) or string.upper(lvlStr):find("MAX") ~= nil
+                        table.insert(list, {
+                            Id = tostring(i),
+                            Name = name,
+                            Level = numericLvl,
+                            MaxLevel = maxLvl,
+                            IsMaxed = isMaxed,
+                            LevelFormatted = formattedLvl,
+                        })
+                    end
+                end
+            end
+            if #list > 0 then
+                tree = list
+            end
+        end)
+    end
+
     if tree and #tree > 0 then
         pcall(function()
             if typeof(writefile) == "function" and HttpService then
@@ -677,6 +710,75 @@ local function getUserDataChecklist(): { string }
         if gOk and gList then
             goldenCount = #gList
         end
+    end
+
+    if (lvl == 0 and coins == 0 and gems == 0) or not DataHandler then
+        pcall(function()
+            local Cache = nil
+            pcall(function()
+                local cModule = ReplicatedStorage:FindFirstChild("Client")
+                cModule = cModule and cModule:FindFirstChild("Modules")
+                cModule = cModule and cModule:FindFirstChild("Cache")
+                if cModule then
+                    Cache = require(cModule)
+                end
+            end)
+            if Cache then
+                local function readAtom(name)
+                    local okAtom, atom = pcall(Cache, name)
+                    if okAtom and atom and type(atom.GetValue) == "function" then
+                        return atom:GetValue()
+                    end
+                    return nil
+                end
+                lvl = readAtom("Values.Level") or lvl
+                coins = readAtom("Values.Coins") or coins
+                gems = readAtom("Values.Gems") or gems
+                timescaleTickets = readAtom("Values.TimescaleTickets") or timescaleTickets
+                local curExp = readAtom("Values.Experience") or 0
+                local expReq = 0
+                pcall(function()
+                    local shared = ReplicatedStorage:FindFirstChild("Shared")
+                    local modules = shared and shared:FindFirstChild("Modules")
+                    local expMod = modules and modules:FindFirstChild("Experience")
+                    if expMod then
+                        local Exp = require(expMod)
+                        if type(Exp) == "function" then expReq = Exp(lvl + 1) or 0 end
+                    end
+                end)
+                if expDisplay == "0 / 0" and (curExp > 0 or expReq > 0) then
+                    expDisplay = string.format("%s / %s", formatCommas(curExp), formatCommas(expReq))
+                end
+            end
+        end)
+    end
+
+    if goldenCount == 0 then
+        pcall(function()
+            local Content = nil
+            pcall(function()
+                Content = require(ReplicatedStorage.Shared.Modules.Content)
+            end)
+            local okFold, towerFolder = pcall(Content, "Tower")
+            local Cache = nil
+            pcall(function()
+                Cache = require(ReplicatedStorage.Client.Modules.Cache)
+            end)
+            if Cache and okFold and towerFolder then
+                local gCount = 0
+                for _, t in ipairs(towerFolder:GetChildren()) do
+                    local tName = t.Name
+                    local perkAtom = Cache("Inventory.Towers." .. tName .. ".GoldenPerk")
+                    local skinAtom = Cache("Inventory.Skins." .. tName .. ".Golden")
+                    local hasPerk = perkAtom and type(perkAtom.GetValue) == "function" and perkAtom:GetValue() == true
+                    local hasSkin = skinAtom and type(skinAtom.GetValue) == "function" and skinAtom:GetValue() == true
+                    if hasPerk or hasSkin then
+                        gCount = gCount + 1
+                    end
+                end
+                goldenCount = gCount
+            end
+        end)
     end
 
     local items = {
