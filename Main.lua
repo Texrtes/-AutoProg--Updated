@@ -3206,22 +3206,25 @@ StatsGrid = OverviewTab:MetricGrid({
     }
 })
 
-local UserOverviewSection = OverviewTab:Section({ Title = "Live Player Profile & Towers" })
+local UserOverviewSection = OverviewTab:Section({ Title = "Live Player Profile, Towers & Trials" })
 
 local userOverviewBox = UserOverviewSection:SelectionBox({
-    Selections = { "User Data", "User Owned Towers" },
+    Selections = { "User Data", "User Owned Towers", "User Owned Trials" },
     Value = "User Data",
     Descriptions = {
         ["User Data"] = "Live Player Progression, Timescales & Wallet Stats",
         ["User Owned Towers"] = "TDS Tower Inventory Ownership & Verification",
+        ["User Owned Trials"] = "TDS Completed Trials & Won Modifiers Progress",
     },
     Checklist = {
         ["User Data"] = getUserDataChecklist(),
         ["User Owned Towers"] = getOwnedTowersChecklist(),
+        ["User Owned Trials"] = getOwnedTrialsChecklist(),
     },
     ButtonTexts = {
         ["User Data"] = "Refresh Live Player Stats",
         ["User Owned Towers"] = "Scan Owned Towers Inventory",
+        ["User Owned Trials"] = "Scan Completed Trials",
     },
     Callbacks = {
         ["User Data"] = function()
@@ -3242,6 +3245,19 @@ local userOverviewBox = UserOverviewSection:SelectionBox({
             Window:Notify({
                 Title = "Towers Inventory Scanned",
                 Desc = "Verified current owned vs missing towers from DataHandler.",
+                Duration = 2,
+            })
+        end,
+        ["User Owned Trials"] = function()
+            cachedOwnedTrialsList = nil
+            cachedWonTrialsList = nil
+            cachedNotWonTrialsList = nil
+            if refreshLiveOverview then
+                refreshLiveOverview()
+            end
+            Window:Notify({
+                Title = "Trials Progress Scanned",
+                Desc = "Fetched latest won modifiers and completed trials progress.",
                 Duration = 2,
             })
         end,
@@ -3271,6 +3287,7 @@ refreshLiveOverview = function()
                 userOverviewBox:SetChecklist({
                     ["User Data"] = getUserDataChecklist(),
                     ["User Owned Towers"] = getOwnedTowersChecklist(),
+                    ["User Owned Trials"] = getOwnedTrialsChecklist(),
                 })
             end)
         end
@@ -5155,6 +5172,7 @@ local RecorderTab = Window:Tab({
     Title = "Recorder",
     Subtitle = "Strategy Macro & Recorder",
 })
+if not RecorderTab then return end
 
 RecorderTab:Banner({
     Title = "Strategy Action Recorder",
@@ -5361,13 +5379,16 @@ RecorderConfigSection:Button({
     end,
 })
 
-local RecorderLogSection = AutoPlayTab:Section({ Title = "Live Recording Feed" })
+local RecorderLogSection = nil
+if RecorderTab and typeof(RecorderTab.Section) == "function" then
+    RecorderLogSection = RecorderTab:Section({ Title = "Live Recording Feed" })
 
-recordingConsoleRef = RecorderLogSection:LogConsole({
-    Title = "RECORDER ACTIVITY LOG",
-    Height = 150,
-    MaxLines = 100,
-})
+    recordingConsoleRef = RecorderLogSection:LogConsole({
+        Title = "RECORDER ACTIVITY LOG",
+        Height = 150,
+        MaxLines = 100,
+    })
+end
 
 -- Workspace tower listeners for recorder
 task.spawn(function()
