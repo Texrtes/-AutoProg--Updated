@@ -3237,6 +3237,11 @@ local MiscTab = Window:Tab({
     Subtitle = "Utilities & Client Settings",
 })
 
+local LoggerTab = Window:Tab({
+    Title = "Logger",
+    Subtitle = "Live Activity & System Feed",
+})
+
 --==============================================================================
 -- 4. OVERVIEW TAB
 --==============================================================================
@@ -3257,14 +3262,10 @@ OverviewTab:Banner({
 })
 
 StatsGrid = OverviewTab:MetricGrid({
-    Cols = 3,
+    Cols = 2,
     Items = {
         { Title = "STATUS", Value = "ONLINE", Sub = "Nominal", Color = Color3.fromRGB(34, 197, 94) },
         { Title = "SESSION TIME", Value = "00:00:00", Sub = "Runtime" },
-        { Title = "ACTIONS RUN", Value = "0", Sub = "Completed cycles" },
-        { Title = "MATCHES PLAYED", Value = "0", Sub = "Hub session" },
-        { Title = "AUTO CURRENCY", Value = "OFF", Sub = "Standing by" },
-        { Title = "CURRENCY GAINED", Value = "+0", Sub = "Session total", Color = Color3.fromRGB(245, 158, 11) },
     }
 })
 
@@ -3457,29 +3458,21 @@ end
 
 setupLiveStatListeners()
 
-local OverviewQuick = OverviewTab:Section({ Title = "Quick Controls" })
-
-OverviewQuick:Toggle({
-    Title = "Master Automation Switch",
-    Desc = "Globally enables or pauses all background automation routines",
-    Value = State.Master,
-    Callback = function(val: boolean)
-        State.Master = val
-        StatsGrid:UpdateItem(1, val and "ONLINE" or "PAUSED", val and "Nominal" or "Paused globally")
-        Window:Notify({
-            Title = "Master Switch",
-            Desc = val and "All automation loops resumed." or "Automation suspended globally.",
-            Duration = 2,
-        })
-    end,
+--==============================================================================
+-- 4.5. LOGGER TAB
+--==============================================================================
+LoggerTab:Banner({
+    Title = "Live System Console",
+    Desc = "Real-time diagnostic feed, strategy logs, automation updates and network events.",
+    Type = "Info",
 })
 
-local ActivityLogSection = OverviewTab:Section({ Title = "Activity Feed" })
+local LoggerSection = LoggerTab:Section({ Title = "Activity Feed" })
 
-Logger = ActivityLogSection:LogConsole({
+Logger = LoggerSection:LogConsole({
     Title = "SYSTEM ACTIVITY LOG",
-    Height = 140,
-    MaxLines = 100,
+    Height = 320,
+    MaxLines = 250,
 })
 
 Logger:Success("CoreRevamp Glassmorphism API mounted successfully.")
@@ -6529,18 +6522,26 @@ StartAutoReady = function()
     AutoReadyRunning = true
 
     task.spawn(function()
-        local stateReps = ReplicatedStorage:WaitForChild("StateReplicators", 10)
-        local voteReplicator = stateReps and stateReps:WaitForChild("VoteReplicator", 10)
+        local stateReps = ReplicatedStorage:WaitForChild("StateReplicators", 15)
+        local voteReplicator = stateReps and stateReps:WaitForChild("VoteReplicator", 15)
         if not voteReplicator then
             AutoReadyRunning = false
             return
         end
         
-        repeat task.wait(0.1) until voteReplicator:GetAttribute("Enabled") == true and voteReplicator:GetAttribute("Title") == "Ready?"
+        repeat
+            task.wait(0.1)
+        until (voteReplicator:GetAttribute("Enabled") == true and voteReplicator:GetAttribute("Title") == "Ready?")
+            or not ((Globals and Globals.AutoReady) or (State and State.Utilities and State.Utilities.AutoReady))
         
-        RunVoteSkip()
+        if (Globals and Globals.AutoReady) or (State and State.Utilities and State.Utilities.AutoReady) then
+            RunVoteSkip()
+        end
         
-        repeat task.wait(0.1) until voteReplicator:GetAttribute("Enabled") == false
+        repeat
+            task.wait(0.1)
+        until voteReplicator:GetAttribute("Enabled") == false
+            or not ((Globals and Globals.AutoReady) or (State and State.Utilities and State.Utilities.AutoReady))
         
         AutoReadyRunning = false
     end)
@@ -6548,22 +6549,12 @@ end
 
 local AutoSkipRunning = false
 StartAutoSkip = function()
-    local isEnabled = (Globals and Globals.AutoSkip == true)
-        or (State and State.Utilities and State.Utilities.AutoSkip == true)
-        or (getgenv and getgenv().AutoSkip == true)
+    local isEnabled = (Globals and Globals.AutoSkip) or (State and State.Utilities and State.Utilities.AutoSkip)
     if AutoSkipRunning or not isEnabled then return end
     AutoSkipRunning = true
 
     task.spawn(function()
-        while AutoSkipRunning and ((Globals and Globals.AutoSkip == true)
-            or (State and State.Utilities and State.Utilities.AutoSkip == true)
-            or (getgenv and getgenv().AutoSkip == true)) do
-
-            local isStillEnabled = (Globals and Globals.AutoSkip == true)
-                or (State and State.Utilities and State.Utilities.AutoSkip == true)
-                or (getgenv and getgenv().AutoSkip == true)
-            if not isStillEnabled then break end
-
+        while (Globals and Globals.AutoSkip) or (State and State.Utilities and State.Utilities.AutoSkip) do
             local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
             local SkipVisible =
                 pg
@@ -6572,15 +6563,11 @@ StartAutoSkip = function()
                 and pg.ReactOverridesVote.Frame:FindFirstChild("votes")
                 and pg.ReactOverridesVote.Frame.votes:FindFirstChild("vote")
 
-            if SkipVisible and (SkipVisible.Position == UDim2.new(0.5, 0, 0.5, 0) or SkipVisible.Visible) then
-                if (Globals and Globals.AutoSkip == true)
-                    or (State and State.Utilities and State.Utilities.AutoSkip == true)
-                    or (getgenv and getgenv().AutoSkip == true) then
-                    RunVoteSkip()
-                end
+            if SkipVisible and SkipVisible.Position == UDim2.new(0.5, 0, 0.5, 0) then
+                RunVoteSkip()
             end
 
-            task.wait(0.2)
+            task.wait(0.1)
         end
 
         AutoSkipRunning = false
