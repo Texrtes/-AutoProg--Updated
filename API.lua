@@ -39,32 +39,12 @@ local function SmartTeleportToLobby()
         return
     end
 
-    -- If no VIP code, solely invoke the game's official lobby remotes
+    -- If mobile or empty private server code, directly teleport to lobby
     pcall(function()
-        local sharedMod = game:GetService("ReplicatedStorage"):FindFirstChild("Shared")
-        local modules = sharedMod and sharedMod:FindFirstChild("Modules")
-        local newNet = modules and modules:FindFirstChild("NewNetwork")
-        if newNet then
-            local NewNetwork = require(newNet)
-            NewNetwork.Channel("Teleport"):fireServer("backToLobby")
-        end
+        TeleportService:Teleport(lobbyId, LocalPlayer)
     end)
     pcall(function()
-        local netFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Network")
-        local tpFolder = netFolder and netFolder:FindFirstChild("Teleport")
-        local reBack = tpFolder and tpFolder:FindFirstChild("RE:backToLobby")
-        if reBack and reBack:IsA("RemoteEvent") then
-            reBack:FireServer()
-        end
-    end)
-    pcall(function()
-        local remoteEvent = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
-        local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
-        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
-            remoteEvent:FireServer("Teleport", "backToLobby")
-        elseif remoteFunc and remoteFunc:IsA("RemoteFunction") then
-            remoteFunc:InvokeServer("Teleport", "backToLobby")
-        end
+        TeleportService:Teleport(lobbyId)
     end)
 end
 
