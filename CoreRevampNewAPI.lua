@@ -527,7 +527,7 @@ local function addRipple(button: GuiButton, color: Color3)
 end
 
 -- Strict Clamping prevents window from going off-screen or under the top notch
-local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customHeight: number?, customWidth: number?)
+local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customHeight: number?, customWidth: number?, candidateY: number?, candidateX: number?)
     elevateThread()
     local camera = workspace.CurrentCamera
     local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
@@ -539,30 +539,38 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
     end)
     local topInset = getTopInset()
 
-    local effectiveH = customHeight or (target and target.AbsoluteSize and target.AbsoluteSize.Y) or 500
-    local effectiveW = customWidth or (target and target.AbsoluteSize and target.AbsoluteSize.X) or 600
+    local effectiveH = customHeight or (target and target.Size and target.Size.Y.Offset) or (target and target.AbsoluteSize and (target.AbsoluteSize.Y / scale)) or 540
+    local effectiveW = customWidth or (target and target.Size and target.Size.X.Offset) or (target and target.AbsoluteSize and (target.AbsoluteSize.X / scale)) or 800
 
-    local halfH = (effectiveH * scale) / 2
-    local halfW = (effectiveW * scale) / 2
+    local halfH = effectiveH * 0.5
+    local halfW = effectiveW * 0.5
 
-    -- Free dragging with no artificial upper-screen cutoff
-    local minOffsetY = (-(vp.Y * 0.5) + topInset + 4) / scale
-    local maxOffsetY = ((vp.Y * 0.5) - 40) / scale
+    -- Screen boundary clamping for AnchorPoint (0.5, 0.5):
+    -- Window top edge in screen coords: (vp.Y * 0.5) + (offsetY * scale) - (halfH * scale) >= topInset + 6
+    -- Therefore offsetY >= (-(vp.Y * 0.5) + topInset + 6) / scale + halfH
+    local minOffsetY = (-(vp.Y * 0.5) + topInset + 6) / scale + halfH
+    -- Window bottom edge should not go below viewport bottom:
+    -- (vp.Y * 0.5) + (offsetY * scale) + (halfH * scale) <= vp.Y - 20
+    -- Therefore offsetY <= ((vp.Y * 0.5) - 20) / scale - halfH
+    local maxOffsetY = ((vp.Y * 0.5) - 20) / scale - halfH
+    if maxOffsetY < minOffsetY then
+        maxOffsetY = minOffsetY
+    end
 
     local minOffsetX = (-(vp.X * 0.5) + 60) / scale
     local maxOffsetX = ((vp.X * 0.5) - 60) / scale
 
-    local currentOffsetY = (target and target.Position and target.Position.Y.Offset) or 0
-    local currentOffsetX = (target and target.Position and target.Position.X.Offset) or 0
+    local currentOffsetY = candidateY or (target and target.Position and target.Position.Y.Offset) or 0
+    local currentOffsetX = candidateX or (target and target.Position and target.Position.X.Offset) or 0
 
     local clampedY = math.clamp(currentOffsetY, minOffsetY, maxOffsetY)
     local clampedX = math.clamp(currentOffsetX, minOffsetX, maxOffsetX)
 
-    if target then
-        target.Position = UDim2.new(0.5, clampedX, 0.5, clampedY)
-        return target.Position
+    local resultPos = UDim2.new(0.5, clampedX, 0.5, clampedY)
+    if target and candidateY == nil and candidateX == nil then
+        target.Position = resultPos
     end
-    return UDim2.new(0.5, 0, 0.5, 0)
+    return resultPos
 end
 
 local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
@@ -611,9 +619,16 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                 local rawOffsetX = startPosition.X.Offset + (delta.X / scale)
                 local rawOffsetY = startPosition.Y.Offset + (delta.Y / scale)
 
-                -- Removed going up restriction: allow window top bar to go right up to the top of screen!
-                local minOffsetY = (-(vp.Y * 0.5) + topInset + 4) / scale
+                local effectiveH = (target and target.Size and target.Size.Y.Offset) or 540
+                local halfH = effectiveH * 0.5
+
+                -- Top edge can never go above topInset + 6
+                local minOffsetY = (-(vp.Y * 0.5) + topInset + 6) / scale + halfH
                 local maxOffsetY = ((vp.Y * 0.5) - 40) / scale
+                if maxOffsetY < minOffsetY then
+                    maxOffsetY = minOffsetY
+                end
+
                 local minOffsetX = (-(vp.X * 0.5) + 60) / scale
                 local maxOffsetX = ((vp.X * 0.5) - 60) / scale
 
@@ -4970,14 +4985,28 @@ function Library:Window(props: { [string]: any })
         if isMinimized then
             originalSize = (shadow.Size.Y.Offset > 68 and shadow.Size) or defaultSize
             resizeHandle.Visible = false
-            tween(shadow, 0.22, { Size = UDim2.fromOffset(originalSize.X.Offset, 68) })
             contentArea.Visible = false
             sidebar.Visible = false
+
+            local curOffsetY = shadow.Position.Y.Offset
+            local curH = shadow.Size.Y.Offset
+            local newH = 68
+            -- Keep top edge anchored in place while collapsing into header bar
+            local targetOffsetY = curOffsetY - ((curH - newH) * 0.5)
+            local clampedPos = clampWindowPosition(shadow, uiScale, newH, originalSize.X.Offset, targetOffsetY, shadow.Position.X.Offset)
+
+            tween(shadow, 0.22, { Size = UDim2.fromOffset(originalSize.X.Offset, newH), Position = clampedPos })
         else
             contentArea.Visible = true
             sidebar.Visible = true
             local targetSize = (originalSize.Y.Offset > 68 and originalSize) or defaultSize
-            local clampedPos = clampWindowPosition(shadow, uiScale, targetSize.Y.Offset, targetSize.X.Offset)
+            local curOffsetY = shadow.Position.Y.Offset
+            local curH = shadow.Size.Y.Offset
+            local targetH = targetSize.Y.Offset
+            -- Keep top edge anchored in place while expanding downwards
+            local targetOffsetY = curOffsetY + ((targetH - curH) * 0.5)
+            local clampedPos = clampWindowPosition(shadow, uiScale, targetH, targetSize.X.Offset, targetOffsetY, shadow.Position.X.Offset)
+
             tween(shadow, 0.22, { Size = targetSize, Position = clampedPos })
             task.delay(0.22, function()
                 resizeHandle.Visible = true
