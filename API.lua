@@ -1108,6 +1108,9 @@ end
 
 function TDS:VoteSkip(StartWave, EndWave)
     task.spawn(function()
+        if not Globals.AutoSkip then
+            return
+        end
         local CurrentWave = GetCurrentWave()
         
         self.LastVoteSkipTarget = self.LastVoteSkipTarget or 0
@@ -1126,13 +1129,16 @@ function TDS:VoteSkip(StartWave, EndWave)
         end
 
         for wave = StartWave, EndWave do
+            if not Globals.AutoSkip then break end
             while GetCurrentWave() < wave do
+                if not Globals.AutoSkip then break end
                 task.wait(1)
             end
 
             local TargetNextWave = wave + 1
             
             while GetCurrentWave() < TargetNextWave do
+                if not Globals.AutoSkip then break end
                 local VoteUi = PlayerGui:FindFirstChild("ReactOverridesVote")
                 local VoteButton = VoteUi 
                     and VoteUi:FindFirstChild("Frame") 
