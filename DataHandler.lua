@@ -554,7 +554,7 @@ local function getLobbyHud()
     return pgui:FindFirstChild("ReactLobbyHud") or pgui:WaitForChild("ReactLobbyHud", 2)
 end
 
-function CombinedData:GetLevel()
+function CombinedData:GetRawLevel()
     -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
     local pss = getPlayerStatsStore()
     if pss and type(pss.getLevel) == "function" then
@@ -593,6 +593,14 @@ function CombinedData:GetLevel()
     end
 
     return 0, "0"
+end
+
+function CombinedData:GetLevel()
+    local ok, exp, nextExp, disp, normLvl = pcall(function() return self:GetPlayerExp() end)
+    if ok and normLvl and tonumber(normLvl) and tonumber(normLvl) > 0 then
+        return tonumber(normLvl), tostring(normLvl)
+    end
+    return self:GetRawLevel()
 end
 
 function CombinedData:GetCoins()
@@ -722,37 +730,36 @@ end
 --- Returns current player EXP, required EXP for next level, and formatted string
 function CombinedData:GetPlayerExp()
     -- 1. Check PlayerStatsStore (Primary Live Store in Charm)
-    local exp = nil
+    local pssExp = nil
     local pss = getPlayerStatsStore()
     if pss and type(pss.getExperience) == "function" then
         local ok, e = pcall(pss.getExperience)
         if ok and e ~= nil and tonumber(e) then
-            exp = tonumber(e)
+            pssExp = tonumber(e)
         end
     end
 
     -- 2. Direct Cache lookup (Values.Experience)
-    if exp == nil then
-        local cachedExp = getStat("Values.Experience")
-        if cachedExp ~= nil and tonumber(cachedExp) then
-            exp = tonumber(cachedExp)
+    local cachedExp = nil
+    local cVal = getStat("Values.Experience")
+    if cVal ~= nil and tonumber(cVal) then
+        cachedExp = tonumber(cVal)
+    end
+
+    -- 3. LocalPlayer ValueBase (Replicated live server value)
+    local lpExp = nil
+    local lp = getLocalPlayer()
+    if lp then
+        local val = lp:FindFirstChild("Experience")
+        if val and val:IsA("ValueBase") and tonumber(val.Value) then
+            lpExp = tonumber(val.Value)
         end
     end
 
-    -- 3. Fallback: LocalPlayer ValueBase
-    if exp == nil then
-        local lp = getLocalPlayer()
-        if lp then
-            local val = lp:FindFirstChild("Experience")
-            if val and val:IsA("ValueBase") then
-                exp = tonumber(val.Value)
-            end
-        end
-    end
+    -- Use the maximum valid experience total available across sources
+    local exp = math.max(pssExp or 0, cachedExp or 0, lpExp or 0)
 
-    exp = exp or 0
-
-    local level = self:GetLevel() or 0
+    local level = self:GetRawLevel() or 0
     local nextLevelExp = 0
 
     if not Experience then
@@ -782,6 +789,7 @@ function CombinedData:GetPlayerExp()
 
     return exp, nextLevelExp, string.format("%d / %d", exp, nextLevelExp), level
 end
+
 
 --- Returns a table containing Level, EXP, NextLevelExp, Coins, Gems, and TimescaleTickets
 function CombinedData:GetPlayerStats()

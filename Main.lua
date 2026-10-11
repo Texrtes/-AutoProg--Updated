@@ -528,6 +528,66 @@ end
 local DataHandler = loadDataHandler()
 local PlayerDataHandler = DataHandler
 
+local function getEffectivePlayerLevel(): number
+    if DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
+        local ok, s = pcall(function() return DataHandler:GetPlayerStats() end)
+        if ok and s and s.Level and tonumber(s.Level) and tonumber(s.Level) > 0 then
+            return tonumber(s.Level)
+        end
+    end
+    if DataHandler and typeof(DataHandler.GetPlayerExp) == "function" then
+        local ok, _, _, _, normLvl = pcall(function() return DataHandler:GetPlayerExp() end)
+        if ok and normLvl and tonumber(normLvl) and tonumber(normLvl) > 0 then
+            return tonumber(normLvl)
+        end
+    end
+    if PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" then
+        local ok, lvl = pcall(function() return PlayerDataHandler:GetLevel() end)
+        if ok and lvl and tonumber(lvl) and tonumber(lvl) > 0 then
+            return tonumber(lvl)
+        end
+    end
+    if DataHandler and typeof(DataHandler.GetLevel) == "function" then
+        local ok, lvl = pcall(function() return DataHandler:GetLevel() end)
+        if ok and lvl and tonumber(lvl) and tonumber(lvl) > 0 then
+            return tonumber(lvl)
+        end
+    end
+    local lp = LocalPlayer or (game:GetService("Players") and game:GetService("Players").LocalPlayer)
+    if lp then
+        local val = lp:FindFirstChild("Level")
+        if val and val:IsA("ValueBase") and tonumber(val.Value) and tonumber(val.Value) > 0 then
+            return tonumber(val.Value)
+        end
+    end
+    return 0
+end
+
+local function waitForLobbyDataReady(maxTimeout: number?): boolean
+    local timeout = maxTimeout or 5.0
+    local startT = tick()
+    while (tick() - startT) < timeout do
+        local hasCoins = false
+        local hasTroops = false
+        if DataHandler then
+            pcall(function()
+                local coins = DataHandler:GetCoins()
+                if coins ~= nil and tonumber(coins) ~= nil then hasCoins = true end
+                if typeof(DataHandler.IsTowerOwned) == "function" then
+                    local ok, owned = pcall(function() return DataHandler:IsTowerOwned("Scout") end)
+                    if ok and owned == true then hasTroops = true end
+                end
+            end)
+        end
+        if hasCoins and hasTroops then
+            return true
+        end
+        task.wait(0.3)
+    end
+    return false
+end
+
+
 --==============================================================================
 -- 2.6 Load TDS In-Game API (API.lua via GitHub loadstring)
 --==============================================================================
@@ -1745,7 +1805,7 @@ local function AutoCurrencyCheckerImpl(optFarmType, optStrat)
             or "Coins"
     end
     local stratChoice = optStrat or (Globals and Globals.Strat) or "Lose"
-    local playerLevel = PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" and PlayerDataHandler:GetLevel() or 0
+    local playerLevel = getEffectivePlayerLevel()
 
     local category = (AutoGoldModule and AutoGoldModule.CrateConfigs and AutoGoldModule.CrateConfigs[farmType])
         or (ProgressionConfig and ProgressionConfig.AutoCurrency and ProgressionConfig.AutoCurrency[farmType])
@@ -1932,7 +1992,7 @@ function AutoEvoModule.AnalyzeRequirements(optTargetEvo: string?, optStrat: stri
     target = AutoEvoModule.NormalizeTowerName(target)
     local stratChoice = optStrat or (State and State.AutoCurrency and State.AutoCurrency.Evo and State.AutoCurrency.Evo.Strategy) or (Globals and Globals.EvoStrat) or "Lose"
 
-    local playerLevel = PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" and PlayerDataHandler:GetLevel() or 0
+    local playerLevel = getEffectivePlayerLevel()
     local coins = 0
     local gems = 0
     if PlayerDataHandler then
@@ -2587,7 +2647,7 @@ local function checkTrialEligibility(trialTitle: string): (boolean, string, tabl
         return false, "No config for " .. tostring(trialTitle), nil, nil
     end
 
-    local playerLevel = PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" and PlayerDataHandler:GetLevel() or 0
+    local playerLevel = getEffectivePlayerLevel()
     local reqLevel = config.Level or 175
     if playerLevel < reqLevel then
         return false, string.format("Level %d required (You: %d)", reqLevel, playerLevel), nil, nil
@@ -2800,7 +2860,7 @@ local DefaultSettings = {
     WebhookAlerts = false,
     NodeName = "Node 1",
     TotalMatches = 0,
-    SelectedTheme = "LightGray",
+    SelectedTheme = "Dark",
 
     -- Utilities
     Stacker = false,
@@ -3123,7 +3183,7 @@ local State = {
         WebhookUrl = GetSetting("WebhookUrl", ""),
         WebhookAlerts = GetSetting("WebhookAlerts", false),
         NodeName = GetSetting("NodeName", "Node 1"),
-        SelectedTheme = GetSetting("SelectedTheme", "LightGray"),
+        SelectedTheme = GetSetting("SelectedTheme", "Dark"),
     }
 }
 
@@ -3154,7 +3214,7 @@ end
 Window = Library:Window({
     Title = "XTREME // TDS",
     Subtitle = "v2.0 // Active",
-    Theme = "AegisCyan",
+    Theme = "Dark",
     Icon = "xtreme_logo.png",
     FloatingIcon = "xtreme_floating_icon.png",
     Keybind = Enum.KeyCode.RightControl,
@@ -3532,13 +3592,9 @@ local function getChapter0StatusText(): string
         return string.format("Incomplete (%d/4 Missions - Next: %s)", status.CompletedCount or 0, nextName)
     end
 
-    local curLvl = 0
-    pcall(function()
-        if typeof(DataHandler.GetLevel) == "function" then
-            curLvl = DataHandler:GetLevel() or 0
-        end
-    end)
+    local curLvl = getEffectivePlayerLevel()
     if curLvl >= 15 then
+
         return "Completed (Level 15+ Account) ✓"
     end
 
@@ -3628,14 +3684,15 @@ local progToggleRef = nil
             }
         end
 
-        local playerLevel = (PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" and PlayerDataHandler:GetLevel())
-            or (DataHandler and typeof(DataHandler.GetLevel) == "function" and DataHandler:GetLevel())
-            or 0
+        local playerLevel = getEffectivePlayerLevel()
         local playerCoins = 0
         if DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
             local s = DataHandler:GetPlayerStats()
             if s and s.Coins then playerCoins = tonumber(s.Coins) or 0 end
+        elseif DataHandler and typeof(DataHandler.GetCoins) == "function" then
+            playerCoins = tonumber(DataHandler:GetCoins()) or 0
         end
+
 
         local function formatMissingTowers(missingList)
             local formatted = {}
@@ -3752,6 +3809,8 @@ local progToggleRef = nil
             for _, t in ipairs(tToBuyRaw) do table.insert(allNode1Towers, t) end
             if not table.find(allNode1Towers, "Soldier") then table.insert(allNode1Towers, "Soldier") end
             if not table.find(allNode1Towers, "Assassin") then table.insert(allNode1Towers, "Assassin") end
+            local tToBuy = allNode1Towers
+
 
             local tDone, tOwned, tMissing = checkTowersListOwned(allNode1Towers)
             local tFormatted, tTotalCoins = formatMissingTowers(tMissing)
@@ -4069,17 +4128,16 @@ local function getLevelsProgressText(): string
     local currentExp = 0
     if DataHandler then
         pcall(function()
+            currentLevel = getEffectivePlayerLevel()
             if typeof(DataHandler.GetPlayerStats) == "function" then
                 local stats = DataHandler:GetPlayerStats()
-                if stats then
-                    currentLevel = stats.Level or 0
-                    currentExp = stats.Exp or 0
+                if stats and stats.Exp then
+                    currentExp = tonumber(stats.Exp) or 0
                 end
-            elseif typeof(DataHandler.GetLevel) == "function" then
-                currentLevel = DataHandler:GetLevel() or 0
             end
         end)
     end
+
 
     local targetStr = (State and State.AutoCurrency and State.AutoCurrency.Levels and State.AutoCurrency.Levels.Target)
         or (Settings and Settings:Get("AutoLevelsTarget", "0"))
@@ -8672,8 +8730,8 @@ local MiscUI = MiscTab:Section({ Title = "Hub Customization" })
 MiscUI:Dropdown({
     Title = "Glassmorphic Theme",
     Desc = "Instantly shift the accent color scheme and glass tint",
-    List = { "LightGray", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" },
-    Value = State.Misc.SelectedTheme or "LightGray",
+    List = { "Dark", "LightGray", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" },
+    Value = State.Misc.SelectedTheme or "Dark",
     Callback = function(themeName: string)
         Window:SetTheme(themeName)
         if Settings then Settings:Set("SelectedTheme", themeName) end
@@ -9482,6 +9540,15 @@ task.spawn(function()
 
             if not attrLoading and not attrTeleporting then
                 if activeMode == "Progress" then
+                    -- 1. Ensure inventory and player stats have refreshed on lobby arrival
+                    if not waitForLobbyDataReady(4.0) then
+                        Logger:Info("Auto Progress: Waiting for lobby inventory and player stats to synchronize...")
+                        task.wait(1.0)
+                        continue
+                    end
+
+                    -- 2. Clear cached tower list and evaluate node progression
+                    cachedOwnedTowersList = nil
                     local nodeInfo = getAutoProgressNodeInfo and getAutoProgressNodeInfo()
                     if nodeInfo and nodeInfo.isComplete then
                         State.AutoProgress.Enabled = false
@@ -9501,24 +9568,53 @@ task.spawn(function()
                     end
 
                     if nodeInfo and os.time() - lastCurrencyMatchmakingTime > 4 then
-                        lastCurrencyMatchmakingTime = os.time()
+                        -- Check if there are missing towers that can be bought right now before queueing
+                        if nodeInfo.towersToBuy and #nodeInfo.towersToBuy > 0 then
+                            local playerCoins = 0
+                            if DataHandler and typeof(DataHandler.GetCoins) == "function" then
+                                local c = DataHandler:GetCoins()
+                                playerCoins = tonumber(c) or 0
+                            end
 
-                        -- Buy missing towers if any
-                        if nodeInfo.towersToBuy and #nodeInfo.towersToBuy > 0 and typeof(attemptBuyMissingTowersList) == "function" then
-                            attemptBuyMissingTowersList(nodeInfo.towersToBuy)
+                            local boughtAny = false
+                            for _, towerName in ipairs(nodeInfo.towersToBuy) do
+                                local cost, cType = getTowerCost(towerName)
+                                if cType == "Coins" and cost > 0 and playerCoins >= cost then
+                                    Logger:Info(string.format("Auto Progress: Affordable tower '%s' (%d Coins, current balance: %d). Purchasing before matchmaking...", towerName, cost, playerCoins))
+                                    if typeof(attemptBuyMissingTowersList) == "function" then
+                                        local bought = attemptBuyMissingTowersList({ towerName })
+                                        if bought then
+                                            boughtAny = true
+                                            playerCoins = playerCoins - cost
+                                            task.wait(1.5)
+                                        end
+                                    end
+                                end
+                            end
+
+                            if boughtAny then
+                                cachedOwnedTowersList = nil
+                                task.wait(1.0)
+                                if refreshAutoProgUI then refreshAutoProgUI() end
+                                -- Refresh nodeInfo with newly purchased inventory
+                                nodeInfo = getAutoProgressNodeInfo and getAutoProgressNodeInfo()
+                            end
                         end
 
+                        lastCurrencyMatchmakingTime = os.time()
+
                         -- Equip required towers
-                        if nodeInfo.towersToEquip and #nodeInfo.towersToEquip > 0 and TDS and typeof(TDS.Loadout) == "function" then
+                        if nodeInfo and nodeInfo.towersToEquip and #nodeInfo.towersToEquip > 0 and TDS and typeof(TDS.Loadout) == "function" then
                             pcall(function() TDS:Loadout(unpack(nodeInfo.towersToEquip)) end)
+                            task.wait(0.5)
                         end
 
                         local remote = ReplicatedStorage:FindFirstChild("RemoteFunction")
                         if remote and remote:IsA("RemoteFunction") then
                             pcall(function() remote:InvokeServer("Multiplayer", "v2:stop") end)
-                            task.wait(0.2)
+                            task.wait(0.3)
 
-                            if nodeInfo.nodeNum == 0 then
+                            if nodeInfo and nodeInfo.nodeNum == 0 then
                                 -- Story Mode queue
                                 remote:InvokeServer("Multiplayer", "v2:start", {
                                     mode = "story",
@@ -9529,7 +9625,7 @@ task.spawn(function()
                                     }
                                 })
                                 Logger:Info(string.format("Auto Progress: Queued Story Chapter 0 Mission %d (%s).", nodeInfo.nextMissionNum or 1, tostring(nodeInfo.nextMissionName or "Boot Camp")))
-                            elseif nodeInfo.nodeNum == 1 then
+                            elseif nodeInfo and nodeInfo.nodeNum == 1 then
                                 -- Node 1: Casual (Easy) survival
                                 remote:InvokeServer("Multiplayer", "v2:start", {
                                     mode = "survival",
@@ -9537,7 +9633,7 @@ task.spawn(function()
                                     count = 1
                                 })
                                 Logger:Info("Auto Progress: Queued Node 1 Casual match.")
-                            elseif nodeInfo.nodeNum == 2 then
+                            elseif nodeInfo and nodeInfo.nodeNum == 2 then
                                 -- Node 2: Molten survival
                                 remote:InvokeServer("Multiplayer", "v2:start", {
                                     mode = "survival",
@@ -10599,10 +10695,9 @@ task.spawn(function()
                                     end
                                 else
                                     -- Node 1 or Node 2
-                                    local curLvl = (PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" and PlayerDataHandler:GetLevel())
-                                        or (DataHandler and typeof(DataHandler.GetLevel) == "function" and DataHandler:GetLevel())
-                                        or 0
+                                    local curLvl = getEffectivePlayerLevel()
                                     local curCoins = 0
+
                                     if DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
                                         local st = DataHandler:GetPlayerStats()
                                         if st and st.Coins then curCoins = tonumber(st.Coins) or 0 end
@@ -10646,9 +10741,8 @@ task.spawn(function()
                                         or "Coins"
                                 end
                                 if effMode == "Coins" and condition == "Lose" then
-                                    local currentLvl = (PlayerDataHandler and typeof(PlayerDataHandler.GetLevel) == "function" and PlayerDataHandler:GetLevel())
-                                        or (DataHandler and typeof(DataHandler.GetLevel) == "function" and DataHandler:GetLevel())
-                                        or 0
+                                    local currentLvl = getEffectivePlayerLevel()
+
                                     if currentLvl >= 15 and currentMatchLvlReq < 15 then
                                         Logger:Info(string.format("Auto Coins: Level 15 reached in Casual match (Current Level: %d)! Returning to lobby via smartLobby to purchase Soldier & Assassin...", currentLvl))
                                         Window:Notify({
