@@ -37,14 +37,16 @@ Library.Assets = {
     Search          = "rbxassetid://121018724060431",
     Textbox         = "rbxassetid://13868675087",
     GlowDot         = "rbxassetid://105506802034513",
-    ImageLogo       = "rbxassetid://130551565616516",
-    Logo            = "rbxassetid://130551565616516",
-    FloatingToggle  = "rbxassetid://130551565616516",
-    FloatingBadge   = "rbxassetid://84269270119683",
+    ImageLogo       = "xtreme_logo.png",
+    Logo            = "xtreme_logo.png",
+    XtremeLogo      = "xtreme_logo.png",
+    FloatingToggle  = "xtreme_floating_icon.png",
+    FloatingBadge   = "xtreme_floating_icon.png",
+    XtremeFloating  = "xtreme_floating_icon.png",
     Discord         = "rbxassetid://119690296342461",
     Theme           = "rbxassetid://80758916183665",
-    Home            = "rbxassetid://80559668453788",
-    Overview        = "rbxassetid://80559668453788",
+    Home            = "rbxassetid://10734950309",
+    Overview        = "rbxassetid://10734950309",
     User            = "rbxassetid://10747373176",
     Key             = "rbxassetid://10709790644",
     Clock           = "rbxassetid://121808839832144",
@@ -62,47 +64,112 @@ Library.Assets = {
     AutoGold        = "rbxassetid://116510979641930",
     Gold            = "rbxassetid://116510979641930",
     Coins           = "rbxassetid://116510979641930",
-    Package         = "rbxassetid://114765145536264",
+    Package         = "rbxassetid://10734886004",
+    Library         = "rbxassetid://10734886004",
     Zap             = "rbxassetid://130551565616516",
     AutoEvo         = "rbxassetid://130551565616516",
     Evo             = "rbxassetid://130551565616516",
     Shield          = "rbxassetid://110987169760162",
-    Background      = "rbxassetid://82941526973068",
-    AutoHubBg       = "rbxassetid://82941526973068",
+    Background      = "",
+    AutoHubBg       = "",
     AutoHubIcon     = "autohub_icon.png",
 }
 
 -- Refined Glass Theme Palette
 Library.Themes = {
+    AegisCyan = {
+        Background    = Color3.fromRGB(12, 14, 21),
+        Sidebar       = Color3.fromRGB(10, 12, 18),
+        Surface       = Color3.fromRGB(17, 20, 32),
+        SurfaceHover  = Color3.fromRGB(25, 30, 48),
+        Stroke        = Color3.fromRGB(0, 240, 255),
+        StrokeSoft    = Color3.fromRGB(32, 40, 58),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(148, 163, 184),
+        Accent        = Color3.fromRGB(0, 240, 255),
+        AccentHover   = Color3.fromRGB(56, 189, 248),
+        AccentSoft    = Color3.fromRGB(14, 45, 65),
+        Success       = Color3.fromRGB(16, 185, 129),
+        Warning       = Color3.fromRGB(245, 158, 11),
+        Danger        = Color3.fromRGB(239, 68, 68),
+    },
+    VanguardEmerald = {
+        Background    = Color3.fromRGB(10, 15, 14),
+        Sidebar       = Color3.fromRGB(8, 12, 11),
+        Surface       = Color3.fromRGB(15, 25, 22),
+        SurfaceHover  = Color3.fromRGB(22, 38, 33),
+        Stroke        = Color3.fromRGB(16, 185, 129),
+        StrokeSoft    = Color3.fromRGB(28, 50, 42),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(140, 175, 160),
+        Accent        = Color3.fromRGB(16, 185, 129),
+        AccentHover   = Color3.fromRGB(52, 211, 153),
+        AccentSoft    = Color3.fromRGB(16, 50, 38),
+        Success       = Color3.fromRGB(16, 185, 129),
+        Warning       = Color3.fromRGB(245, 158, 11),
+        Danger        = Color3.fromRGB(239, 68, 68),
+    },
+    ApexViolet = {
+        Background    = Color3.fromRGB(13, 10, 20),
+        Sidebar       = Color3.fromRGB(10, 8, 16),
+        Surface       = Color3.fromRGB(20, 16, 32),
+        SurfaceHover  = Color3.fromRGB(30, 24, 48),
+        Stroke        = Color3.fromRGB(168, 85, 247),
+        StrokeSoft    = Color3.fromRGB(45, 34, 68),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(165, 150, 190),
+        Accent        = Color3.fromRGB(168, 85, 247),
+        AccentHover   = Color3.fromRGB(192, 132, 252),
+        AccentSoft    = Color3.fromRGB(40, 22, 65),
+        Success       = Color3.fromRGB(16, 185, 129),
+        Warning       = Color3.fromRGB(245, 158, 11),
+        Danger        = Color3.fromRGB(239, 68, 68),
+    },
+    ChronosAmber = {
+        Background    = Color3.fromRGB(15, 13, 9),
+        Sidebar       = Color3.fromRGB(12, 10, 7),
+        Surface       = Color3.fromRGB(24, 20, 14),
+        SurfaceHover  = Color3.fromRGB(36, 30, 20),
+        Stroke        = Color3.fromRGB(245, 158, 11),
+        StrokeSoft    = Color3.fromRGB(55, 45, 28),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(180, 165, 140),
+        Accent        = Color3.fromRGB(245, 158, 11),
+        AccentHover   = Color3.fromRGB(251, 191, 36),
+        AccentSoft    = Color3.fromRGB(55, 38, 14),
+        Success       = Color3.fromRGB(16, 185, 129),
+        Warning       = Color3.fromRGB(245, 158, 11),
+        Danger        = Color3.fromRGB(239, 68, 68),
+    },
     LightGray = {
-        Background    = Color3.fromRGB(16, 17, 20),
-        Sidebar       = Color3.fromRGB(12, 13, 16),
-        Surface       = Color3.fromRGB(24, 26, 30),
-        SurfaceHover  = Color3.fromRGB(34, 36, 42),
-        Stroke        = Color3.fromRGB(190, 195, 205),
-        StrokeSoft    = Color3.fromRGB(65, 70, 80),
-        Text          = Color3.fromRGB(250, 250, 252),
-        Muted         = Color3.fromRGB(150, 155, 165),
-        Accent        = Color3.fromRGB(215, 220, 230),
-        AccentHover   = Color3.fromRGB(245, 248, 255),
-        AccentSoft    = Color3.fromRGB(40, 43, 50),
-        Success       = Color3.fromRGB(34, 197, 94),
+        Background    = Color3.fromRGB(11, 13, 20),
+        Sidebar       = Color3.fromRGB(9, 11, 17),
+        Surface       = Color3.fromRGB(16, 20, 31),
+        SurfaceHover  = Color3.fromRGB(24, 30, 48),
+        Stroke        = Color3.fromRGB(0, 240, 255),
+        StrokeSoft    = Color3.fromRGB(30, 41, 59),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(148, 163, 184),
+        Accent        = Color3.fromRGB(0, 240, 255),
+        AccentHover   = Color3.fromRGB(56, 189, 248),
+        AccentSoft    = Color3.fromRGB(14, 45, 65),
+        Success       = Color3.fromRGB(16, 185, 129),
         Warning       = Color3.fromRGB(245, 158, 11),
         Danger        = Color3.fromRGB(239, 68, 68),
     },
     CyberNeon = {
-        Background    = Color3.fromRGB(16, 17, 20),
-        Sidebar       = Color3.fromRGB(12, 13, 16),
-        Surface       = Color3.fromRGB(24, 26, 30),
-        SurfaceHover  = Color3.fromRGB(34, 36, 42),
-        Stroke        = Color3.fromRGB(190, 195, 205),
-        StrokeSoft    = Color3.fromRGB(65, 70, 80),
-        Text          = Color3.fromRGB(250, 250, 252),
-        Muted         = Color3.fromRGB(150, 155, 165),
-        Accent        = Color3.fromRGB(215, 220, 230),
-        AccentHover   = Color3.fromRGB(245, 248, 255),
-        AccentSoft    = Color3.fromRGB(40, 43, 50),
-        Success       = Color3.fromRGB(34, 197, 94),
+        Background    = Color3.fromRGB(11, 13, 20),
+        Sidebar       = Color3.fromRGB(9, 11, 17),
+        Surface       = Color3.fromRGB(16, 20, 31),
+        SurfaceHover  = Color3.fromRGB(24, 30, 48),
+        Stroke        = Color3.fromRGB(0, 240, 255),
+        StrokeSoft    = Color3.fromRGB(30, 41, 59),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(148, 163, 184),
+        Accent        = Color3.fromRGB(0, 240, 255),
+        AccentHover   = Color3.fromRGB(56, 189, 248),
+        AccentSoft    = Color3.fromRGB(14, 45, 65),
+        Success       = Color3.fromRGB(16, 185, 129),
         Warning       = Color3.fromRGB(245, 158, 11),
         Danger        = Color3.fromRGB(239, 68, 68),
     },
@@ -381,7 +448,7 @@ local function normalizeAsset(image: any): string
     end
     if type(image) == "string" then
         if image == "" then return "" end
-        if image:find("rbxassetid://") or image:find("rbxthumb://") or image:find("http") then
+        if image:find("rbxasset://") or image:find("rbxassetid://") or image:find("rbxthumb://") or image:find("http") then
             return image
         end
         if Library.Assets[image] then
@@ -478,18 +545,12 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
     local halfH = (effectiveH * scale) / 2
     local halfW = (effectiveW * scale) / 2
 
-    local minOffsetY = (topInset + halfH + 8 - (vp.Y * 0.5)) / scale
-    local maxOffsetY = ((vp.Y * 0.5) - halfH - 8) / scale
-    if minOffsetY > maxOffsetY then
-        maxOffsetY = minOffsetY
-    end
+    -- Free dragging with no artificial upper-screen cutoff
+    local minOffsetY = (-(vp.Y * 0.5) + topInset + 4) / scale
+    local maxOffsetY = ((vp.Y * 0.5) - 40) / scale
 
-    local minOffsetX = (halfW + 8 - (vp.X * 0.5)) / scale
-    local maxOffsetX = ((vp.X * 0.5) - halfW - 8) / scale
-    if minOffsetX > maxOffsetX then
-        minOffsetX = 0
-        maxOffsetX = 0
-    end
+    local minOffsetX = (-(vp.X * 0.5) + 60) / scale
+    local maxOffsetX = ((vp.X * 0.5) - 60) / scale
 
     local currentOffsetY = (target and target.Position and target.Position.Y.Offset) or 0
     local currentOffsetX = (target and target.Position and target.Position.X.Offset) or 0
@@ -550,25 +611,11 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                 local rawOffsetX = startPosition.X.Offset + (delta.X / scale)
                 local rawOffsetY = startPosition.Y.Offset + (delta.Y / scale)
 
-                local currentH = target.AbsoluteSize.Y
-                -- If minimized (height <= 80), clamp against full height so it never gets dragged too high to unminimize!
-                local fullH = (currentH <= 80 and 540 or currentH)
-                local halfH = (currentH * scale) / 2
-                local halfTopH = (fullH * scale) / 2
-                local halfW = (target.AbsoluteSize.X * scale) / 2
-
-                local minOffsetY = (topInset + halfTopH + 8 - (vp.Y * 0.5)) / scale
-                local maxOffsetY = ((vp.Y * 0.5) - halfH - 8) / scale
-                if minOffsetY > maxOffsetY then
-                    maxOffsetY = minOffsetY
-                end
-
-                local minOffsetX = (halfW + 8 - (vp.X * 0.5)) / scale
-                local maxOffsetX = ((vp.X * 0.5) - halfW - 8) / scale
-                if minOffsetX > maxOffsetX then
-                    minOffsetX = 0
-                    maxOffsetX = 0
-                end
+                -- Removed going up restriction: allow window top bar to go right up to the top of screen!
+                local minOffsetY = (-(vp.Y * 0.5) + topInset + 4) / scale
+                local maxOffsetY = ((vp.Y * 0.5) - 40) / scale
+                local minOffsetX = (-(vp.X * 0.5) + 60) / scale
+                local maxOffsetX = ((vp.X * 0.5) - 60) / scale
 
                 local clampedY = math.clamp(rawOffsetY, minOffsetY, maxOffsetY)
                 local clampedX = math.clamp(rawOffsetX, minOffsetX, maxOffsetX)
@@ -579,6 +626,51 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                     0.5,
                     clampedY
                 )
+            end)
+        end
+    end)
+end
+
+-- Dedicated free-drag for floating icon box (no going-up restriction, can move anywhere on screen)
+local function bindFloatingDrag(btn: GuiObject)
+    local dragging = false
+    local dragStart: Vector3? = nil
+    local startPos: UDim2? = nil
+
+    btn.InputBegan:Connect(function(input)
+        elevateThread()
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = btn.Position
+            input.Changed:Connect(function()
+                elevateThread()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        elevateThread()
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragStart and startPos then
+            pcall(function()
+                local delta = input.Position - dragStart
+                local camera = workspace.CurrentCamera
+                local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+                local btnW = btn.AbsoluteSize.X
+                local btnH = btn.AbsoluteSize.Y
+
+                local currentAbsX = (startPos.X.Scale * vp.X) + startPos.X.Offset + delta.X
+                local currentAbsY = (startPos.Y.Scale * vp.Y) + startPos.Y.Offset + delta.Y
+
+                -- Allows dragging anywhere: from Y = 4 at the very top of screen to bottom
+                local clampedX = math.clamp(currentAbsX, 4, vp.X - btnW - 4)
+                local clampedY = math.clamp(currentAbsY, 4, vp.Y - btnH - 4)
+
+                btn.AnchorPoint = Vector2.new(0, 0)
+                btn.Position = UDim2.fromOffset(clampedX, clampedY)
             end)
         end
     end)
@@ -867,12 +959,18 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         })
         corner(accentBar, 2)
 
+        local rawTitle = tostring(props.Title or "Section")
+        local displayTitle = rawTitle
+        if not displayTitle:find("^//") then
+            displayTitle = "// " .. displayTitle
+        end
+
         make("TextLabel", {
             Name = "SectionTitle",
-            Text = string.upper(tostring(props.Title or "Section")),
+            Text = string.upper(displayTitle),
             Font = Enum.Font.GothamBold,
             TextSize = 13,
-            TextColor3 = window.Theme.Accent,
+            TextColor3 = Color3.fromRGB(226, 232, 240),
             TextXAlignment = Enum.TextXAlignment.Left,
             BackgroundTransparency = 1,
             Size = UDim2.new(1, -20, 1, 0),
@@ -992,13 +1090,13 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
             AnchorPoint = Vector2.new(1, 0.5),
             Position = UDim2.new(1, -16, 0.5, 0),
             Size = UDim2.fromOffset(48, 26),
-            BackgroundColor3 = value and window.Theme.Success or window.Theme.Sidebar,
-            BackgroundTransparency = value and 0.15 or 0.35,
+            BackgroundColor3 = value and window.Theme.Accent or Color3.fromRGB(24, 30, 48),
+            BackgroundTransparency = value and 0.15 or 0.40,
             BorderSizePixel = 0,
             Parent = row,
         })
         corner(switch, 13)
-        local switchStroke = stroke(switch, value and window.Theme.Success or window.Theme.StrokeSoft, 1, value and 0.3 or 0.6)
+        local switchStroke = stroke(switch, value and window.Theme.Accent or window.Theme.StrokeSoft, 1, value and 0.25 or 0.65)
 
         local knob = make("Frame", {
             Name = "Knob",
@@ -1014,12 +1112,12 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         local function setValue(nextValue: boolean, fire: boolean?)
             value = nextValue == true
             tween(switch, 0.22, {
-                BackgroundColor3 = value and window.Theme.Success or window.Theme.Sidebar,
-                BackgroundTransparency = value and 0.15 or 0.35,
+                BackgroundColor3 = value and window.Theme.Accent or Color3.fromRGB(24, 30, 48),
+                BackgroundTransparency = value and 0.15 or 0.40,
             }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
             tween(switchStroke, 0.22, {
-                Color = value and window.Theme.Success or window.Theme.StrokeSoft,
-                Transparency = value and 0.3 or 0.6,
+                Color = value and window.Theme.Accent or window.Theme.StrokeSoft,
+                Transparency = value and 0.25 or 0.65,
             })
             tween(knob, 0.22, {
                 Position = value and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10),
@@ -1385,52 +1483,136 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
 
         local row = make("Frame", {
             Name = "SegmentedContainer",
-            Size = UDim2.new(1, 0, 0, 50),
-            BackgroundColor3 = window.Theme.Surface,
-            BackgroundTransparency = 0.40,
+            Size = UDim2.new(1, 0, 0, 42),
+            BackgroundColor3 = Color3.fromRGB(9, 11, 17),
+            BackgroundTransparency = 0.35,
             BorderSizePixel = 0,
             LayoutOrder = nextOrder(props.Order),
             Parent = scroll,
         })
         corner(row, 10)
-        stroke(row, window.Theme.StrokeSoft, 1, 0.75)
-        padding(row, 5, 5, 5, 5)
+        stroke(row, window.Theme.StrokeSoft, 1, 0.70)
+        padding(row, 4, 4, 4, 4)
         local segLayout = list(row, 6, Enum.FillDirection.Horizontal)
         segLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         segLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
         local buttons = {}
         local numOpts = #options
-        local totalGaps = (numOpts - 1) * 6 + 10
+        local totalGaps = (numOpts - 1) * 6 + 8
+
+        local function getOptIcon(name: string): string
+            local low = string.lower(tostring(name))
+            if low:find("coin") or low:find("gold") then return Library.Assets.Coins or "" end
+            if low:find("gem") then return Library.Assets.Package or "" end
+            if low:find("level") or low:find("prog") or low:find("stat") then return "rbxassetid://10734950020" end
+            if low:find("time") or low:find("clock") then return Library.Assets.Clock or "" end
+            if low:find("evo") then return Library.Assets.Zap or "" end
+            if low:find("user") or low:find("profile") then return Library.Assets.User or "" end
+            if low:find("tower") then return "rbxassetid://110987169760162" end
+            if low:find("all") then return Library.Assets.Overview or "" end
+            if low:find("won") and not low:find("not") then return Library.Assets.Check or "" end
+            if low:find("not won") or low:find("pending") then return Library.Assets.Clock or "" end
+            return ""
+        end
 
         local function refreshSegmented()
             for opt, btn in pairs(buttons) do
                 local active = opt == selected
+                local btnStroke = btn:FindFirstChild("UIStroke")
+                local contentWrap = btn:FindFirstChild("ContentWrap")
+                local btnIcon = contentWrap and contentWrap:FindFirstChild("BtnIcon")
+                local btnText = contentWrap and contentWrap:FindFirstChild("BtnText")
                 tween(btn, 0.2, {
-                    BackgroundColor3 = active and window.Theme.Accent or window.Theme.Sidebar,
-                    BackgroundTransparency = active and 0.15 or 0.6,
+                    BackgroundColor3 = active and window.Theme.AccentSoft or window.Theme.Sidebar,
+                    BackgroundTransparency = active and 0.20 or 0.80,
                 }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-                btn.TextColor3 = active and Color3.fromRGB(255, 255, 255) or window.Theme.Muted
+                if btnText and btnText:IsA("TextLabel") then
+                    btnText.TextColor3 = active and window.Theme.Accent or window.Theme.Muted
+                end
+                if btnIcon and btnIcon:IsA("ImageLabel") then
+                    btnIcon.ImageColor3 = active and window.Theme.Accent or window.Theme.Muted
+                end
+                if btnStroke then
+                    tween(btnStroke, 0.2, {
+                        Color = active and window.Theme.Accent or window.Theme.StrokeSoft,
+                        Transparency = active and 0.35 or 0.90,
+                    })
+                end
             end
         end
 
         for _, opt in ipairs(options) do
+            local isSel = (opt == selected)
+            local iconAsset = getOptIcon(opt)
+            local hasOptIcon = iconAsset ~= ""
+
             local btn = make("TextButton", {
                 Name = "Segment_" .. tostring(opt),
-                Text = tostring(opt),
-                Font = Enum.Font.GothamBold,
-                TextSize = 13,
-                TextColor3 = opt == selected and Color3.fromRGB(255, 255, 255) or window.Theme.Muted,
+                Text = "",
                 AutoButtonColor = false,
-                BackgroundColor3 = opt == selected and window.Theme.Accent or window.Theme.Sidebar,
-                BackgroundTransparency = opt == selected and 0.15 or 0.6,
+                BackgroundColor3 = isSel and window.Theme.AccentSoft or window.Theme.Sidebar,
+                BackgroundTransparency = isSel and 0.20 or 0.80,
                 BorderSizePixel = 0,
                 Size = UDim2.new(1 / numOpts, -math.ceil(totalGaps / numOpts), 1, 0),
                 Parent = row,
             })
             corner(btn, 8)
-            addRipple(btn, Color3.fromRGB(255, 255, 255))
+            stroke(btn, isSel and window.Theme.Accent or window.Theme.StrokeSoft, 1, isSel and 0.35 or 0.90)
+            addRipple(btn, window.Theme.Accent)
+
+            local contentWrap = make("Frame", {
+                Name = "ContentWrap",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.new(1, -8, 1, 0),
+                BackgroundTransparency = 1,
+                Parent = btn,
+            })
+            local cLayout = list(contentWrap, 5, Enum.FillDirection.Horizontal)
+            cLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            cLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+            if hasOptIcon then
+                local ic = createIcon(contentWrap, iconAsset, 14, isSel and window.Theme.Accent or window.Theme.Muted, 0)
+                ic.Name = "BtnIcon"
+            end
+
+            local lbl = make("TextLabel", {
+                Name = "BtnText",
+                Text = tostring(opt),
+                Font = Enum.Font.GothamBold,
+                TextSize = 11,
+                TextColor3 = isSel and window.Theme.Accent or window.Theme.Muted,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                Parent = contentWrap,
+            })
+
             buttons[opt] = btn
+
+            btn.MouseEnter:Connect(function()
+                if opt ~= selected then
+                    tween(btn, 0.15, { BackgroundTransparency = 0.50 })
+                    local cw = btn:FindFirstChild("ContentWrap")
+                    local t = cw and cw:FindFirstChild("BtnText")
+                    local ic = cw and cw:FindFirstChild("BtnIcon")
+                    if t and t:IsA("TextLabel") then t.TextColor3 = window.Theme.Text end
+                    if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = window.Theme.Text end
+                end
+            end)
+            btn.MouseLeave:Connect(function()
+                if opt ~= selected then
+                    tween(btn, 0.15, { BackgroundTransparency = 0.80 })
+                    local cw = btn:FindFirstChild("ContentWrap")
+                    local t = cw and cw:FindFirstChild("BtnText")
+                    local ic = cw and cw:FindFirstChild("BtnIcon")
+                    if t and t:IsA("TextLabel") then t.TextColor3 = window.Theme.Muted end
+                    if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = window.Theme.Muted end
+                end
+            end)
 
             btn.MouseButton1Click:Connect(function()
                 if not checkPremium(props) then return end
@@ -1469,15 +1651,15 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
 
         local segRow = make("Frame", {
             Name = "SegmentedContainer",
-            Size = UDim2.new(1, 0, 0, 50),
-            BackgroundColor3 = window.Theme.Surface,
-            BackgroundTransparency = 0.40,
+            Size = UDim2.new(1, 0, 0, 42),
+            BackgroundColor3 = Color3.fromRGB(9, 11, 17),
+            BackgroundTransparency = 0.35,
             BorderSizePixel = 0,
             Parent = container,
         })
         corner(segRow, 10)
-        stroke(segRow, window.Theme.StrokeSoft, 1, 0.75)
-        padding(segRow, 6, 6, 6, 6)
+        stroke(segRow, window.Theme.StrokeSoft, 1, 0.70)
+        padding(segRow, 4, 4, 4, 4)
         local segLayout = list(segRow, 6, Enum.FillDirection.Horizontal)
         segLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         segLayout.VerticalAlignment = Enum.VerticalAlignment.Center
@@ -1567,16 +1749,42 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
 
         local actionBtnConn = nil
 
+        local function getSelOptIcon(name: string): string
+            local low = string.lower(tostring(name))
+            if low:find("user data") or low:find("profile") then return Library.Assets.User or "" end
+            if low:find("tower") then return "rbxassetid://110987169760162" end
+            if low:find("all") then return Library.Assets.Overview or "" end
+            if low:find("won") and not low:find("not") then return Library.Assets.Check or "" end
+            if low:find("not won") or low:find("pending") then return Library.Assets.Clock or "" end
+            if low:find("trial") then return "rbxassetid://110987169760162" end
+            return ""
+        end
+
         local function updateSelectionView(targetOption: any)
             selected = targetOption
 
             for opt, btn in pairs(segButtons) do
                 local active = opt == targetOption
+                local btnStroke = btn:FindFirstChild("UIStroke")
+                local cw = btn:FindFirstChild("ContentWrap")
+                local btnIcon = cw and cw:FindFirstChild("BtnIcon")
+                local btnText = cw and cw:FindFirstChild("BtnText")
                 tween(btn, 0.2, {
-                    BackgroundColor3 = active and window.Theme.Accent or window.Theme.Sidebar,
-                    BackgroundTransparency = active and 0.15 or 0.6,
+                    BackgroundColor3 = active and window.Theme.AccentSoft or window.Theme.Sidebar,
+                    BackgroundTransparency = active and 0.20 or 0.80,
                 }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-                btn.TextColor3 = active and Color3.fromRGB(255, 255, 255) or window.Theme.Muted
+                if btnText and btnText:IsA("TextLabel") then
+                    btnText.TextColor3 = active and window.Theme.Accent or window.Theme.Muted
+                end
+                if btnIcon and btnIcon:IsA("ImageLabel") then
+                    btnIcon.ImageColor3 = active and window.Theme.Accent or window.Theme.Muted
+                end
+                if btnStroke then
+                    tween(btnStroke, 0.2, {
+                        Color = active and window.Theme.Accent or window.Theme.StrokeSoft,
+                        Transparency = active and 0.35 or 0.90,
+                    })
+                end
             end
 
             cardTitleLabel.Text = tostring(targetOption)
@@ -1596,88 +1804,102 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
 
             local items = checklist[matchedKey] or {}
 
-            local existingRows = {}
             for _, child in ipairs(checklistContainer:GetChildren()) do
-                if child:IsA("Frame") and child.Name == "ItemRow" then
-                    table.insert(existingRows, child)
-                end
+                if child:IsA("Frame") then child:Destroy() end
             end
 
-            if #existingRows == #items and #items > 0 then
-                for idx, it in ipairs(items) do
-                    local itemRow = existingRows[idx]
-                    local textLabel = itemRow:FindFirstChild("ItemText")
-                    local checkDot = itemRow:FindFirstChild("CheckDot")
-                    local checkmark = checkDot and checkDot:FindFirstChild("Checkmark")
+            for _, it in ipairs(items) do
+                local isCross = tostring(it):find("^✗") ~= nil or tostring(it):find("%[X%]") ~= nil or tostring(it):find("%[x%]") ~= nil or tostring(it):find("Not Owned") ~= nil
+                local iconColor = isCross and window.Theme.Danger or window.Theme.Success
+                local iconChar = isCross and "✗" or "✓"
+                local isMaxed = tostring(it):find("100%%") ~= nil
+                local badgeLabel = isCross and "PENDING" or (isMaxed and "MAXED" or "COMPLETED")
 
-                    local isCross = tostring(it):find("^✗") ~= nil or tostring(it):find("%[X%]") ~= nil or tostring(it):find("%[x%]") ~= nil or tostring(it):find("Not Owned") ~= nil
-                    local iconColor = isCross and window.Theme.Danger or window.Theme.Success
-                    local iconChar = isCross and "✗" or "✓"
+                local itemRow = make("Frame", {
+                    Name = "ItemRow",
+                    Size = UDim2.new(1, 0, 0, 36),
+                    BackgroundColor3 = Color3.fromRGB(12, 16, 26),
+                    BackgroundTransparency = 0.40,
+                    BorderSizePixel = 0,
+                    Parent = checklistContainer,
+                })
+                corner(itemRow, 8)
+                local iStroke = stroke(itemRow, window.Theme.StrokeSoft, 1, 0.75)
+                padding(itemRow, 10, 6, 10, 6)
 
-                    if textLabel and textLabel:IsA("TextLabel") and textLabel.Text ~= tostring(it) then
-                        textLabel.Text = tostring(it)
-                    end
-                    if checkmark and checkmark:IsA("TextLabel") and checkmark.Text ~= iconChar then
-                        checkmark.Text = iconChar
-                        checkmark.TextColor3 = iconColor
-                    end
-                    if checkDot and checkDot:IsA("Frame") then
-                        checkDot.BackgroundColor3 = iconColor
-                    end
-                end
-            else
-                for _, child in ipairs(checklistContainer:GetChildren()) do
-                    if child:IsA("Frame") then child:Destroy() end
-                end
+                local hLayout = list(itemRow, 10, Enum.FillDirection.Horizontal)
+                hLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
-                for _, it in ipairs(items) do
-                    local itemRow = make("Frame", {
-                        Name = "ItemRow",
-                        Size = UDim2.new(1, 0, 0, 24),
-                        BackgroundTransparency = 1,
-                        Parent = checklistContainer,
-                    })
-                    local hLayout = list(itemRow, 10, Enum.FillDirection.Horizontal)
-                    hLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+                local checkDot = make("Frame", {
+                    Name = "CheckDot",
+                    Size = UDim2.fromOffset(24, 24),
+                    BackgroundColor3 = iconColor,
+                    BackgroundTransparency = 0.85,
+                    BorderSizePixel = 0,
+                    Parent = itemRow,
+                })
+                corner(checkDot, 6)
+                stroke(checkDot, iconColor, 1, 0.5)
 
-                    local isCross = tostring(it):find("^✗") ~= nil or tostring(it):find("%[X%]") ~= nil or tostring(it):find("%[x%]") ~= nil or tostring(it):find("Not Owned") ~= nil
-                    local iconColor = isCross and window.Theme.Danger or window.Theme.Success
-                    local iconChar = isCross and "✗" or "✓"
+                make("TextLabel", {
+                    Name = "Checkmark",
+                    Text = iconChar,
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 13,
+                    TextColor3 = iconColor,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    Parent = checkDot,
+                })
 
-                    local checkDot = make("Frame", {
-                        Name = "CheckDot",
-                        Size = UDim2.fromOffset(20, 20),
-                        BackgroundColor3 = iconColor,
-                        BackgroundTransparency = 0.85,
-                        BorderSizePixel = 0,
-                        Parent = itemRow,
-                    })
-                    corner(checkDot, 10)
-                    stroke(checkDot, iconColor, 1, 0.5)
+                make("TextLabel", {
+                    Name = "ItemText",
+                    Text = tostring(it),
+                    Font = Enum.Font.GothamMedium,
+                    TextSize = 12,
+                    TextColor3 = window.Theme.Text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -125, 1, 0),
+                    Parent = itemRow,
+                })
 
-                    make("TextLabel", {
-                        Name = "Checkmark",
-                        Text = iconChar,
-                        Font = Enum.Font.GothamBold,
-                        TextSize = 12,
-                        TextColor3 = iconColor,
-                        BackgroundTransparency = 1,
-                        Size = UDim2.fromScale(1, 1),
-                        Parent = checkDot,
-                    })
+                local badge = make("Frame", {
+                    Name = "ItemBadge",
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, 0, 0.5, 0),
+                    Size = UDim2.fromOffset(0, 20),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundColor3 = isCross and Color3.fromRGB(45, 20, 20) or (isMaxed and Color3.fromRGB(14, 45, 30) or Color3.fromRGB(16, 32, 45)),
+                    BackgroundTransparency = 0.25,
+                    BorderSizePixel = 0,
+                    Parent = itemRow,
+                })
+                corner(badge, 4)
+                padding(badge, 8, 0, 8, 0)
+                stroke(badge, iconColor, 1, 0.5)
 
-                    make("TextLabel", {
-                        Name = "ItemText",
-                        Text = tostring(it),
-                        Font = Enum.Font.GothamMedium,
-                        TextSize = 13,
-                        TextColor3 = window.Theme.Text,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, -34, 1, 0),
-                        Parent = itemRow,
-                    })
-                end
+                make("TextLabel", {
+                    Name = "BadgeText",
+                    Text = badgeLabel,
+                    Font = Enum.Font.GothamBold,
+                    TextSize = 9,
+                    TextColor3 = iconColor,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromOffset(0, 20),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    Parent = badge,
+                })
+
+                itemRow.MouseEnter:Connect(function()
+                    tween(itemRow, 0.15, { BackgroundTransparency = 0.15 })
+                    tween(iStroke, 0.15, { Color = window.Theme.Accent, Transparency = 0.40 })
+                end)
+                itemRow.MouseLeave:Connect(function()
+                    tween(itemRow, 0.15, { BackgroundTransparency = 0.40 })
+                    tween(iStroke, 0.15, { Color = window.Theme.StrokeSoft, Transparency = 0.75 })
+                end)
             end
 
             local matchedBtnKey = targetOption
@@ -1714,22 +1936,76 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         end
 
         for _, opt in ipairs(selections) do
+            local isSel = (opt == selected)
+            local iconAsset = getSelOptIcon(opt)
+            local hasOptIcon = iconAsset ~= ""
+
             local btn = make("TextButton", {
                 Name = "Segment_" .. tostring(opt),
-                Text = tostring(opt),
-                Font = Enum.Font.GothamBold,
-                TextSize = 13,
-                TextColor3 = opt == selected and Color3.fromRGB(255, 255, 255) or window.Theme.Muted,
+                Text = "",
                 AutoButtonColor = false,
-                BackgroundColor3 = opt == selected and window.Theme.Accent or window.Theme.Sidebar,
-                BackgroundTransparency = opt == selected and 0.15 or 0.6,
+                BackgroundColor3 = isSel and window.Theme.AccentSoft or window.Theme.Sidebar,
+                BackgroundTransparency = isSel and 0.20 or 0.80,
                 BorderSizePixel = 0,
                 Size = UDim2.new(1 / numSelections, -math.ceil(totalSegGaps / numSelections), 1, 0),
                 Parent = segRow,
             })
             corner(btn, 8)
-            addRipple(btn, Color3.fromRGB(255, 255, 255))
+            stroke(btn, isSel and window.Theme.Accent or window.Theme.StrokeSoft, 1, isSel and 0.35 or 0.90)
+            addRipple(btn, window.Theme.Accent)
+
+            local contentWrap = make("Frame", {
+                Name = "ContentWrap",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.new(1, -8, 1, 0),
+                BackgroundTransparency = 1,
+                Parent = btn,
+            })
+            local cLayout = list(contentWrap, 5, Enum.FillDirection.Horizontal)
+            cLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            cLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+            if hasOptIcon then
+                local ic = createIcon(contentWrap, iconAsset, 14, isSel and window.Theme.Accent or window.Theme.Muted, 0)
+                ic.Name = "BtnIcon"
+            end
+
+            local lbl = make("TextLabel", {
+                Name = "BtnText",
+                Text = tostring(opt),
+                Font = Enum.Font.GothamBold,
+                TextSize = 11,
+                TextColor3 = isSel and window.Theme.Accent or window.Theme.Muted,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 0, 1, 0),
+                AutomaticSize = Enum.AutomaticSize.X,
+                Parent = contentWrap,
+            })
+
             segButtons[opt] = btn
+
+            btn.MouseEnter:Connect(function()
+                if opt ~= selected then
+                    tween(btn, 0.15, { BackgroundTransparency = 0.50 })
+                    local cw = btn:FindFirstChild("ContentWrap")
+                    local t = cw and cw:FindFirstChild("BtnText")
+                    local ic = cw and cw:FindFirstChild("BtnIcon")
+                    if t and t:IsA("TextLabel") then t.TextColor3 = window.Theme.Text end
+                    if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = window.Theme.Text end
+                end
+            end)
+            btn.MouseLeave:Connect(function()
+                if opt ~= selected then
+                    tween(btn, 0.15, { BackgroundTransparency = 0.80 })
+                    local cw = btn:FindFirstChild("ContentWrap")
+                    local t = cw and cw:FindFirstChild("BtnText")
+                    local ic = cw and cw:FindFirstChild("BtnIcon")
+                    if t and t:IsA("TextLabel") then t.TextColor3 = window.Theme.Muted end
+                    if ic and ic:IsA("ImageLabel") then ic.ImageColor3 = window.Theme.Muted end
+                end
+            end)
 
             btn.MouseButton1Click:Connect(function()
                 updateSelectionView(opt)
@@ -2821,7 +3097,7 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         local gapOffset = math.ceil((8 * (cols - 1)) / cols) + 1
         make("UIGridLayout", {
             CellPadding = UDim2.fromOffset(8, 8),
-            CellSize = UDim2.new(1 / cols, -gapOffset, 0, 68),
+            CellSize = UDim2.new(1 / cols, -gapOffset, 0, 78),
             SortOrder = Enum.SortOrder.LayoutOrder,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
             Parent = gridWrap,
@@ -2833,21 +3109,21 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
             local card = make("Frame", {
                 Name = "StatCard_" .. tostring(index),
                 BackgroundColor3 = window.Theme.Surface,
-                BackgroundTransparency = 0.52,
+                BackgroundTransparency = 0.25,
                 BorderSizePixel = 0,
                 LayoutOrder = index,
                 Parent = gridWrap,
             })
-            corner(card, 10)
-            stroke(card, window.Theme.StrokeSoft, 1, 0.75)
-            padding(card, 10, 8, 10, 8)
+            corner(card, 12)
+            local cStroke = stroke(card, window.Theme.StrokeSoft, 1, 0.65)
+            padding(card, 12, 10, 12, 10)
 
             local cardTitle = make("TextLabel", {
                 Name = "StatTitle",
                 Text = string.upper(tostring(data.Title or "STAT")),
                 Font = Enum.Font.GothamBold,
                 TextSize = 10,
-                TextColor3 = window.Theme.Muted,
+                TextColor3 = Color3.fromRGB(148, 163, 184),
                 TextXAlignment = Enum.TextXAlignment.Left,
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 14),
@@ -2858,12 +3134,12 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 Name = "StatValue",
                 Text = tostring(data.Value or "0"),
                 Font = Enum.Font.GothamBold,
-                TextSize = 17,
+                TextSize = 20,
                 TextColor3 = data.Color or window.Theme.Accent,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 0, 0, 16),
-                Size = UDim2.new(1, 0, 0, 22),
+                Size = UDim2.new(1, 0, 0, 24),
                 Parent = card,
             })
 
@@ -2872,13 +3148,22 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 Text = tostring(data.Sub or data.Trend or ""),
                 Font = Enum.Font.GothamMedium,
                 TextSize = 10,
-                TextColor3 = data.Trend and window.Theme.Success or window.Theme.Muted,
+                TextColor3 = data.Trend and window.Theme.Success or Color3.fromRGB(100, 116, 139),
                 TextXAlignment = Enum.TextXAlignment.Left,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 0, 0, 38),
+                Position = UDim2.new(0, 0, 0, 42),
                 Size = UDim2.new(1, 0, 0, 14),
                 Parent = card,
             })
+
+            card.MouseEnter:Connect(function()
+                tween(card, 0.15, { BackgroundTransparency = 0.12 })
+                tween(cStroke, 0.15, { Color = window.Theme.Accent, Transparency = 0.35 })
+            end)
+            card.MouseLeave:Connect(function()
+                tween(card, 0.15, { BackgroundTransparency = 0.25 })
+                tween(cStroke, 0.15, { Color = window.Theme.StrokeSoft, Transparency = 0.65 })
+            end)
 
             statCards[index] = { Card = card, Title = cardTitle, Value = cardValue, Sub = cardSub }
         end
@@ -3269,6 +3554,8 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 return {
                     Name = tostring(entry.Name or entry.File or entry.Title or "Unnamed"),
                     Mode = tostring(entry.Mode or entry.Difficulty or "?"),
+                    Map = tostring(entry.Map or "?"),
+                    IsPremium = entry.IsPremium == true,
                     Path = entry.Path,
                     Content = entry.Content,
                     Raw = entry,
@@ -3277,6 +3564,8 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 return {
                     Name = tostring(entry),
                     Mode = "?",
+                    Map = "?",
+                    IsPremium = false,
                     Path = tostring(entry),
                     Raw = entry,
                 }
@@ -3373,7 +3662,8 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
                 if q ~= "" then
                     local nameLow = string.lower(st.Name)
                     local modeLow = string.lower(st.Mode)
-                    match = (string.find(nameLow, q, 1, true) ~= nil) or (string.find(modeLow, q, 1, true) ~= nil)
+                    local mapLow = string.lower(st.Map or "")
+                    match = (string.find(nameLow, q, 1, true) ~= nil) or (string.find(modeLow, q, 1, true) ~= nil) or (string.find(mapLow, q, 1, true) ~= nil)
                 end
 
                 if match then
@@ -3427,7 +3717,7 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
 
                     local modeLabel = make("TextLabel", {
                         Name = "StratMode",
-                        Text = "Mode: " .. tostring(st.Mode or "?"),
+                        Text = string.format("Mode: %s | Map: %s | %s", tostring(st.Mode or "?"), tostring(st.Map or "?"), st.IsPremium and "Premium" or "Free"),
                         Font = Enum.Font.Gotham,
                         TextSize = 10,
                         TextColor3 = window.Theme.Muted,
@@ -3613,8 +3903,8 @@ end
 function Library:Window(props: { [string]: any })
     props = props or {}
     local self = setmetatable({}, Library)
-    self.ThemeName = (type(props.Theme) == "string" and props.Theme) or "LightGray"
-    self.Theme = resolveTheme(props.Theme or "LightGray")
+    self.ThemeName = (type(props.Theme) == "string" and props.Theme) or "AegisCyan"
+    self.Theme = resolveTheme(props.Theme or "AegisCyan")
     self.Tabs = {}
     self.SelectedTab = nil
     self.Keybind = (props.Config and props.Config.Keybind) or props.Keybind or Enum.KeyCode.RightControl
@@ -3712,39 +4002,33 @@ function Library:Window(props: { [string]: any })
         return self.DeviceType
     end
 
-    -- Frosted Glass Window Body
+    -- Frosted Glass Window Body (Pure transparent cyber obsidian slate-gray glass)
     local root = make("Frame", {
         Name = "WindowRoot",
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.new(1, -16, 1, -16),
-        BackgroundColor3 = self.Theme.Background,
-        BackgroundTransparency = 0.50, -- Translucent modern glass
+        BackgroundColor3 = Color3.fromRGB(12, 14, 21),
+        BackgroundTransparency = 0.12, -- Translucent deep obsidian slate glass
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Parent = shadow,
     })
-    corner(root, 14)
+    corner(root, 22)
 
-    -- Animated Dynamic Glowing Border Stroke
-    local rootStroke = stroke(root, Color3.fromRGB(255, 255, 255), 1.2, 0.12)
-    rootStroke.Name = "AnimatedBorderStroke"
-    local borderGradient = make("UIGradient", {
-        Name = "BorderGradient",
-        Color = props.BorderGradient or createDefaultBorderSequence(self.Theme),
-        Rotation = 0,
-        Parent = rootStroke,
-    })
-    self.BorderGradient = borderGradient
+    -- Clean Static Cyber Cyan Border (1px, 0.65 transparency, matching HTML prototype)
+    local rootStroke = stroke(root, Color3.fromRGB(0, 240, 255), 1, 0.65)
+    rootStroke.Name = "WindowBorderStroke"
     self.BorderStroke = rootStroke
-    self.CustomBorderGradient = props.BorderGradient ~= nil
+    self.BorderGradient = nil
+    self.CustomBorderGradient = false
 
-    -- Frosted Glass Layer with Ambient Glow
+    -- Transparent Clean Background Layer (No blurry blue textures or ambient blobs)
     local bgLayer = make("Frame", {
         Name = "BackgroundLayer",
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = self.Theme.Background,
-        BackgroundTransparency = 0.88,
+        BackgroundColor3 = Color3.fromRGB(11, 14, 23),
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 1,
         ClipsDescendants = true,
@@ -3756,10 +4040,8 @@ function Library:Window(props: { [string]: any })
         Name = "BackgroundImage",
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
-        ScaleType = Enum.ScaleType.Crop,
-        Image = normalizeAsset(props.BackgroundImage or props.Image or "82941526973068"),
-        ImageTransparency = props.BackgroundImageTransparency or props.ImageTransparency or 0.82,
-        ImageColor3 = props.BackgroundImageColor or Color3.fromRGB(255, 255, 255),
+        ImageTransparency = 1,
+        Visible = false,
         ZIndex = 1,
         Parent = bgLayer,
     })
@@ -3769,19 +4051,17 @@ function Library:Window(props: { [string]: any })
         Name = "AmbientGlow",
         AnchorPoint = Vector2.new(0.5, 0.2),
         Position = UDim2.fromScale(0.5, 0.2),
-        Size = UDim2.fromScale(1.4, 0.8),
+        Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
-        Image = Library.Assets.Shadow,
-        ImageColor3 = self.Theme.Accent,
-        ImageTransparency = 0.86,
-        ScaleType = Enum.ScaleType.Fit,
+        ImageTransparency = 1,
+        Visible = false,
         ZIndex = 1,
         Parent = bgLayer,
     })
     self.AmbientGlow = ambientGlow
 
-    -- Border Animation Engine (Background animation removed: static light ray transparent)
-    local borderAnimationActive = (props.BorderAnimation ~= false)
+    -- Border Animation Engine (Static crisp border by default)
+    local borderAnimationActive = (props.BorderAnimation == true)
     local backgroundAnimationActive = false
     local borderSpeed = props.BorderSpeed or 60
     local bgTime = 0
@@ -3892,45 +4172,59 @@ function Library:Window(props: { [string]: any })
 
     self.Root = root
 
-    -- Subtle Top Edge Glass Reflection
+    -- Subtle Top Edge Glass Reflection (Cyan specular line matching HTML prototype)
     local topGlow = make("Frame", {
         Name = "TopGlow",
         Position = UDim2.new(0, 0, 0, 0),
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundColor3 = Color3.fromRGB(0, 240, 255),
         BorderSizePixel = 0,
         Parent = root,
     })
     make("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 240, 255)),
+            ColorSequenceKeypoint.new(0.50, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 240, 255)),
+        }),
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 1.0),
-            NumberSequenceKeypoint.new(0.30, 0.4),
+            NumberSequenceKeypoint.new(0.20, 0.6),
             NumberSequenceKeypoint.new(0.50, 0.2),
-            NumberSequenceKeypoint.new(0.70, 0.4),
+            NumberSequenceKeypoint.new(0.80, 0.6),
             NumberSequenceKeypoint.new(1.00, 1.0),
         }),
         Parent = topGlow,
     })
 
-    -- Floating Glass Orb Restore Button
+    -- Floating Glass Box Restore Button (Squircle box, free unrestricted movement)
+    local floatIconTarget = props.FloatingIcon or "xtreme_floating_icon.png"
+    local floatIconResolved = normalizeAsset(floatIconTarget)
+    if floatIconResolved == "" then
+        floatIconResolved = normalizeAsset("xtreme_floating_icon.png")
+        if floatIconResolved == "" then
+            floatIconResolved = Library.Assets.Zap or "rbxassetid://130551565616516"
+        end
+    end
     local floatingOpenBtn = make("ImageButton", {
         Name = "FloatingOpenButton",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 24, 0.5, 0),
-        Size = UDim2.fromOffset(54, 54),
-        BackgroundColor3 = self.Theme.Surface,
-        BackgroundTransparency = 0.25,
+        Size = UDim2.fromOffset(48, 48),
+        BackgroundColor3 = Color3.fromRGB(15, 18, 28),
+        BackgroundTransparency = 0.15,
         BorderSizePixel = 0,
-        Image = normalizeAsset(props.FloatingIcon or Library.Assets.FloatingToggle or "84269270119683"),
-        ImageColor3 = (tostring(props.Icon or "autohub_icon.png"):find("%.png") or tostring(props.Icon or "autohub_icon.png"):find("%.jpg")) and Color3.fromRGB(255, 255, 255) or self.Theme.Accent,
+        Image = floatIconResolved,
+        ImageColor3 = Color3.fromRGB(255, 255, 255),
+        ScaleType = Enum.ScaleType.Fit,
         Visible = false,
         ZIndex = 200,
         Parent = screenGui,
     })
-    corner(floatingOpenBtn, 27)
-    stroke(floatingOpenBtn, self.Theme.Accent, 1, 0.4)
-    addRipple(floatingOpenBtn, self.Theme.Accent)
-    bindDrag(floatingOpenBtn, floatingOpenBtn, nil)
+    corner(floatingOpenBtn, 12)
+    stroke(floatingOpenBtn, Color3.fromRGB(0, 240, 255), 1.2, 0.40)
+    addRipple(floatingOpenBtn, Color3.fromRGB(0, 240, 255))
+    bindFloatingDrag(floatingOpenBtn)
 
     -- Confirmation Modal for Exit
     local confirmOverlay = make("Frame", {
@@ -4078,7 +4372,7 @@ function Library:Window(props: { [string]: any })
             if showFloating ~= false then
                 floatingOpenBtn.Visible = true
                 floatingOpenBtn.Size = UDim2.fromOffset(0, 0)
-                tween(floatingOpenBtn, 0.25, { Size = UDim2.fromOffset(54, 54) }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                tween(floatingOpenBtn, 0.25, { Size = UDim2.fromOffset(48, 48) }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
             end
         end)
     end
@@ -4114,63 +4408,97 @@ function Library:Window(props: { [string]: any })
         tween(resizeHandle, 0.15, { ImageTransparency = 0.5, ImageColor3 = self.Theme.Muted })
     end)
 
-    -- Frosted Glass Sidebar
-    local sidebarWidth = 195
+    -- Frosted Glass Sidebar (Smooth rounded outer corners matching WindowRoot)
+    local sidebarWidth = 245
     local sidebar = make("Frame", {
         Name = "Sidebar",
         Size = UDim2.new(0, sidebarWidth, 1, 0),
         BackgroundColor3 = self.Theme.Sidebar,
-        BackgroundTransparency = 0.55, -- Translucent glass
+        BackgroundTransparency = 0.12, -- Solid cyber obsidian glass
         BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 5,
         Parent = root,
     })
+    corner(sidebar, 22)
     self.Sidebar = sidebar
+
+    local sideRightFiller = make("Frame", {
+        Name = "SideRightFiller",
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(0, 24, 1, 0),
+        BackgroundColor3 = self.Theme.Sidebar,
+        BackgroundTransparency = 0.12,
+        BorderSizePixel = 0,
+        ZIndex = 4,
+        Parent = sidebar,
+    })
 
     local sideDivider = make("Frame", {
         Name = "SideDivider",
         AnchorPoint = Vector2.new(1, 0),
         Position = UDim2.new(1, 0, 0, 0),
         Size = UDim2.new(0, 1, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.85,
+        BackgroundColor3 = self.Theme.StrokeSoft,
+        BackgroundTransparency = 0.50,
         BorderSizePixel = 0,
         Parent = sidebar,
     })
 
     local sideHeader = make("Frame", {
         Name = "SideHeader",
-        Size = UDim2.new(1, 0, 0, 68),
-        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 72),
+        BackgroundColor3 = self.Theme.Sidebar,
+        BackgroundTransparency = 0.12,
+        BorderSizePixel = 0,
         ClipsDescendants = true,
+        ZIndex = 10,
         Parent = sidebar,
     })
     bindDrag(sideHeader, shadow, uiScale)
+
+    local sideHeaderDivider = make("Frame", {
+        Name = "SideHeaderDivider",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 10, 1, 0),
+        Size = UDim2.new(1, -20, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(38, 46, 68),
+        BackgroundTransparency = 0.65,
+        BorderSizePixel = 0,
+        ZIndex = 11,
+        Parent = sideHeader,
+    })
 
     local sideLogoWrap = make("Frame", {
         Name = "SideLogoWrap",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 12, 0.5, 0),
-        Size = UDim2.fromOffset(32, 32),
-        BackgroundColor3 = self.Theme.Surface,
-        BackgroundTransparency = 0.35,
+        Size = UDim2.fromOffset(36, 36),
+        BackgroundColor3 = self.Theme.AccentSoft,
+        BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
+        ZIndex = 11,
         Parent = sideHeader,
     })
-    corner(sideLogoWrap, 8)
-    stroke(sideLogoWrap, self.Theme.Accent, 1, 0.5)
+    corner(sideLogoWrap, 10)
+    stroke(sideLogoWrap, self.Theme.Accent, 1, 0.40)
 
-    local iconTarget = props.Icon or "autohub_icon.png"
+    local iconTarget = props.Icon or "xtreme_logo.png"
     local resolvedIcon = normalizeAsset(iconTarget)
-    if resolvedIcon == "" or resolvedIcon == "autohub_icon.png" then
-        resolvedIcon = Library.Assets.Zap or Library.Assets.ImageLogo or "rbxassetid://130551565616516"
+    if resolvedIcon == "" or resolvedIcon == "autohub_icon.png" or iconTarget == "Zap" then
+        resolvedIcon = normalizeAsset("xtreme_logo.png")
+        if resolvedIcon == "" then
+            resolvedIcon = Library.Assets.Zap or Library.Assets.ImageLogo or "rbxassetid://130551565616516"
+        end
     end
-    local isCustomIcon = (tostring(iconTarget):find("%.png") or tostring(iconTarget):find("%.jpg")) and (resolvedIcon:find("http") ~= nil)
+    local isCustomIcon = (tostring(iconTarget):find("%.png") or tostring(iconTarget):find("%.jpg") or tostring(resolvedIcon):find("%.png") or tostring(resolvedIcon):find("%.jpg"))
     local iconColor = isCustomIcon and Color3.fromRGB(255, 255, 255) or self.Theme.Accent
-    local sideLogo = createIcon(sideLogoWrap, resolvedIcon, 18, iconColor, 0)
+    local sideLogo = createIcon(sideLogoWrap, resolvedIcon, 24, iconColor, 0)
     sideLogo.AnchorPoint = Vector2.new(0.5, 0.5)
     sideLogo.Position = UDim2.fromScale(0.5, 0.5)
+    sideLogo.ScaleType = Enum.ScaleType.Fit
+    sideLogo.ZIndex = 12
 
     local sideAppTitle = make("TextLabel", {
         Name = "AppTitle",
@@ -4180,85 +4508,140 @@ function Library:Window(props: { [string]: any })
         TextColor3 = self.Theme.Text,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
-        TextWrapped = true,
         ClipsDescendants = true,
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(52, 0),
-        Size = UDim2.new(1, -58, 1, 0),
+        Position = UDim2.fromOffset(56, 14),
+        Size = UDim2.new(1, -62, 0, 20),
+        ZIndex = 11,
+        Parent = sideHeader,
+    })
+
+    local brandStatusLabel = make("TextLabel", {
+        Name = "BrandStatus",
+        Text = "• SYS • OPTIMAL",
+        Font = Enum.Font.GothamMedium,
+        TextSize = 11,
+        TextColor3 = self.Theme.Success,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(56, 36),
+        Size = UDim2.new(1, -62, 0, 16),
+        ZIndex = 11,
         Parent = sideHeader,
     })
 
     -- Smooth Scrollable Tab Container (fits all tabs on mobile seamlessly)
     local tabContainer = make("ScrollingFrame", {
         Name = "TabContainer",
-        Position = UDim2.fromOffset(0, 68),
+        Position = UDim2.fromOffset(0, 78),
         Size = UDim2.new(1, 0, 1, -158),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ScrollBarThickness = 4,
+        ScrollBarThickness = 3,
         ScrollBarImageColor3 = self.Theme.Accent,
-        ScrollBarImageTransparency = 0.25,
+        ScrollBarImageTransparency = 0.35,
         CanvasSize = UDim2.new(0, 0, 0, 0),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollingDirection = Enum.ScrollingDirection.Y,
         ElasticBehavior = Enum.ElasticBehavior.Always,
         ScrollingEnabled = true,
         Active = true,
+        ClipsDescendants = true,
+        ZIndex = 5,
         Parent = sidebar,
     })
-    padding(tabContainer, 10, 6, 10, 26)
-    list(tabContainer, 6)
+    padding(tabContainer, 10, 4, 10, 6)
+    list(tabContainer, 4)
 
-    -- Translucent Glass Profile Widget
+    -- Divider above ProfileCard (Matching HTML Prototype line 204 border-t)
+    local profileDivider = make("Frame", {
+        Name = "ProfileDivider",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 10, 1, -74),
+        Size = UDim2.new(1, -20, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(38, 46, 68),
+        BackgroundTransparency = 0.65,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+        Parent = sidebar,
+    })
+
+    -- Rebranded Sleek Dark-Gray Glass Profile Widget (Matching HTML Prototype)
     local profileCard = make("Frame", {
         Name = "ProfileCard",
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.new(0, 10, 1, -10),
-        Size = UDim2.new(1, -20, 0, 74),
-        BackgroundColor3 = self.Theme.Surface,
-        BackgroundTransparency = 0.48,
+        Size = UDim2.new(1, -20, 0, 56),
+        BackgroundColor3 = Color3.fromRGB(18, 21, 34),
+        BackgroundTransparency = 0.35,
         BorderSizePixel = 0,
+        ZIndex = 10,
         Parent = sidebar,
     })
     corner(profileCard, 10)
-    stroke(profileCard, self.Theme.StrokeSoft, 1, 0.7)
+    local pStroke = stroke(profileCard, Color3.fromRGB(38, 46, 68), 1, 0.65)
     padding(profileCard, 10, 8, 10, 8)
-    list(profileCard, 4)
 
-    local pTopRow = make("Frame", {
-        Name = "ProfileTop",
-        Size = UDim2.new(1, 0, 0, 36),
-        BackgroundTransparency = 1,
-        Parent = profileCard,
-    })
+    profileCard.MouseEnter:Connect(function()
+        tween(pStroke, 0.16, { Color = Color3.fromRGB(0, 240, 255), Transparency = 0.40 })
+    end)
+    profileCard.MouseLeave:Connect(function()
+        tween(pStroke, 0.16, { Color = Color3.fromRGB(38, 46, 68), Transparency = 0.65 })
+    end)
 
+    -- Rounded Squircle Avatar with Green Status Dot
     local pAvatarWrap = make("Frame", {
         Name = "AvatarWrap",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.fromOffset(34, 34),
-        BackgroundColor3 = self.Theme.Sidebar,
+        Size = UDim2.fromOffset(36, 36),
+        BackgroundColor3 = Color3.fromRGB(15, 18, 28),
         BorderSizePixel = 0,
-        ClipsDescendants = true,
-        Parent = pTopRow,
+        ClipsDescendants = false,
+        Parent = profileCard,
     })
-    corner(pAvatarWrap, 17)
-    local pAvatarStroke = stroke(pAvatarWrap, self.Theme.Accent, 1, 0.4)
+    corner(pAvatarWrap, 10)
+    stroke(pAvatarWrap, Color3.fromRGB(45, 55, 75), 1, 0.7)
+
+    local pAvatarImgContainer = make("Frame", {
+        Name = "AvatarImgContainer",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        Parent = pAvatarWrap,
+    })
+    corner(pAvatarImgContainer, 10)
 
     local pAvatarImage = make("ImageLabel", {
         Name = "Avatar",
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer and LocalPlayer.UserId or 1) .. "&w=100&h=100",
-        Parent = pAvatarWrap,
+        Parent = pAvatarImgContainer,
     })
 
+    -- Online Green Indicator Dot on bottom right of avatar
+    local pStatusDot = make("Frame", {
+        Name = "StatusDot",
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.new(1, 2, 1, 2),
+        Size = UDim2.fromOffset(10, 10),
+        BackgroundColor3 = Color3.fromRGB(16, 185, 129),
+        BorderSizePixel = 0,
+        ZIndex = 5,
+        Parent = pAvatarWrap,
+    })
+    corner(pStatusDot, 5)
+    stroke(pStatusDot, Color3.fromRGB(18, 21, 34), 1.5, 0)
+
+    -- Info Wrap (Username on top, Badge + Perm on bottom row)
     local pInfoWrap = make("Frame", {
         Name = "InfoWrap",
-        Position = UDim2.fromOffset(42, 0),
-        Size = UDim2.new(1, -42, 1, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 46, 0.5, 0),
+        Size = UDim2.new(1, -46, 1, 0),
         BackgroundTransparency = 1,
-        Parent = pTopRow,
+        Parent = profileCard,
     })
     local pInfoLayout = list(pInfoWrap, 2)
     pInfoLayout.VerticalAlignment = Enum.VerticalAlignment.Center
@@ -4267,33 +4650,44 @@ function Library:Window(props: { [string]: any })
         Name = "Username",
         Text = LocalPlayer and LocalPlayer.Name or "User",
         Font = Enum.Font.GothamBold,
-        TextSize = 14,
-        TextColor3 = self.Theme.Text,
+        TextSize = 13,
+        TextColor3 = Color3.fromRGB(255, 255, 255),
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 18),
+        Size = UDim2.new(1, 0, 0, 16),
         Parent = pInfoWrap,
     })
 
+    local pSubRow = make("Frame", {
+        Name = "SubRow",
+        Size = UDim2.new(1, 0, 0, 18),
+        BackgroundTransparency = 1,
+        Parent = pInfoWrap,
+    })
+    local psLayout = list(pSubRow, 6, Enum.FillDirection.Horizontal)
+    psLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+    -- Amber/Gold VIP Pill Badge
     local pBadgePill = make("Frame", {
         Name = "BadgePill",
         Size = UDim2.fromOffset(0, 16),
         AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = self.Theme.AccentSoft,
+        BackgroundColor3 = Color3.fromRGB(42, 30, 15),
         BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
-        Parent = pInfoWrap,
+        Parent = pSubRow,
     })
     corner(pBadgePill, 4)
     padding(pBadgePill, 6, 0, 6, 0)
+    stroke(pBadgePill, Color3.fromRGB(245, 158, 11), 1, 0.5)
 
     local pBadgeText = make("TextLabel", {
         Name = "BadgeText",
-        Text = "VIP ACCESS",
+        Text = "PREMIUM VIP",
         Font = Enum.Font.GothamBold,
-        TextSize = 10,
-        TextColor3 = self.Theme.Accent,
+        TextSize = 9,
+        TextColor3 = Color3.fromRGB(251, 191, 36),
         BackgroundTransparency = 1,
         Size = UDim2.fromOffset(0, 16),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -4302,28 +4696,38 @@ function Library:Window(props: { [string]: any })
 
     local pTimeLabel = make("TextLabel", {
         Name = "TimeLeft",
-        Text = "Time left: Permanent",
+        Text = "Perm",
         Font = Enum.Font.GothamMedium,
-        TextSize = 12,
-        TextColor3 = self.Theme.Muted,
+        TextSize = 10,
+        TextColor3 = Color3.fromRGB(148, 163, 184),
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 16),
-        Parent = profileCard,
+        Size = UDim2.new(0, 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Parent = pSubRow,
     })
 
     function self:UserProfile(userProps: { [string]: any })
         userProps = userProps or {}
         if userProps.Username then pUsernameLabel.Text = tostring(userProps.Username) end
         if userProps.Badge then pBadgeText.Text = string.upper(tostring(userProps.Badge)) end
-        if userProps.TimeLeft then pTimeLabel.Text = "Time left: " .. tostring(userProps.TimeLeft) end
+        if userProps.TimeLeft then
+            local tStr = tostring(userProps.TimeLeft):gsub("^Time left:%s*", "")
+            if tStr:lower():find("perm") then tStr = "Perm" end
+            pTimeLabel.Text = tStr
+        end
         if userProps.AvatarId then
             pAvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(userProps.AvatarId) .. "&w=100&h=100"
         end
         return {
             SetUsername = function(_, name: string) pUsernameLabel.Text = name end,
             SetBadge    = function(_, badge: string) pBadgeText.Text = string.upper(badge) end,
-            SetTimeLeft = function(_, timeStr: string) pTimeLabel.Text = "Time left: " .. timeStr end,
+            SetTimeLeft = function(_, timeStr: string)
+                local tStr = tostring(timeStr):gsub("^Time left:%s*", "")
+                if tStr:lower():find("perm") then tStr = "Perm" end
+                pTimeLabel.Text = tStr
+            end,
             SetAvatar   = function(_, id: number) pAvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(id) .. "&w=100&h=100" end,
         }
     end
@@ -4676,27 +5080,60 @@ function Library:Window(props: { [string]: any })
 
             tween(tab.Button, 0.18, {
                 BackgroundColor3 = selected and self.Theme.AccentSoft or self.Theme.Sidebar,
-                BackgroundTransparency = selected and 0.35 or 1,
+                BackgroundTransparency = selected and 0.25 or 1,
             })
             if tab.Indicator then
                 tween(tab.Indicator, 0.18, {
                     BackgroundTransparency = selected and 0 or 1,
-                    Size = selected and UDim2.new(0, 3, 0.60, 0) or UDim2.new(0, 3, 0, 0),
+                    Size = selected and UDim2.new(0, 3, 0.65, 0) or UDim2.new(0, 3, 0, 0),
                     BackgroundColor3 = self.Theme.Accent,
                 })
+            end
+            if tab.IconBox then
+                tween(tab.IconBox, 0.18, {
+                    BackgroundColor3 = selected and self.Theme.AccentSoft or Color3.fromRGB(20, 24, 36),
+                    BackgroundTransparency = selected and 0.15 or 0.60,
+                })
+            end
+            if tab.IconStroke then
+                tween(tab.IconStroke, 0.18, {
+                    Color = selected and self.Theme.Accent or self.Theme.StrokeSoft,
+                    Transparency = selected and 0.35 or 0.80,
+                })
+            end
+            if tab.Icon then
+                tween(tab.Icon, 0.18, { ImageColor3 = selected and self.Theme.Accent or self.Theme.Muted })
             end
             if tab.TitleLabel then
                 tab.TitleLabel.TextColor3 = selected and Color3.fromRGB(255, 255, 255) or self.Theme.Muted
             end
             if tab.DescLabel then
-                tab.DescLabel.TextColor3 = selected and self.Theme.Accent or Color3.fromRGB(110, 125, 150)
-            end
-            if tab.Icon then
-                tab.Icon.ImageColor3 = selected and self.Theme.Accent or self.Theme.Muted
+                tab.DescLabel.TextColor3 = selected and Color3.fromRGB(148, 220, 255) or Color3.fromRGB(100, 116, 139)
             end
         end
         self.SelectedTab = name
         breadcrumbLabel.Text = string.upper(name)
+
+        -- Smoothly scroll selected tab into view if partially off-screen
+        local activeTabObj = self.Tabs[name]
+        if activeTabObj and activeTabObj.Button and tabContainer and tabContainer.Parent then
+            task.defer(function()
+                pcall(function()
+                    local tcY = tabContainer.AbsolutePosition.Y
+                    local tcH = tabContainer.AbsoluteSize.Y
+                    local btnY = activeTabObj.Button.AbsolutePosition.Y
+                    local btnH = activeTabObj.Button.AbsoluteSize.Y
+                    local curScroll = tabContainer.CanvasPosition.Y
+                    if btnY < tcY + 4 then
+                        local diff = (tcY + 4) - btnY
+                        tween(tabContainer, 0.2, { CanvasPosition = Vector2.new(0, math.max(0, curScroll - diff)) })
+                    elseif (btnY + btnH) > (tcY + tcH - 4) then
+                        local diff = (btnY + btnH) - (tcY + tcH - 4)
+                        tween(tabContainer, 0.2, { CanvasPosition = Vector2.new(0, curScroll + diff) })
+                    end
+                end)
+            end)
+        end
     end
 
     function self:Tab(tabProps: { [string]: any })
@@ -4706,78 +5143,150 @@ function Library:Window(props: { [string]: any })
 
         local name = tostring(tabProps.Title or ("Tab " .. tostring(currentTabOrder)))
         local subDesc = tostring(tabProps.Subtitle or tabProps.Desc or "Active Module")
-        local tabIconAsset = (tabProps.Icon and tabProps.Icon ~= "" and normalizeAsset(tabProps.Icon)) or ""
-        local hasTabIcon = tabIconAsset ~= ""
+        local lowerName = string.lower(name)
 
-        local tabHeight = (self.DeviceType == "Phone" and 46) or 50
+        local tabIconAsset = (tabProps.Icon and tabProps.Icon ~= "" and normalizeAsset(tabProps.Icon)) or ""
+        local defaultTabIcons = {
+            ["overview"] = Library.Assets.Overview or Library.Assets.Home,
+            ["prog"]     = "rbxassetid://10734950020",
+            ["currency"] = Library.Assets.Coins,
+            ["trial"]    = "rbxassetid://110987169760162",
+            ["play"]     = "rbxassetid://10734923549",
+            ["strat"]    = "rbxassetid://10734923549",
+            ["library"]  = Library.Assets.Package,
+            ["util"]     = Library.Assets.Settings,
+            ["advanc"]   = Library.Assets.Sliders,
+            ["product"]  = Library.Assets.Key,
+            ["misc"]     = Library.Assets.Gear,
+        }
+        if tabIconAsset == "" then
+            for k, asset in pairs(defaultTabIcons) do
+                if lowerName:find(k) then
+                    tabIconAsset = normalizeAsset(asset)
+                    break
+                end
+            end
+        end
+        if tabIconAsset == "" then
+            tabIconAsset = Library.Assets.Zap
+        end
+
+        local tabHeight = (self.DeviceType == "Phone" and 42) or 44
 
         local tabButton = make("TextButton", {
             Name = "Tab_" .. name,
             Text = "",
             AutoButtonColor = false,
             Size = UDim2.new(1, 0, 0, tabHeight),
+            Position = UDim2.fromOffset(0, 0),
             BackgroundColor3 = self.Theme.Sidebar,
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             LayoutOrder = currentTabOrder,
+            ClipsDescendants = true,
+            ZIndex = 6,
             Parent = tabContainer,
         })
-        corner(tabButton, 8)
+        corner(tabButton, 9)
         addRipple(tabButton, self.Theme.Accent)
 
         local tabIndicator = make("Frame", {
             Name = "ActiveIndicator",
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, 2, 0.5, 0),
-            Size = UDim2.new(0, 3, 0.55, 0),
+            Size = UDim2.new(0, 3, 0.65, 0),
             BackgroundColor3 = self.Theme.Accent,
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
+            ZIndex = 7,
             Parent = tabButton,
         })
         corner(tabIndicator, 2)
 
-        local tabIcon = nil
-        if hasTabIcon then
-            tabIcon = createIcon(tabButton, tabIconAsset, 20, self.Theme.Muted, 0)
-            tabIcon.AnchorPoint = Vector2.new(0, 0.5)
-            tabIcon.Position = UDim2.new(0, 14, 0.5, 0)
-        end
+        local iconBox = make("Frame", {
+            Name = "IconBox",
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 8, 0.5, 0),
+            Size = UDim2.fromOffset(28, 28),
+            BackgroundColor3 = Color3.fromRGB(20, 24, 36),
+            BackgroundTransparency = 0.60,
+            BorderSizePixel = 0,
+            ZIndex = 7,
+            Parent = tabButton,
+        })
+        corner(iconBox, 7)
+        local iconBoxStroke = stroke(iconBox, self.Theme.StrokeSoft, 1, 0.80)
+
+        local tabIcon = createIcon(iconBox, tabIconAsset, 15, self.Theme.Muted, 0)
+        tabIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+        tabIcon.Position = UDim2.fromScale(0.5, 0.5)
+        tabIcon.ZIndex = 8
 
         local textWrap = make("Frame", {
             Name = "TextWrap",
             AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, hasTabIcon and 44 or 14, 0.5, 0),
-            Size = UDim2.new(1, -(hasTabIcon and 50 or 18), 1, -8),
+            Position = UDim2.new(0, 44, 0.5, 0),
+            Size = UDim2.new(1, -48, 1, -4),
             BackgroundTransparency = 1,
+            ZIndex = 7,
             Parent = tabButton,
         })
-        local tLayout = list(textWrap, 2)
+        local tLayout = list(textWrap, 1)
         tLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
+        local titleRow = make("Frame", {
+            Name = "TitleRow",
+            Size = UDim2.new(1, 0, 0, 16),
+            BackgroundTransparency = 1,
+            ZIndex = 7,
+            Parent = textWrap,
+        })
+        local trLayout = list(titleRow, 4, Enum.FillDirection.Horizontal)
+        trLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+        local hasTrialBadge = lowerName:find("trial") ~= nil
         local titleLabel = make("TextLabel", {
             Name = "Title",
             Text = name,
             Font = Enum.Font.GothamBold,
-            TextSize = 14,
+            TextSize = 12,
             TextColor3 = self.Theme.Muted,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 18),
-            Parent = textWrap,
+            Size = hasTrialBadge and UDim2.new(1, -42, 1, 0) or UDim2.new(1, 0, 1, 0),
+            ZIndex = 8,
+            Parent = titleRow,
         })
+
+        if hasTrialBadge then
+            local badge = make("TextLabel", {
+                Name = "Badge",
+                Text = "13/13",
+                Font = Enum.Font.GothamBold,
+                TextSize = 9,
+                TextColor3 = self.Theme.Accent,
+                BackgroundColor3 = self.Theme.AccentSoft,
+                BackgroundTransparency = 0.20,
+                Size = UDim2.fromOffset(34, 15),
+                ZIndex = 8,
+                Parent = titleRow,
+            })
+            corner(badge, 4)
+            stroke(badge, self.Theme.Accent, 1, 0.40)
+        end
 
         local descLabel = make("TextLabel", {
             Name = "Desc",
             Text = subDesc,
             Font = Enum.Font.GothamMedium,
-            TextSize = 12,
-            TextColor3 = Color3.fromRGB(110, 125, 150),
+            TextSize = 10,
+            TextColor3 = Color3.fromRGB(100, 116, 139),
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 15),
+            Size = UDim2.new(1, 0, 0, 14),
+            ZIndex = 8,
             Parent = textWrap,
         })
 
@@ -4807,6 +5316,8 @@ function Library:Window(props: { [string]: any })
         self.Tabs[name] = {
             Button      = tabButton,
             Indicator   = tabIndicator,
+            IconBox     = iconBox,
+            IconStroke  = iconBoxStroke,
             TitleLabel  = titleLabel,
             DescLabel   = descLabel,
             Icon        = tabIcon,
@@ -4817,6 +5328,7 @@ function Library:Window(props: { [string]: any })
         tabButton.MouseEnter:Connect(function()
             if self.SelectedTab ~= name then
                 tween(tabButton, 0.16, {
+                    Position = UDim2.fromOffset(3, 0),
                     BackgroundColor3 = self.Theme.SurfaceHover,
                     BackgroundTransparency = 0.55,
                 })
@@ -4829,6 +5341,7 @@ function Library:Window(props: { [string]: any })
         tabButton.MouseLeave:Connect(function()
             if self.SelectedTab ~= name then
                 tween(tabButton, 0.16, {
+                    Position = UDim2.fromOffset(0, 0),
                     BackgroundColor3 = self.Theme.Sidebar,
                     BackgroundTransparency = 1,
                 })
@@ -4850,24 +5363,42 @@ function Library:Window(props: { [string]: any })
         return pageApi
     end
 
-    -- Frosted Glass Notification Toast
+    -- Dedicated Outside Notification Container (Bottom-Right of Screen)
+    local notifHolder = screenGui:FindFirstChild("NotificationHolder")
+    if not notifHolder then
+        notifHolder = make("Frame", {
+            Name = "NotificationHolder",
+            AnchorPoint = Vector2.new(1, 1),
+            Position = UDim2.new(1, -20, 1, -20),
+            Size = UDim2.fromOffset(320, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 500,
+            Parent = screenGui,
+        })
+        local nLayout = list(notifHolder, 8, Enum.FillDirection.Vertical)
+        nLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        nLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    end
+
+    -- Outside Frosted Glass Notification Toast
     function self:Notify(toastProps: { [string]: any })
         toastProps = toastProps or {}
-        local duration = tonumber(toastProps.Duration) or 3
+        local duration = tonumber(toastProps.Duration) or 3.5
+
         local toast = make("Frame", {
             Name = "Toast",
-            AnchorPoint = Vector2.new(1, 1),
-            Position = UDim2.new(1, -16, 1, -16),
-            Size = UDim2.fromOffset(300, 72),
-            BackgroundColor3 = self.Theme.Surface,
-            BackgroundTransparency = 0.18,
+            Size = UDim2.fromOffset(300, 68),
+            BackgroundColor3 = Color3.fromRGB(15, 18, 28),
+            BackgroundTransparency = 0.12,
             BorderSizePixel = 0,
             ClipsDescendants = true,
-            ZIndex = 50,
-            Parent = root,
+            ZIndex = 501,
+            Parent = notifHolder,
         })
         corner(toast, 10)
-        stroke(toast, self.Theme.StrokeSoft, 1, 0.6)
+        local tStroke = stroke(toast, Color3.fromRGB(38, 46, 68), 1, 0.65)
         padding(toast, 14, 10, 14, 10)
 
         local accentLine = make("Frame", {
@@ -4887,10 +5418,10 @@ function Library:Window(props: { [string]: any })
             BackgroundTransparency = 1,
             Parent = toast,
         })
-        list(toastContent, 3)
+        list(toastContent, 2)
 
-        createText(toastContent, "ToastTitle", tostring(toastProps.Title or "Notification"), 15, toastProps.Color or self.Theme.Text, true, 1)
-        createText(toastContent, "ToastDesc", tostring(toastProps.Desc or toastProps.Message or ""), 13, self.Theme.Muted, false, 2)
+        createText(toastContent, "ToastTitle", tostring(toastProps.Title or "Notification"), 14, toastProps.Color or self.Theme.Text, true, 1)
+        createText(toastContent, "ToastDesc", tostring(toastProps.Desc or toastProps.Message or ""), 12, self.Theme.Muted, false, 2)
 
         local progBar = make("Frame", {
             Name = "ProgressBar",
@@ -4904,21 +5435,23 @@ function Library:Window(props: { [string]: any })
         })
         tween(progBar, duration, { Size = UDim2.new(0, 0, 0, 2) }, Enum.EasingStyle.Linear)
 
+        -- Slide-in animation from outside screen
         toast.BackgroundTransparency = 1
-        toast.Position = UDim2.new(1, 340, 1, -16)
-        tween(toast, 0.25, {
-            BackgroundTransparency = 0.18,
-            Position = UDim2.new(1, -16, 1, -16),
-        }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+        toast.Position = UDim2.fromOffset(340, 0)
+        tween(toast, 0.28, {
+            BackgroundTransparency = 0.12,
+            Position = UDim2.fromOffset(0, 0),
+        }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
         task.delay(duration, function()
-            if toast.Parent then
-                tween(toast, 0.2, {
+            if toast and toast.Parent then
+                local hideTween = tween(toast, 0.22, {
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(1, 340, 1, -16),
+                    Position = UDim2.fromOffset(340, 0),
                 }, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                task.wait(0.22)
-                if toast then toast:Destroy() end
+                hideTween.Completed:Connect(function()
+                    if toast then toast:Destroy() end
+                end)
             end
         end)
         return toast

@@ -5053,7 +5053,9 @@ end
 
 local function serializeRecordArgument(argumentValue)
     local argumentType = type(argumentValue)
-    if argumentType == "string" then
+    if typeof(argumentValue) == "Vector3" then
+        return string.format("Vector3.new(%s, %s, %s)", tostring(argumentValue.X), tostring(argumentValue.Y), tostring(argumentValue.Z))
+    elseif argumentType == "string" then
         return string.format("%q", argumentValue)
     elseif argumentType == "number" or argumentType == "boolean" then
         return tostring(argumentValue)
@@ -5063,13 +5065,17 @@ local function serializeRecordArgument(argumentValue)
             local keyType = type(key)
             local formattedKey
             if keyType == "string" then
-                formattedKey = string.format("[%q]", key)
+                if key:match("^[%a_][%w_]*$") then
+                    formattedKey = key
+                else
+                    formattedKey = string.format("[%q]", key)
+                end
             elseif keyType == "number" then
                 formattedKey = string.format("[%d]", key)
             else
                 formattedKey = string.format("[%s]", tostring(key))
             end
-            local formattedValue = type(val) == "string" and string.format("%q", val) or tostring(val)
+            local formattedValue = serializeRecordArgument(val)
             table.insert(parts, formattedKey .. " = " .. formattedValue)
         end
         return "{" .. table.concat(parts, ", ") .. "}"
@@ -5416,7 +5422,11 @@ task.spawn(function()
                 posX, posY, posZ = p.X, p.Y, p.Z
             end
 
-            local isStackerOn = (State and State.Utilities and State.Utilities.Stacker) or (Globals and (Globals.Stacker or Globals.StackEnabled)) or (getgenv and (getgenv().Stacker or getgenv().StackEnabled))
+            local isStackerOn = (typeof(isStackerActive) == "function" and isStackerActive())
+                or (State and State.Interactive and State.Interactive.Stacker == true)
+                or (State and State.Utilities and State.Utilities.Stacker == true)
+                or (Globals and (Globals.Stacker == true or Globals.StackEnabled == true))
+                or (getgenv and (getgenv().Stacker == true or getgenv().StackEnabled == true))
             local cmd
             if isStackerOn then
                 cmd = string.format('TDS:Place("%s", %s, %s, %s, true)', towerName, tostring(posX), tostring(posY), tostring(posZ))
@@ -5515,10 +5525,25 @@ local function handleRecordedRemoteCall(remote, method, args, results)
             if idx and type(name) == "string" then
                 local data = a4.Data
                 local cmd
+                local isStackerOn = (typeof(isStackerActive) == "function" and isStackerActive())
+                    or (State and State.Interactive and State.Interactive.Stacker == true)
+                    or (State and State.Utilities and State.Utilities.Stacker == true)
+                    or (Globals and (Globals.Stacker == true or Globals.StackEnabled == true))
+                    or (getgenv and (getgenv().Stacker == true or getgenv().StackEnabled == true))
+
                 if data == nil or (type(data) == "table" and next(data) == nil) then
                     cmd = string.format("TDS:Ability(%d, %q)", idx, name)
                 else
-                    cmd = string.format("TDS:Ability(%d, %q, %s)", idx, name, serializeRecordArgument(data))
+                    local serializedData = serializeRecordArgument(data)
+                    if name == "Hologram Tower" or name == "Hologram" or (type(data) == "table" and (data.towerToClone or data.towerPosition)) then
+                        if isStackerOn then
+                            cmd = string.format("TDS:Ability(%d, %q, %s, true, true)", idx, name, serializedData)
+                        else
+                            cmd = string.format("TDS:Ability(%d, %q, %s, true)", idx, name, serializedData)
+                        end
+                    else
+                        cmd = string.format("TDS:Ability(%d, %q, %s)", idx, name, serializedData)
+                    end
                 end
                 appendRecordActionLine(cmd, string.format("Ability: %s (Index: %d)", name, idx))
                 return
@@ -5744,7 +5769,9 @@ getSavedRecordedStrategyItems = function()
                         map = mp:gsub("^%s+", ""):gsub("%s+$", "")
                     end
 
-                    if content:match('TDS:Mode%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
+                    if content:match('TDS:Place%s*%([^%)]*,%s*true%s*%)')
+                        or content:match('TDS:Ability%s*%([^%)]*,%s*true%s*,%s*true%s*%)')
+                        or content:match('TDS:Mode%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
                         or content:match('TDS:GameInfo%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
                         or content:match('TDS:GameInfo%s*%(%s*["\'][^"\']+["\']%s*,%s*[^,%)]*,%s*true')
                         or content:match('TDS:Map%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
@@ -5865,7 +5892,9 @@ local function executeStrategyFile(stratName, optPath, isAuto)
         end
     end
     if not isStratPremium and content then
-        if content:match('TDS:Mode%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
+        if content:match('TDS:Place%s*%([^%)]*,%s*true%s*%)')
+            or content:match('TDS:Ability%s*%([^%)]*,%s*true%s*,%s*true%s*%)')
+            or content:match('TDS:Mode%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
             or content:match('TDS:GameInfo%s*%(%s*["\'][^"\']+["\']%s*,%s*true')
             or content:match('TDS:GameInfo%s*%(%s*["\'][^"\']+["\']%s*,%s*[^,%)]*,%s*true')
             or content:match('TDS:Map%s*%(%s*["\'][^"\']+["\']%s*,%s*true')

@@ -818,8 +818,9 @@ local function DoSetOption(TObj, OptName, OptVal, ReqWave)
     end
 end
 
-local function DoActivateAbility(TObj, AbName, AbData, IsLooping)
+local function DoActivateAbility(TObj, AbName, AbData, IsLooping, IsStack)
     if type(AbData) == "boolean" then
+        IsStack = IsLooping
         IsLooping = AbData
         AbData = nil
     end
@@ -844,6 +845,10 @@ local function DoActivateAbility(TObj, AbName, AbData, IsLooping)
 
                     if positions and #positions > 0 then
                         data.towerPosition = positions[math.random(#positions)]
+                    end
+
+                    if (IsStack == true or IsStack == "stack") and typeof(data.towerPosition) == "Vector3" then
+                        data.towerPosition = data.towerPosition + Vector3.new(0, 20, 0)
                     end
 
                     if type(CloneIdx) == "number" then
@@ -1714,10 +1719,10 @@ function TDS:SellAll(ReqWave)
     end)
 end
 
-function TDS:Ability(idx, name, data, loop)
+function TDS:Ability(idx, name, data, loop, stack)
     local t = self.PlacedTowers[idx]
     if not t then return false end
-    return DoActivateAbility(t, name, data, loop)
+    return DoActivateAbility(t, name, data, loop, stack)
 end
 
 function TDS:AutoChain(...)
