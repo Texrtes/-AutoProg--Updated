@@ -3180,6 +3180,64 @@ local function formatDuration(seconds: number): string
 end
 
 --==============================================================================
+-- Ordered Navigation Tabs
+-- Layout Order:
+--   1. Overview
+--   2. Auto Prog
+--   3. Auto Currency
+--   4. Utilities
+--   5. Interactive
+--   6. Recorder
+--   7. Library
+--   8. Product
+--   9. Misc
+--==============================================================================
+local OverviewTab = Window:Tab({
+    Title = "Overview",
+    Subtitle = "System Status & Overview",
+})
+
+local AutoProgTab = Window:Tab({
+    Title = "Auto Prog",
+    Subtitle = "Full Automation from Lvl 0 to Endgame",
+})
+
+local CurrencyTab = Window:Tab({
+    Title = "Auto Currency",
+    Subtitle = "Farming & Resource Automation",
+})
+
+local UtilitiesTab = Window:Tab({
+    Title = "Utilities",
+    Subtitle = "Addons & Extended Utilities",
+})
+
+local InteractiveTab = Window:Tab({
+    Title = "Interactive",
+    Subtitle = "Combat & Gameplay Controls",
+})
+
+local RecorderTab = Window:Tab({
+    Title = "Recorder",
+    Subtitle = "Strategy Macro & Recorder",
+})
+
+local LibraryTab = Window:Tab({
+    Title = "Library",
+    Subtitle = "Recorded Strategy Vault",
+})
+
+local ProductTab = Window:Tab({
+    Title = "Product",
+    Subtitle = "Tier Plans & Features",
+})
+
+local MiscTab = Window:Tab({
+    Title = "Misc",
+    Subtitle = "Utilities & Client Settings",
+})
+
+--==============================================================================
 -- 4. OVERVIEW TAB
 --==============================================================================
 local StatsGrid = nil
@@ -3192,11 +3250,6 @@ local lastLiveStats = nil
 local refreshLiveOverview = nil
 
 ;(function()
-local OverviewTab = Window:Tab({
-    Title = "Overview",
-    Subtitle = "System Status & Overview",
-})
-
 OverviewTab:Banner({
     Title = "Welcome to Aegis TDS",
     Desc = "Next-generation tactical automation initialized. Configure your modules in the tabs below.",
@@ -3838,11 +3891,6 @@ local progToggleRef = nil
         }
     end
 
-    local AutoProgTab = Window:Tab({
-        Title = "Auto Prog",
-        Subtitle = "Automated Game Progression",
-    })
-
     local ControlSection = AutoProgTab:Section({ Title = "Progression Control" })
 
     progToggleRef = ControlSection:Toggle({
@@ -3940,11 +3988,6 @@ end)()
 --==============================================================================
 -- 6. AUTO CURRENCY TAB
 --==============================================================================
-local CurrencyTab = Window:Tab({
-    Title = "Auto Currency",
-    Subtitle = "Farming & Resource Automation",
-})
-
 -- Segmented navigation at top of Auto Currency tab
 local CurrencyModesSegmented = CurrencyTab:Segmented({
     Options = { "Auto Coins", "Auto Gems", "Auto Levels", "Auto Timescales", "Auto Evo" },
@@ -5183,10 +5226,6 @@ end
 -- 5. RECORDER TAB (Formerly Auto Play)
 --==============================================================================
 ;(function()
-local RecorderTab = Window:Tab({
-    Title = "Recorder",
-    Subtitle = "Strategy Macro & Recorder",
-})
 if not RecorderTab then return end
 
 RecorderTab:Banner({
@@ -5713,11 +5752,6 @@ end)()
 local getSavedRecordedStrategyItems = nil
 
 ;(function()
-local LibraryTab = Window:Tab({
-    Title = "Library",
-    Subtitle = "Recorded Strategy Vault",
-})
-
 LibraryTab:Banner({
     Title = "Strategy Library Vault",
     Desc = "Manage, view, and export strategies recorded into your [SavedRecorded] directory.",
@@ -6293,8 +6327,6 @@ end)()
 --==============================================================================
 local isStackerActive = nil
 local applyStackerHooks = nil
-local InteractiveTab = nil
-local UtilitiesTab = nil
 local StartAutoReady = nil
 local StartAutoSkip = nil
 local StartAutoRejoin = nil
@@ -6304,16 +6336,6 @@ local StartAutoPickups = nil
 local ApplyInMatchTimescaleOnce = nil
 local extractPrivateServerCode = nil
 local SellAllPlacedTowers = nil
-
-InteractiveTab = Window:Tab({
-    Title = "Interactive",
-    Subtitle = "Combat & Gameplay Controls",
-})
-
-UtilitiesTab = Window:Tab({
-    Title = "Utilities",
-    Subtitle = "Addons & Extended Utilities",
-})
 
 do
 -- =============================================================================
@@ -7482,11 +7504,6 @@ end
 -- 8. PRODUCT TAB
 --==============================================================================
 ;(function()
-local ProductTab = Window:Tab({
-    Title = "Product",
-    Subtitle = "Tier Plans & Features",
-})
-
 ProductTab:Banner({
     Title = "Hub Licensing & Subscription Tiers",
     Desc = "Explore available tiers or activate a key below to unlock accelerated bypasses.",
@@ -7780,17 +7797,11 @@ end
 --==============================================================================
 -- 8. MISC TAB
 --==============================================================================
-local MiscTab = nil
 local Apply3dRendering = nil
 local StartAntiLag = nil
 local ApplyDisableShadows = nil
 
 do
-MiscTab = Window:Tab({
-    Title = "Misc",
-    Subtitle = "Utilities & Client Settings",
-})
-
 local MiscPrivateServer = MiscTab:Section({ Title = "Private Server & Lobby" })
 
 local psBoxMisc = MiscPrivateServer:Textbox({
