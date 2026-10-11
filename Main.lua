@@ -8591,6 +8591,7 @@ end)
 local lastCurrencyMatchmakingTime = 0
 local activeInGameCurrencyLoop = false
 local timescalesConsecutiveLosses = 0
+local currentActiveTrialTitle: string? = nil
 
 local function GetMatchStatus(): string?
     local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
@@ -8763,12 +8764,104 @@ local function functionRestartLogic(): boolean
     return fired
 end
 
-local function functionWinLogic(mode: string, isTrials: boolean, isPrem: boolean): boolean
+local function getTrialTimescaleReward(trialName: string?): (number, number)
+    if not trialName or trialName == "" then return 0, 0 end
+    local norm = string.lower(tostring(trialName)):gsub("%s+", "")
+
+    -- Tier 3: 3 Timescale tickets (Highest payout: Fog, Quarantine, Exploding)
+    if string.find(norm, "fog")
+        or string.find(norm, "quarantine")
+        or string.find(norm, "explod")
+        or string.find(norm, "expload") then
+        return 3, 30
+    end
+
+    -- Tier 1: 1 Timescale ticket (Lowest payout: Glass, Limitation, Committed)
+    if string.find(norm, "glass")
+        or string.find(norm, "limitation")
+        or string.find(norm, "commit") then
+        return 1, 10
+    end
+
+    -- Tier 2 Easy / Priority: 2 Timescale tickets (Hidden, Flying)
+    -- Flying and Hidden are easier than other 2-ticket trials (like Jailed), so prioritize them!
+    if string.find(norm, "hidden") or string.find(norm, "flying") then
+        return 2, 25
+    end
+
+    -- Tier 2 Standard: 2 Timescale tickets (Broke, Jailed, Speedy, Inflation, etc.)
+    return 2, 20
+end
+
+local function shouldPremiumRematchTrial(currentTrialName: string?): (boolean, string)
+    if not checkIsPremium() then
+        return false, "Not Premium VIP"
+    end
+
+    -- Fetch current real-time rotation from DataHandler / MatchmakingTrialData
+    local curRot = nil
+    if PlayerDataHandler and typeof(PlayerDataHandler.GetCurrentTrial) == "function" then
+        pcall(function() curRot = PlayerDataHandler:GetCurrentTrial(true) end)
+    elseif DataHandler and typeof(DataHandler.GetCurrentTrial) == "function" then
+        pcall(function() curRot = DataHandler:GetCurrentTrial(true) end)
+    end
+
+    local newTrialTitle = curRot and (curRot.Title or curRot.Name)
+    if not newTrialTitle or newTrialTitle == "" or not currentTrialName or currentTrialName == "" then
+        return true, "Undetermined rotation; staying in current trial"
+    end
+
+    local curNorm = string.lower(currentTrialName):gsub("%s+", "")
+    local newNorm = string.lower(newTrialTitle):gsub("%s+", "")
+
+    -- 1. Same trial: stay and rematch!
+    if curNorm == newNorm then
+        return true, string.format("Same active trial rotation '%s' (staying via Rematch)", currentTrialName)
+    end
+
+    -- 2. Check if new trial is in user filter (Trials to Ignore)
+    local ignoredTrials = (State and State.AutoCurrency and State.AutoCurrency.Timescales and State.AutoCurrency.Timescales.IgnoredTrials)
+        or (Settings and Settings:Get("AutoTimescalesIgnoredTrials", { "Glass", "Committed", "Limitation" }))
+        or {}
+    for _, ign in ipairs(ignoredTrials) do
+        local ignNorm = string.lower(tostring(ign)):gsub("%s+", "")
+        if ignNorm ~= "" and (ignNorm == newNorm or string.find(newNorm, ignNorm, 1, true)) then
+            return true, string.format("New rotation '%s' is ignored in filter. Staying in '%s' via Rematch.", newTrialTitle, currentTrialName)
+        end
+    end
+
+    -- 3. Check if player has towers/level required for the new trial
+    local isEligible = false
+    if typeof(checkTrialEligibility) == "function" then
+        local ok, elig = pcall(checkTrialEligibility, newTrialTitle)
+        isEligible = ok and (elig == true)
+    else
+        isEligible = true
+    end
+
+    if not isEligible then
+        return true, string.format("Ineligible for new rotation '%s'. Staying in '%s' via Rematch.", newTrialTitle, currentTrialName)
+    end
+
+    -- 4. Compare priority scores and ticket payouts
+    local curTickets, curScore = getTrialTimescaleReward(currentTrialName)
+    local newTickets, newScore = getTrialTimescaleReward(newTrialTitle)
+
+    if newScore > curScore then
+        -- New rotation is higher payout (3 vs 2) OR an easier priority trial (Hidden/Flying vs Jailed)!
+        return false, string.format("New rotation '%s' (Payout: %dT, Priority: %d) > Current '%s' (Payout: %dT, Priority: %d). Returning to lobby to queue!", newTrialTitle, newTickets, newScore, currentTrialName, curTickets, curScore)
+    else
+        -- Equal score or lower payout: stay in current trial without lobby downtime!
+        return true, string.format("Current '%s' (Payout: %dT, Priority: %d) >= New '%s' (Payout: %dT, Priority: %d). Staying via Rematch.", currentTrialName, curTickets, curScore, newTrialTitle, newTickets, newScore)
+    end
+end
+
+local function functionWinLogic(mode: string, isTrials: boolean, isPrem: boolean, shouldRematch: boolean?): boolean
     warn("══════════════════════════════════════════════════════════════════════")
-    warn(string.format(">>> [WIN LOGIC CONFIRMED: VICTORY] <<< Mode: %s | Trials: %s | Premium: %s", tostring(mode), tostring(isTrials), tostring(isPrem)))
+    warn(string.format(">>> [WIN LOGIC CONFIRMED: VICTORY] <<< Mode: %s | Trials: %s | Premium: %s | Rematch: %s", tostring(mode), tostring(isTrials), tostring(isPrem), tostring(shouldRematch)))
     warn("══════════════════════════════════════════════════════════════════════")
     Logger:Info(string.format("Auto Currency: Executing custom WinLogic (Mode: %s, isTrials: %s, isPremium: %s)...", tostring(mode), tostring(isTrials), tostring(isPrem)))
-    if isTrials and isPrem then
+    if isTrials and isPrem and (shouldRematch ~= false) then
         -- Timescales Premium Win: Reset loss counter, dispatch Rematch
         timescalesConsecutiveLosses = 0
         isTeleporting = false
@@ -8777,9 +8870,9 @@ local function functionWinLogic(mode: string, isTrials: boolean, isPrem: boolean
         Logger:Info("Auto Timescales (Premium): Rematch vote dispatched (fired=" .. tostring(fired) .. ")")
         return true
     else
-        -- Coins, Gems, Levels, or Timescales Fallback: Teleport to lobby via smartLobby
-        warn(string.format("[Win Logic] Victory registered for %s! Returning to lobby via smartLobby...", tostring(mode)))
-        Logger:Info(string.format("Auto Currency: Win confirmed for %s. Returning to lobby via smartLobby...", tostring(mode)))
+        -- Coins, Gems, Levels, or Timescales Fallback or better rotation: Teleport to lobby via smartLobby
+        warn(string.format("[Win Logic] Returning to lobby via smartLobby for %s...", tostring(mode)))
+        Logger:Info(string.format("Auto Currency: Returning to lobby via smartLobby (Mode: %s)...", tostring(mode)))
         pcall(SmartTeleportToLobby)
         return false
     end
@@ -9386,6 +9479,7 @@ task.spawn(function()
                                 end
                                 if not trialTitle then trialTitle = gsrGlobalTrial end
                             end
+                            currentActiveTrialTitle = trialTitle or gsrGlobalTrial
 
                             local trialCfg = trialTitle and GetTrialConfig(trialTitle)
                             if not trialCfg and gsrGlobalTrial and gsrGlobalTrial ~= "" then
@@ -10007,7 +10101,17 @@ task.spawn(function()
                             if isTrialsMatch and isPremUser then
                                 -- Premium mode for Farm Timescales
                                 if matchStatus == "WIN" or matchStatus == "VICTORY" then
-                                    functionWinLogic(activeMode, true, true)
+                                    local stayInTrial, reason = shouldPremiumRematchTrial(currentActiveTrialTitle)
+                                    warn("[Auto Trials Smart Rotation Check] " .. tostring(reason))
+                                    Logger:Info("[Auto Trials Smart Check]: " .. tostring(reason))
+
+                                    if not stayInTrial then
+                                        -- Better rotation available: Return to lobby via smartLobby to queue it!
+                                        functionWinLogic(activeMode, true, true, false)
+                                        break
+                                    end
+
+                                    functionWinLogic(activeMode, true, true, true)
                                     local rematchSuccess = false
                                     local rematchWaitT0 = tick()
                                     repeat
