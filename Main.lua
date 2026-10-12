@@ -10895,6 +10895,56 @@ task.spawn(function()
 
                             task.wait(1)
 
+                            -- Reset Gatling execution flag so Gatling/Railgun loads for the new restarted match!
+                            GatlingExecuted = false
+                            local isAutoGatlingOn = (State and State.Utilities and State.Utilities.AutoGatling)
+                                or (Globals and Globals.AutoGatling) == true
+                            local isWinOrTrials = (activeMode == "Timescales") or isTrialsMatch or (condition == "Win") or (condition == "Win Only")
+                            if (isAutoGatlingOn or isWinOrTrials) then
+                                GatlingExecuted = true
+                                task.spawn(function()
+                                    task.wait(2.5)
+                                    if executeGatlingScript then
+                                        executeGatlingScript()
+                                    end
+                                end)
+                            end
+
+                            -- Restart Match Watchdog: 30s limit to start Wave 1 on restarted round
+                            task.spawn(function()
+                                local restartWatchdogT0 = tick()
+                                local roundStarted = false
+                                while activeInGameCurrencyLoop and State.Master and (tick() - restartWatchdogT0 < 30) do
+                                    if game.PlaceId == LOBBY_PLACE_ID then return end
+                                    local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                    local curWave = (gsr and gsr:GetAttribute("Wave")) or workspace:GetAttribute("Wave") or 0
+                                    local isGameStarted = (gsr and gsr:GetAttribute("GameStarted") == true) or workspace:GetAttribute("GameStarted") == true
+
+                                    if isGameStarted or curWave > 0 then
+                                        roundStarted = true
+                                        break
+                                    end
+
+                                    local vr = stateReps and stateReps:FindFirstChild("VoteReplicator")
+                                    if vr and vr:GetAttribute("Enabled") == true and vr:GetAttribute("Title") == "Ready?" then
+                                        pcall(RunVoteSkip)
+                                    end
+                                    task.wait(1)
+                                end
+
+                                if not roundStarted and activeInGameCurrencyLoop and State.Master and game.PlaceId ~= LOBBY_PLACE_ID then
+                                    local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                    local curWave = (gsr and gsr:GetAttribute("Wave")) or 0
+                                    local isGameStarted = (gsr and gsr:GetAttribute("GameStarted") == true)
+                                    if not isGameStarted and curWave == 0 then
+                                        Logger:Warn("Restart Watchdog: Restarted match failed to ready up or start Wave 1 within 30s. Returning to lobby via smartLobby...")
+                                        pcall(SmartTeleportToLobby)
+                                    end
+                                end
+                            end)
+
                             -- For Story Mode (Node 0): keep voting ready when prompted
                             if isStoryMode then
                                 task.spawn(function()
