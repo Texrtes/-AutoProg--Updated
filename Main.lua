@@ -152,8 +152,17 @@ errorSmartLobby = function(reason: string?, force: boolean?)
         or ""
     local pCode = earlyExtractPrivateServerCode(rawCode)
 
-    -- 1. Private experience launch (if not mobile and private server code configured)
-    if not isMobile and pCode ~= "" then
+    local rLow = tostring(reason or ""):lower()
+    local isPermissionDenied = rLow:find("permission")
+        or rLow:find("unauthorized")
+        or rLow:find("%-1")
+        or rLow:find("524")
+        or rLow:find("773")
+        or rLow:find("restricted")
+        or rLow:find("not authorized")
+
+    -- 1. Private experience launch (only if not mobile, code configured, and NOT permission denied)
+    if not isMobile and pCode ~= "" and not isPermissionDenied then
         local launched = false
         pcall(function()
             local expService = game:GetService("ExperienceService")
@@ -168,7 +177,11 @@ errorSmartLobby = function(reason: string?, force: boolean?)
         if launched then return end
     end
 
-    -- 2. If mobile or empty private server code, directly teleport to lobby
+    if isPermissionDenied then
+        warn("[errorSmartLobby] Permission denied to private experience (-1 / unauthorized). Bypassing private code and teleporting to public lobby...")
+    end
+
+    -- 2. Fallback: Directly teleport to public lobby
     pcall(function()
         TeleportService:Teleport(lobbyId, LocalPlayer)
     end)
@@ -188,7 +201,7 @@ handleDetectedError = function(errorSource: string, errorMsg: string?)
     isHandlingError = true
     warn(string.format("[errorSmartLobby] Error detected (%s: %s). Initiating SmartLobby recovery...", tostring(errorSource), tostring(errorMsg or "Error")))
 
-    -- Dismiss the prompt button if visible
+    -- Dismiss / Reconnect prompt if visible (AVOID LeaveButton to prevent quitting game)
     pcall(function()
         local CoreGui = game:GetService("CoreGui")
         local promptGui = CoreGui:FindFirstChild("RobloxPromptGui")
@@ -196,10 +209,15 @@ handleDetectedError = function(errorSource: string, errorMsg: string?)
         if promptOverlay then
             for _, child in ipairs(promptOverlay:GetChildren()) do
                 for _, desc in ipairs(child:GetDescendants()) do
-                    if desc:IsA("GuiButton") and (desc.Name == "Button" or desc.Name == "LeaveButton" or desc.Name == "OKButton" or desc:IsA("TextButton")) then
-                        if getconnections then
-                            for _, conn in ipairs(getconnections(desc.Activated)) do pcall(conn.Fire, conn) end
-                            for _, conn in ipairs(getconnections(desc.MouseButton1Click)) do pcall(conn.Fire, conn) end
+                    if desc:IsA("GuiButton") then
+                        local bName = desc.Name:lower()
+                        if bName ~= "leavebutton" then
+                            if bName:find("reconnect") or bName:find("retry") or bName == "button" or bName == "okbutton" or desc:IsA("TextButton") then
+                                if getconnections then
+                                    for _, conn in ipairs(getconnections(desc.Activated)) do pcall(conn.Fire, conn) end
+                                    for _, conn in ipairs(getconnections(desc.MouseButton1Click)) do pcall(conn.Fire, conn) end
+                                end
+                            end
                         end
                     end
                 end
