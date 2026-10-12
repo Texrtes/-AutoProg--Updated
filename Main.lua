@@ -10676,7 +10676,19 @@ task.spawn(function()
                     local stratThread = nil
                     local function startStrat()
                         if not scriptUrl or scriptUrl == "" then
-                            Logger:Warn("Auto Currency: Strategy script URL is missing!")
+                            Logger:Warn("Auto Currency: Strategy script URL is missing for map: " .. tostring(activeMap) .. "! Returning to lobby in 3s via smartLobby...")
+                            if Window and typeof(Window.Notify) == "function" then
+                                Window:Notify({
+                                    Title = "Strategy Script Missing",
+                                    Desc = "No strategy script found for " .. tostring(activeMap) .. ". Returning to lobby...",
+                                    Duration = 5,
+                                })
+                            end
+                            task.delay(3, function()
+                                if game.PlaceId ~= LOBBY_PLACE_ID then
+                                    pcall(SmartTeleportToLobby)
+                                end
+                            end)
                             return
                         end
                         Logger:Info("Auto Currency: Running strategy script for map: " .. tostring(activeMap))
@@ -10698,7 +10710,17 @@ task.spawn(function()
                                     activeTDS.Map = activeTDS.GameInfo
                                 end
 
-                                local stratFunc = loadstring(game:HttpGet(scriptUrl))
+                                local rawContent = nil
+                                local getOk, getRes = pcall(function()
+                                    return game:HttpGet(scriptUrl)
+                                end)
+                                if getOk and type(getRes) == "string" and #getRes > 0 then
+                                    rawContent = getRes
+                                else
+                                    error("HttpGet download failed: " .. tostring(getRes))
+                                end
+
+                                local stratFunc, parseErr = loadstring(rawContent)
                                 if stratFunc then
                                     if activeTDS then
                                         local env = getfenv(stratFunc)
@@ -10706,10 +10728,24 @@ task.spawn(function()
                                         setfenv(stratFunc, env)
                                     end
                                     stratFunc()
+                                else
+                                    error("loadstring compile failed: " .. tostring(parseErr))
                                 end
                             end)
                             if not ok then
-                                Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr))
+                                Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr) .. ". Returning to lobby in 4s via smartLobby...")
+                                if Window and typeof(Window.Notify) == "function" then
+                                    Window:Notify({
+                                        Title = "Strategy Script Error",
+                                        Desc = "Strategy failed to load/execute for " .. tostring(activeMap) .. ". Returning to lobby...",
+                                        Duration = 5,
+                                    })
+                                end
+                                task.delay(4, function()
+                                    if game.PlaceId ~= LOBBY_PLACE_ID then
+                                        pcall(SmartTeleportToLobby)
+                                    end
+                                end)
                             end
                         end)
                     end
@@ -10731,6 +10767,52 @@ task.spawn(function()
                             end
                         end)
                     end
+
+                    -- Failsafe Watchdog: Match Start & Ready Timeout (30s limit to start Wave 1)
+                    task.spawn(function()
+                        local watchdogT0 = tick()
+                        local hasStarted = false
+                        while activeInGameCurrencyLoop and State.Master and (tick() - watchdogT0 < 30) do
+                            if game.PlaceId == LOBBY_PLACE_ID then return end
+
+                            local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                            local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                            local curWave = (gsr and gsr:GetAttribute("Wave")) or workspace:GetAttribute("Wave") or 0
+                            local isGameStarted = (gsr and gsr:GetAttribute("GameStarted") == true) or workspace:GetAttribute("GameStarted") == true
+
+                            if isGameStarted or curWave > 0 then
+                                hasStarted = true
+                                break
+                            end
+
+                            -- Continuously press ready if the ready prompt is active
+                            local vr = stateReps and stateReps:FindFirstChild("VoteReplicator")
+                            if vr and vr:GetAttribute("Enabled") == true and vr:GetAttribute("Title") == "Ready?" then
+                                pcall(RunVoteSkip)
+                            end
+
+                            task.wait(1)
+                        end
+
+                        if not hasStarted and activeInGameCurrencyLoop and State.Master and game.PlaceId ~= LOBBY_PLACE_ID then
+                            local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                            local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                            local curWave = (gsr and gsr:GetAttribute("Wave")) or 0
+                            local isGameStarted = (gsr and gsr:GetAttribute("GameStarted") == true)
+
+                            if not isGameStarted and curWave == 0 then
+                                Logger:Warn("Auto Match Watchdog: Match failed to ready up or start Wave 1 within 30s! Returning to lobby via smartLobby...")
+                                if Window and typeof(Window.Notify) == "function" then
+                                    Window:Notify({
+                                        Title = "Match Start Timeout",
+                                        Desc = "Match failed to ready up or start within 30s. Returning to lobby...",
+                                        Duration = 6,
+                                    })
+                                end
+                                pcall(SmartTeleportToLobby)
+                            end
+                        end
+                    end)
 
                     local pendingTargetReached = false
                     local lastBoxRefresh = 0
