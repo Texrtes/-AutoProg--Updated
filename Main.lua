@@ -611,6 +611,8 @@ end
 -- 2.6 Load TDS In-Game API (API.lua via GitHub loadstring)
 --==============================================================================
 local cachedTDSAPI = nil
+local State = nil
+local activeInGameCurrencyLoop = false
 
 local function hookTDSVoteSkip(api)
     if not api or type(api) ~= "table" then return end
@@ -618,9 +620,29 @@ local function hookTDSVoteSkip(api)
         api.__autoSkipHooked = true
         local orig = api.VoteSkip
         api.VoteSkip = function(self, ...)
+            local isAutomationRunning = false
+            if State and State.Master then
+                if (State.AutoProgress and State.AutoProgress.Enabled == true)
+                    or (Globals and Globals.AutoProgressEnabled == true) then
+                    isAutomationRunning = true
+                elseif State.AutoCurrency then
+                    for _, curObj in pairs(State.AutoCurrency) do
+                        if type(curObj) == "table" and curObj.Enabled == true then
+                            isAutomationRunning = true
+                            break
+                        end
+                    end
+                end
+            end
+            if activeInGameCurrencyLoop == true then
+                isAutomationRunning = true
+            end
+
             local isSkipEnabled = (Globals and Globals.AutoSkip == true)
                 or (State and State.Utilities and State.Utilities.AutoSkip == true)
                 or (getgenv and getgenv().AutoSkip == true)
+                or isAutomationRunning
+
             if not isSkipEnabled then
                 return false
             end
@@ -3083,7 +3105,7 @@ end
 local SendAutoCurrencyWebhook = nil
 local SendDiscordWebhook = nil
 
-local State = {
+State = {
     Master = true,
     StartTime = os.time(),
     ActionsCount = 0,
@@ -9548,7 +9570,7 @@ end)
 ;(function()
     local isCurrencyMatchmaking = false
 local lastCurrencyMatchmakingTime = 0
-local activeInGameCurrencyLoop = false
+activeInGameCurrencyLoop = false
 local timescalesConsecutiveLosses = 0
 currentActiveTrialTitle = nil
 
@@ -10776,6 +10798,35 @@ task.spawn(function()
                     local stratThread = nil
                     local function startStrat()
                         if not scriptUrl or scriptUrl == "" then
+                            local isLoseCondition = (condition == "Lose") or (activeMode == "Progress")
+                            if isLoseCondition and (game.PlaceId ~= LOBBY_PLACE_ID) then
+                                Logger:Warn("Auto Currency: Strategy script URL missing for " .. tostring(activeMap) .. ". Lose condition detected; waiting for base defeat to preserve match rewards before smartLobby...")
+                                if Window and typeof(Window.Notify) == "function" then
+                                    Window:Notify({
+                                        Title = "Strategy Script Missing",
+                                        Desc = "No strategy found for " .. tostring(activeMap) .. ". Waiting for base defeat to collect rewards...",
+                                        Duration = 6,
+                                        Type = "warn"
+                                    })
+                                end
+                                task.spawn(function()
+                                    local graceT0 = tick()
+                                    while activeInGameCurrencyLoop and (game.PlaceId ~= LOBBY_PLACE_ID) and (tick() - graceT0 < 80) do
+                                        local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                        local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                        if gsr and gsr:GetAttribute("GameOver") == true then
+                                            return
+                                        end
+                                        task.wait(1)
+                                    end
+                                    if game.PlaceId ~= LOBBY_PLACE_ID then
+                                        Logger:Warn("Auto Currency: Base defeat timed out (80s). Returning to lobby via smartLobby...")
+                                        pcall(SmartTeleportToLobby)
+                                    end
+                                end)
+                                return
+                            end
+
                             Logger:Warn("Auto Currency: Strategy script URL is missing for map: " .. tostring(activeMap) .. "! Returning to lobby in 3s via smartLobby...")
                             if Window and typeof(Window.Notify) == "function" then
                                 Window:Notify({
@@ -10834,19 +10885,47 @@ task.spawn(function()
                                 end
                             end)
                             if not ok then
-                                Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr) .. ". Returning to lobby in 4s via smartLobby...")
-                                if Window and typeof(Window.Notify) == "function" then
-                                    Window:Notify({
-                                        Title = "Strategy Script Error",
-                                        Desc = "Strategy failed to load/execute for " .. tostring(activeMap) .. ". Returning to lobby...",
-                                        Duration = 5,
-                                    })
-                                end
-                                task.delay(4, function()
-                                    if game.PlaceId ~= LOBBY_PLACE_ID then
-                                        pcall(SmartTeleportToLobby)
+                                local isLoseCondition = (condition == "Lose") or (activeMode == "Progress")
+                                if isLoseCondition and (game.PlaceId ~= LOBBY_PLACE_ID) then
+                                    Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr) .. ". Lose condition detected; waiting up to 80s for base defeat to preserve match rewards...")
+                                    if Window and typeof(Window.Notify) == "function" then
+                                        Window:Notify({
+                                            Title = "Strategy Script Error",
+                                            Desc = "Strategy error on " .. tostring(activeMap) .. ". Waiting for base defeat so match rewards are preserved...",
+                                            Duration = 6,
+                                            Type = "warn"
+                                        })
                                     end
-                                end)
+                                    task.spawn(function()
+                                        local graceT0 = tick()
+                                        while activeInGameCurrencyLoop and (game.PlaceId ~= LOBBY_PLACE_ID) and (tick() - graceT0 < 80) do
+                                            local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                            local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                            if gsr and gsr:GetAttribute("GameOver") == true then
+                                                return
+                                            end
+                                            task.wait(1)
+                                        end
+                                        if game.PlaceId ~= LOBBY_PLACE_ID then
+                                            Logger:Warn("Auto Currency: Base defeat timed out (80s) after strategy error. Returning to lobby via smartLobby...")
+                                            pcall(SmartTeleportToLobby)
+                                        end
+                                    end)
+                                else
+                                    Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr) .. ". Returning to lobby in 4s via smartLobby...")
+                                    if Window and typeof(Window.Notify) == "function" then
+                                        Window:Notify({
+                                            Title = "Strategy Script Error",
+                                            Desc = "Strategy failed to load/execute for " .. tostring(activeMap) .. ". Returning to lobby...",
+                                            Duration = 5,
+                                        })
+                                    end
+                                    task.delay(4, function()
+                                        if game.PlaceId ~= LOBBY_PLACE_ID then
+                                            pcall(SmartTeleportToLobby)
+                                        end
+                                    end)
+                                end
                             end
                         end)
                     end
@@ -11571,16 +11650,48 @@ task.spawn(function()
                                                 pcall(function() remote:InvokeServer("Multiplayer", "v2:stop") end)
                                                 resetAllTDSIndices()
                                                 task.wait(0.2)
-                                                remote:InvokeServer("Multiplayer", "v2:start", {
-                                                    mode = "story",
-                                                    count = 1,
-                                                    story = {
-                                                        chapter = 0,
-                                                        mission = nextMissionNum
-                                                    }
-                                                })
+                                                pcall(function()
+                                                    remote:InvokeServer("Multiplayer", "v2:start", {
+                                                        mode = "story",
+                                                        count = 1,
+                                                        story = {
+                                                            chapter = 0,
+                                                            mission = nextMissionNum
+                                                        }
+                                                    })
+                                                end)
                                             end
-                                            task.wait(3)
+
+                                            -- Fast-Transition Watchdog: Monitor up to 18s for mission reset / teleport
+                                            Logger:Info(string.format("Auto Progress (Node 0): Fast-transition watchdog active (waiting up to 18s for Mission %d to start)...", nextMissionNum))
+                                            local transitionT0 = tick()
+                                            local transitioned = false
+                                            while (tick() - transitionT0 < 18) and activeInGameCurrencyLoop and State.Master do
+                                                task.wait(0.5)
+                                                if game.PlaceId == LOBBY_PLACE_ID then
+                                                    transitioned = true
+                                                    break
+                                                end
+
+                                                local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                                local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                                local isOver = gsr and gsr:GetAttribute("GameOver")
+                                                local newMission = tonumber(gsr and gsr:GetAttribute("StoryMission"))
+                                                local wave = gsr and (gsr:GetAttribute("Wave") or 0)
+                                                local vr = stateReps and stateReps:FindFirstChild("VoteReplicator")
+                                                local vTitle = vr and vr:GetAttribute("Title")
+
+                                                if (isOver == false and (newMission == nextMissionNum or wave <= 1)) or vTitle == "Ready?" then
+                                                    transitioned = true
+                                                    Logger:Info(string.format("Auto Progress (Node 0): Fast-transition into Mission %d succeeded in-game!", nextMissionNum))
+                                                    break
+                                                end
+                                            end
+
+                                            if not transitioned and game.PlaceId ~= LOBBY_PLACE_ID then
+                                                Logger:Warn(string.format("Auto Progress (Node 0): Fast-transition to Mission %d timed out (18s). Returning to lobby via smartLobby to queue cleanly...", nextMissionNum))
+                                                pcall(SmartTeleportToLobby)
+                                            end
                                             break
                                         else
                                             -- All 4 story missions cleared! Return to lobby to buy towers & advance to Node 1
