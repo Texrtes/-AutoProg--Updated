@@ -77,19 +77,35 @@ Library.Assets = {
 
 -- Refined Glass Theme Palette
 Library.Themes = {
-    AegisCyan = {
-        Background    = Color3.fromRGB(12, 14, 21),
-        Sidebar       = Color3.fromRGB(10, 12, 18),
-        Surface       = Color3.fromRGB(17, 20, 32),
-        SurfaceHover  = Color3.fromRGB(25, 30, 48),
-        Stroke        = Color3.fromRGB(0, 240, 255),
-        StrokeSoft    = Color3.fromRGB(32, 40, 58),
+    Dark = {
+        Background    = Color3.fromRGB(24, 26, 30),
+        Sidebar       = Color3.fromRGB(19, 20, 24),
+        Surface       = Color3.fromRGB(33, 35, 41),
+        SurfaceHover  = Color3.fromRGB(44, 47, 55),
+        Stroke        = Color3.fromRGB(60, 64, 74),
+        StrokeSoft    = Color3.fromRGB(48, 52, 60),
         Text          = Color3.fromRGB(255, 255, 255),
-        Muted         = Color3.fromRGB(148, 163, 184),
-        Accent        = Color3.fromRGB(0, 240, 255),
-        AccentHover   = Color3.fromRGB(56, 189, 248),
-        AccentSoft    = Color3.fromRGB(14, 45, 65),
-        Success       = Color3.fromRGB(16, 185, 129),
+        Muted         = Color3.fromRGB(165, 170, 182),
+        Accent        = Color3.fromRGB(57, 211, 83),
+        AccentHover   = Color3.fromRGB(74, 222, 128),
+        AccentSoft    = Color3.fromRGB(30, 48, 36),
+        Success       = Color3.fromRGB(57, 211, 83),
+        Warning       = Color3.fromRGB(245, 158, 11),
+        Danger        = Color3.fromRGB(239, 68, 68),
+    },
+    AegisCyan = {
+        Background    = Color3.fromRGB(24, 26, 30),
+        Sidebar       = Color3.fromRGB(19, 20, 24),
+        Surface       = Color3.fromRGB(33, 35, 41),
+        SurfaceHover  = Color3.fromRGB(44, 47, 55),
+        Stroke        = Color3.fromRGB(60, 64, 74),
+        StrokeSoft    = Color3.fromRGB(48, 52, 60),
+        Text          = Color3.fromRGB(255, 255, 255),
+        Muted         = Color3.fromRGB(165, 170, 182),
+        Accent        = Color3.fromRGB(57, 211, 83),
+        AccentHover   = Color3.fromRGB(74, 222, 128),
+        AccentSoft    = Color3.fromRGB(30, 48, 36),
+        Success       = Color3.fromRGB(57, 211, 83),
         Warning       = Color3.fromRGB(245, 158, 11),
         Danger        = Color3.fromRGB(239, 68, 68),
     },
@@ -142,18 +158,18 @@ Library.Themes = {
         Danger        = Color3.fromRGB(239, 68, 68),
     },
     LightGray = {
-        Background    = Color3.fromRGB(11, 13, 20),
-        Sidebar       = Color3.fromRGB(9, 11, 17),
-        Surface       = Color3.fromRGB(16, 20, 31),
-        SurfaceHover  = Color3.fromRGB(24, 30, 48),
-        Stroke        = Color3.fromRGB(0, 240, 255),
-        StrokeSoft    = Color3.fromRGB(30, 41, 59),
+        Background    = Color3.fromRGB(24, 26, 30),
+        Sidebar       = Color3.fromRGB(19, 20, 24),
+        Surface       = Color3.fromRGB(33, 35, 41),
+        SurfaceHover  = Color3.fromRGB(44, 47, 55),
+        Stroke        = Color3.fromRGB(60, 64, 74),
+        StrokeSoft    = Color3.fromRGB(48, 52, 60),
         Text          = Color3.fromRGB(255, 255, 255),
-        Muted         = Color3.fromRGB(148, 163, 184),
-        Accent        = Color3.fromRGB(0, 240, 255),
-        AccentHover   = Color3.fromRGB(56, 189, 248),
-        AccentSoft    = Color3.fromRGB(14, 45, 65),
-        Success       = Color3.fromRGB(16, 185, 129),
+        Muted         = Color3.fromRGB(165, 170, 182),
+        Accent        = Color3.fromRGB(57, 211, 83),
+        AccentHover   = Color3.fromRGB(74, 222, 128),
+        AccentSoft    = Color3.fromRGB(30, 48, 36),
+        Success       = Color3.fromRGB(57, 211, 83),
         Warning       = Color3.fromRGB(245, 158, 11),
         Danger        = Color3.fromRGB(239, 68, 68),
     },
@@ -255,10 +271,10 @@ Library.Themes = {
     }
 }
 
-local THEME_ORDER = { "LightGray", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" }
+local THEME_ORDER = { "Dark", "LightGray", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" }
 
 local function resolveTheme(themeInput: any): { [string]: Color3 }
-    local base = Library.Themes.LightGray or Library.Themes.CyberNeon
+    local base = Library.Themes.Dark or Library.Themes.LightGray or Library.Themes.AegisCyan
     local resolved = {}
     for k, v in pairs(base) do
         resolved[k] = v
@@ -287,8 +303,21 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local function elevateThread()
-    -- Safe no-op to prevent 'lacking capability Plugin' capability errors on mobile executors like Delta
+    pcall(function()
+        local setid = setthreadidentity or set_thread_identity or (syn and syn.set_thread_identity) or setidentity
+        if setid then
+            if not pcall(setid, 7) then
+                pcall(setid, 8)
+            end
+        end
+    end)
+    pcall(function()
+        if setthreadcaps then
+            pcall(setthreadcaps, 0x3FFFFFFFFFFFFFFF)
+        end
+    end)
 end
+elevateThread()
 
 local function getTopInset(): number
     elevateThread()
@@ -503,25 +532,28 @@ end
 local function addRipple(button: GuiButton, color: Color3)
     button.ClipsDescendants = true
     button.MouseButton1Down:Connect(function(x, y)
-        local ripple = make("Frame", {
-            Name = "Ripple",
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.fromOffset(x - button.AbsolutePosition.X, y - button.AbsolutePosition.Y),
-            Size = UDim2.fromOffset(0, 0),
-            BackgroundColor3 = color,
-            BackgroundTransparency = 0.65,
-            BorderSizePixel = 0,
-            ZIndex = button.ZIndex + 2,
-            Parent = button,
-        })
-        corner(ripple, 100)
-        local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2.2
-        tween(ripple, 0.45, {
-            Size = UDim2.fromOffset(size, size),
-            BackgroundTransparency = 1,
-        }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-        task.delay(0.48, function()
-            if ripple then ripple:Destroy() end
+        elevateThread()
+        pcall(function()
+            local ripple = make("Frame", {
+                Name = "Ripple",
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.fromOffset(x - button.AbsolutePosition.X, y - button.AbsolutePosition.Y),
+                Size = UDim2.fromOffset(0, 0),
+                BackgroundColor3 = color,
+                BackgroundTransparency = 0.65,
+                BorderSizePixel = 0,
+                ZIndex = button.ZIndex + 2,
+                Parent = button,
+            })
+            corner(ripple, 100)
+            local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2.2
+            tween(ripple, 0.45, {
+                Size = UDim2.fromOffset(size, size),
+                BackgroundTransparency = 1,
+            }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+            task.delay(0.48, function()
+                if ripple then ripple:Destroy() end
+            end)
         end)
     end)
 end
@@ -539,19 +571,35 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
     end)
     local topInset = getTopInset()
 
-    local effectiveH = customHeight or (target and target.Size and target.Size.Y.Offset) or (target and target.AbsoluteSize and (target.AbsoluteSize.Y / scale)) or 540
-    local effectiveW = customWidth or (target and target.Size and target.Size.X.Offset) or (target and target.AbsoluteSize and (target.AbsoluteSize.X / scale)) or 800
+    local effectiveH = customHeight
+    if not effectiveH then
+        pcall(function()
+            if target and target.Size then
+                effectiveH = target.Size.Y.Offset
+            elseif target and target.AbsoluteSize then
+                effectiveH = target.AbsoluteSize.Y / scale
+            end
+        end)
+    end
+    effectiveH = effectiveH or 540
+
+    local effectiveW = customWidth
+    if not effectiveW then
+        pcall(function()
+            if target and target.Size then
+                effectiveW = target.Size.X.Offset
+            elseif target and target.AbsoluteSize then
+                effectiveW = target.AbsoluteSize.X / scale
+            end
+        end)
+    end
+    effectiveW = effectiveW or 800
 
     local halfH = effectiveH * 0.5
     local halfW = effectiveW * 0.5
 
     -- Screen boundary clamping for AnchorPoint (0.5, 0.5):
-    -- Window top edge in screen coords: (vp.Y * 0.5) + (offsetY * scale) - (halfH * scale) >= topInset + 6
-    -- Therefore offsetY >= (-(vp.Y * 0.5) + topInset + 6) / scale + halfH
     local minOffsetY = (-(vp.Y * 0.5) + topInset + 6) / scale + halfH
-    -- Window bottom edge should not go below viewport bottom:
-    -- (vp.Y * 0.5) + (offsetY * scale) + (halfH * scale) <= vp.Y - 20
-    -- Therefore offsetY <= ((vp.Y * 0.5) - 20) / scale - halfH
     local maxOffsetY = ((vp.Y * 0.5) - 20) / scale - halfH
     if maxOffsetY < minOffsetY then
         maxOffsetY = minOffsetY
@@ -560,15 +608,34 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
     local minOffsetX = (-(vp.X * 0.5) + 60) / scale
     local maxOffsetX = ((vp.X * 0.5) - 60) / scale
 
-    local currentOffsetY = candidateY or (target and target.Position and target.Position.Y.Offset) or 0
-    local currentOffsetX = candidateX or (target and target.Position and target.Position.X.Offset) or 0
+    local currentOffsetY = candidateY
+    if not currentOffsetY then
+        pcall(function()
+            if target and target.Position then
+                currentOffsetY = target.Position.Y.Offset
+            end
+        end)
+    end
+    currentOffsetY = currentOffsetY or 0
+
+    local currentOffsetX = candidateX
+    if not currentOffsetX then
+        pcall(function()
+            if target and target.Position then
+                currentOffsetX = target.Position.X.Offset
+            end
+        end)
+    end
+    currentOffsetX = currentOffsetX or 0
 
     local clampedY = math.clamp(currentOffsetY, minOffsetY, maxOffsetY)
     local clampedX = math.clamp(currentOffsetX, minOffsetX, maxOffsetX)
 
     local resultPos = UDim2.new(0.5, clampedX, 0.5, clampedY)
     if target and candidateY == nil and candidateX == nil then
-        target.Position = resultPos
+        pcall(function()
+            target.Position = resultPos
+        end)
     end
     return resultPos
 end
@@ -581,24 +648,35 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
 
     handle.InputBegan:Connect(function(input)
         elevateThread()
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPosition = target.Position
-            input.Changed:Connect(function()
-                elevateThread()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
+        pcall(function()
+            local inputType = input.UserInputType
+            if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+                dragging = true
+                pcall(function() dragStart = input.Position end)
+                local posOk, posVal = pcall(function() return target.Position end)
+                if posOk and posVal then
+                    startPosition = posVal
                 end
-            end)
-        end
+                input.Changed:Connect(function()
+                    elevateThread()
+                    pcall(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                        end
+                    end)
+                end)
+            end
+        end)
     end)
 
     handle.InputChanged:Connect(function(input)
         elevateThread()
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
+        pcall(function()
+            local inputType = input.UserInputType
+            if inputType == Enum.UserInputType.MouseMovement or inputType == Enum.UserInputType.Touch then
+                dragInput = input
+            end
+        end)
     end)
 
     UserInputService.InputChanged:Connect(function(input)
@@ -619,7 +697,12 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                 local rawOffsetX = startPosition.X.Offset + (delta.X / scale)
                 local rawOffsetY = startPosition.Y.Offset + (delta.Y / scale)
 
-                local effectiveH = (target and target.Size and target.Size.Y.Offset) or 540
+                local effectiveH = 540
+                pcall(function()
+                    if target and target.Size then
+                        effectiveH = target.Size.Y.Offset
+                    end
+                end)
                 local halfH = effectiveH * 0.5
 
                 -- Top edge can never go above topInset + 6
@@ -635,12 +718,14 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                 local clampedY = math.clamp(rawOffsetY, minOffsetY, maxOffsetY)
                 local clampedX = math.clamp(rawOffsetX, minOffsetX, maxOffsetX)
 
-                target.Position = UDim2.new(
-                    0.5,
-                    clampedX,
-                    0.5,
-                    clampedY
-                )
+                pcall(function()
+                    target.Position = UDim2.new(
+                        0.5,
+                        clampedX,
+                        0.5,
+                        clampedY
+                    )
+                end)
             end)
         end
     end)
@@ -654,38 +739,53 @@ local function bindFloatingDrag(btn: GuiObject)
 
     btn.InputBegan:Connect(function(input)
         elevateThread()
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = btn.Position
-            input.Changed:Connect(function()
-                elevateThread()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
+        pcall(function()
+            local inputType = input.UserInputType
+            if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+                dragging = true
+                pcall(function() dragStart = input.Position end)
+                local posOk, posVal = pcall(function() return btn.Position end)
+                if posOk and posVal then
+                    startPos = posVal
                 end
-            end)
-        end
+                input.Changed:Connect(function()
+                    elevateThread()
+                    pcall(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                        end
+                    end)
+                end)
+            end
+        end)
     end)
 
     UserInputService.InputChanged:Connect(function(input)
         elevateThread()
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragStart and startPos then
+        if dragging and dragStart and startPos then
             pcall(function()
-                local delta = input.Position - dragStart
-                local camera = workspace.CurrentCamera
-                local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
-                local btnW = btn.AbsoluteSize.X
-                local btnH = btn.AbsoluteSize.Y
+                local inputType = input.UserInputType
+                if inputType == Enum.UserInputType.MouseMovement or inputType == Enum.UserInputType.Touch then
+                    local delta = input.Position - dragStart
+                    local camera = workspace.CurrentCamera
+                    local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+                    local btnW = 50
+                    local btnH = 50
+                    pcall(function()
+                        btnW = btn.AbsoluteSize.X
+                        btnH = btn.AbsoluteSize.Y
+                    end)
 
-                local currentAbsX = (startPos.X.Scale * vp.X) + startPos.X.Offset + delta.X
-                local currentAbsY = (startPos.Y.Scale * vp.Y) + startPos.Y.Offset + delta.Y
+                    local currentAbsX = (startPos.X.Scale * vp.X) + startPos.X.Offset + delta.X
+                    local currentAbsY = (startPos.Y.Scale * vp.Y) + startPos.Y.Offset + delta.Y
 
-                -- Allows dragging anywhere: from Y = 4 at the very top of screen to bottom
-                local clampedX = math.clamp(currentAbsX, 4, vp.X - btnW - 4)
-                local clampedY = math.clamp(currentAbsY, 4, vp.Y - btnH - 4)
+                    -- Allows dragging anywhere: from Y = 4 at the very top of screen to bottom
+                    local clampedX = math.clamp(currentAbsX, 4, vp.X - btnW - 4)
+                    local clampedY = math.clamp(currentAbsY, 4, vp.Y - btnH - 4)
 
-                btn.AnchorPoint = Vector2.new(0, 0)
-                btn.Position = UDim2.fromOffset(clampedX, clampedY)
+                    btn.AnchorPoint = Vector2.new(0, 0)
+                    btn.Position = UDim2.fromOffset(clampedX, clampedY)
+                end
             end)
         end
     end)
@@ -699,24 +799,35 @@ local function bindResize(handle: GuiObject, target: GuiObject, minSize: Vector2
 
     handle.InputBegan:Connect(function(input)
         elevateThread()
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            resizing = true
-            startPos = Vector2.new(input.Position.X, input.Position.Y)
-            startSize = target.Size
-            input.Changed:Connect(function()
-                elevateThread()
-                if input.UserInputState == Enum.UserInputState.End then
-                    resizing = false
+        pcall(function()
+            local inputType = input.UserInputType
+            if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+                resizing = true
+                pcall(function() startPos = Vector2.new(input.Position.X, input.Position.Y) end)
+                local sizeOk, sizeVal = pcall(function() return target.Size end)
+                if sizeOk and sizeVal then
+                    startSize = sizeVal
                 end
-            end)
-        end
+                input.Changed:Connect(function()
+                    elevateThread()
+                    pcall(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            resizing = false
+                        end
+                    end)
+                end)
+            end
+        end)
     end)
 
     handle.InputChanged:Connect(function(input)
         elevateThread()
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            resizeInput = input
-        end
+        pcall(function()
+            local inputType = input.UserInputType
+            if inputType == Enum.UserInputType.MouseMovement or inputType == Enum.UserInputType.Touch then
+                resizeInput = input
+            end
+        end)
     end)
 
     UserInputService.InputChanged:Connect(function(input)
@@ -733,7 +844,9 @@ local function bindResize(handle: GuiObject, target: GuiObject, minSize: Vector2
                 local delta = (currentPos - startPos) / scale
                 local newX = math.max(minSize.X, startSize.X.Offset + delta.X)
                 local newY = math.max(minSize.Y, startSize.Y.Offset + delta.Y)
-                target.Size = UDim2.fromOffset(newX, newY)
+                pcall(function()
+                    target.Size = UDim2.fromOffset(newX, newY)
+                end)
                 clampWindowPosition(target, uiScale)
             end)
         end
@@ -975,17 +1088,14 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
         corner(accentBar, 2)
 
         local rawTitle = tostring(props.Title or "Section")
-        local displayTitle = rawTitle
-        if not displayTitle:find("^//") then
-            displayTitle = "// " .. displayTitle
-        end
+        local displayTitle = rawTitle:gsub("^//%s*", "")
 
         make("TextLabel", {
             Name = "SectionTitle",
-            Text = string.upper(displayTitle),
+            Text = displayTitle,
             Font = Enum.Font.GothamBold,
-            TextSize = 13,
-            TextColor3 = Color3.fromRGB(226, 232, 240),
+            TextSize = 15,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
             TextXAlignment = Enum.TextXAlignment.Left,
             BackgroundTransparency = 1,
             Size = UDim2.new(1, -20, 1, 0),
@@ -1105,38 +1215,42 @@ local function createPageApi(window: any, scroll: ScrollingFrame)
             AnchorPoint = Vector2.new(1, 0.5),
             Position = UDim2.new(1, -16, 0.5, 0),
             Size = UDim2.fromOffset(48, 26),
-            BackgroundColor3 = value and window.Theme.Accent or Color3.fromRGB(24, 30, 48),
-            BackgroundTransparency = value and 0.15 or 0.40,
+            BackgroundColor3 = value and window.Theme.Accent or Color3.fromRGB(38, 41, 48),
+            BackgroundTransparency = value and 0.05 or 0.35,
             BorderSizePixel = 0,
             Parent = row,
         })
         corner(switch, 13)
-        local switchStroke = stroke(switch, value and window.Theme.Accent or window.Theme.StrokeSoft, 1, value and 0.25 or 0.65)
+        local switchStroke = stroke(switch, value and window.Theme.Accent or window.Theme.StrokeSoft, 1, value and 0.20 or 0.70)
 
         local knob = make("Frame", {
             Name = "Knob",
             Size = UDim2.fromOffset(20, 20),
             Position = value and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BackgroundColor3 = value and Color3.fromRGB(15, 17, 20) or Color3.fromRGB(220, 225, 235),
             BorderSizePixel = 0,
             Parent = switch,
         })
         corner(knob, 10)
-        stroke(knob, Color3.fromRGB(200, 210, 230), 1, 0.7)
+        local knobStroke = stroke(knob, value and Color3.fromRGB(25, 30, 25) or Color3.fromRGB(180, 185, 195), 1, 0.7)
 
         local function setValue(nextValue: boolean, fire: boolean?)
             value = nextValue == true
             tween(switch, 0.22, {
-                BackgroundColor3 = value and window.Theme.Accent or Color3.fromRGB(24, 30, 48),
-                BackgroundTransparency = value and 0.15 or 0.40,
+                BackgroundColor3 = value and window.Theme.Accent or Color3.fromRGB(38, 41, 48),
+                BackgroundTransparency = value and 0.05 or 0.35,
             }, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
             tween(switchStroke, 0.22, {
                 Color = value and window.Theme.Accent or window.Theme.StrokeSoft,
-                Transparency = value and 0.25 or 0.65,
+                Transparency = value and 0.20 or 0.70,
             })
             tween(knob, 0.22, {
                 Position = value and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10),
+                BackgroundColor3 = value and Color3.fromRGB(15, 17, 20) or Color3.fromRGB(220, 225, 235),
             }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            tween(knobStroke, 0.22, {
+                Color = value and Color3.fromRGB(25, 30, 25) or Color3.fromRGB(180, 185, 195),
+            })
             if fire then
                 task.spawn(function() callback(value) end)
             end
@@ -4017,22 +4131,22 @@ function Library:Window(props: { [string]: any })
         return self.DeviceType
     end
 
-    -- Frosted Glass Window Body (Pure transparent cyber obsidian slate-gray glass)
+    -- Frosted Glass Window Body (Pure transparent neutral dark charcoal slate-gray glass)
     local root = make("Frame", {
         Name = "WindowRoot",
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.new(1, -16, 1, -16),
-        BackgroundColor3 = Color3.fromRGB(12, 14, 21),
-        BackgroundTransparency = 0.12, -- Translucent deep obsidian slate glass
+        BackgroundColor3 = self.Theme.Background,
+        BackgroundTransparency = 0.20, -- Translucent neutral dark gray glass
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Parent = shadow,
     })
     corner(root, 22)
 
-    -- Clean Static Cyber Cyan Border (1px, 0.65 transparency, matching HTML prototype)
-    local rootStroke = stroke(root, Color3.fromRGB(0, 240, 255), 1, 0.65)
+    -- Clean Static Neutral Slate Border (1px, 0.60 transparency, matching Photo 2 reference)
+    local rootStroke = stroke(root, self.Theme.Stroke, 1, 0.60)
     rootStroke.Name = "WindowBorderStroke"
     self.BorderStroke = rootStroke
     self.BorderGradient = nil
@@ -4187,26 +4301,26 @@ function Library:Window(props: { [string]: any })
 
     self.Root = root
 
-    -- Subtle Top Edge Glass Reflection (Cyan specular line matching HTML prototype)
+    -- Subtle Top Edge Glass Reflection (Clean white specular reflection line)
     local topGlow = make("Frame", {
         Name = "TopGlow",
         Position = UDim2.new(0, 0, 0, 0),
         Size = UDim2.new(1, 0, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(0, 240, 255),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         Parent = root,
     })
     make("UIGradient", {
         Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 240, 255)),
+            ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 255, 255)),
             ColorSequenceKeypoint.new(0.50, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 240, 255)),
+            ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255)),
         }),
         Transparency = NumberSequence.new({
             NumberSequenceKeypoint.new(0.00, 1.0),
-            NumberSequenceKeypoint.new(0.20, 0.6),
-            NumberSequenceKeypoint.new(0.50, 0.2),
-            NumberSequenceKeypoint.new(0.80, 0.6),
+            NumberSequenceKeypoint.new(0.20, 0.7),
+            NumberSequenceKeypoint.new(0.50, 0.4),
+            NumberSequenceKeypoint.new(0.80, 0.7),
             NumberSequenceKeypoint.new(1.00, 1.0),
         }),
         Parent = topGlow,
@@ -4226,8 +4340,8 @@ function Library:Window(props: { [string]: any })
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 24, 0.5, 0),
         Size = UDim2.fromOffset(48, 48),
-        BackgroundColor3 = Color3.fromRGB(15, 18, 28),
-        BackgroundTransparency = 0.15,
+        BackgroundColor3 = Color3.fromRGB(24, 26, 30),
+        BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
         Image = floatIconResolved,
         ImageColor3 = Color3.fromRGB(255, 255, 255),
@@ -4237,8 +4351,8 @@ function Library:Window(props: { [string]: any })
         Parent = screenGui,
     })
     corner(floatingOpenBtn, 12)
-    stroke(floatingOpenBtn, Color3.fromRGB(0, 240, 255), 1.2, 0.40)
-    addRipple(floatingOpenBtn, Color3.fromRGB(0, 240, 255))
+    stroke(floatingOpenBtn, self.Theme.Stroke, 1.2, 0.50)
+    addRipple(floatingOpenBtn, self.Theme.Accent)
     bindFloatingDrag(floatingOpenBtn)
 
     -- Confirmation Modal for Exit
@@ -4429,7 +4543,7 @@ function Library:Window(props: { [string]: any })
         Name = "Sidebar",
         Size = UDim2.new(0, sidebarWidth, 1, 0),
         BackgroundColor3 = self.Theme.Sidebar,
-        BackgroundTransparency = 0.12, -- Solid cyber obsidian glass
+        BackgroundTransparency = 0.20, -- Neutral transparent gray glass
         BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 5,
@@ -4444,7 +4558,7 @@ function Library:Window(props: { [string]: any })
         Position = UDim2.new(1, 0, 0, 0),
         Size = UDim2.new(0, 24, 1, 0),
         BackgroundColor3 = self.Theme.Sidebar,
-        BackgroundTransparency = 0.12,
+        BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
         ZIndex = 4,
         Parent = sidebar,
@@ -4456,7 +4570,7 @@ function Library:Window(props: { [string]: any })
         Position = UDim2.new(1, 0, 0, 0),
         Size = UDim2.new(0, 1, 1, 0),
         BackgroundColor3 = self.Theme.StrokeSoft,
-        BackgroundTransparency = 0.50,
+        BackgroundTransparency = 0.65,
         BorderSizePixel = 0,
         Parent = sidebar,
     })
@@ -4465,7 +4579,7 @@ function Library:Window(props: { [string]: any })
         Name = "SideHeader",
         Size = UDim2.new(1, 0, 0, 72),
         BackgroundColor3 = self.Theme.Sidebar,
-        BackgroundTransparency = 0.12,
+        BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 10,
@@ -4478,7 +4592,7 @@ function Library:Window(props: { [string]: any })
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.new(0, 10, 1, 0),
         Size = UDim2.new(1, -20, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(38, 46, 68),
+        BackgroundColor3 = self.Theme.StrokeSoft,
         BackgroundTransparency = 0.65,
         BorderSizePixel = 0,
         ZIndex = 11,
@@ -4574,7 +4688,7 @@ function Library:Window(props: { [string]: any })
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.new(0, 10, 1, -74),
         Size = UDim2.new(1, -20, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(38, 46, 68),
+        BackgroundColor3 = self.Theme.StrokeSoft,
         BackgroundTransparency = 0.65,
         BorderSizePixel = 0,
         ZIndex = 10,
@@ -4587,21 +4701,21 @@ function Library:Window(props: { [string]: any })
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.new(0, 10, 1, -10),
         Size = UDim2.new(1, -20, 0, 56),
-        BackgroundColor3 = Color3.fromRGB(18, 21, 34),
-        BackgroundTransparency = 0.35,
+        BackgroundColor3 = Color3.fromRGB(28, 30, 36),
+        BackgroundTransparency = 0.40,
         BorderSizePixel = 0,
         ZIndex = 10,
         Parent = sidebar,
     })
     corner(profileCard, 10)
-    local pStroke = stroke(profileCard, Color3.fromRGB(38, 46, 68), 1, 0.65)
+    local pStroke = stroke(profileCard, self.Theme.StrokeSoft, 1, 0.70)
     padding(profileCard, 10, 8, 10, 8)
 
     profileCard.MouseEnter:Connect(function()
-        tween(pStroke, 0.16, { Color = Color3.fromRGB(0, 240, 255), Transparency = 0.40 })
+        tween(pStroke, 0.16, { Color = self.Theme.Accent, Transparency = 0.40 })
     end)
     profileCard.MouseLeave:Connect(function()
-        tween(pStroke, 0.16, { Color = Color3.fromRGB(38, 46, 68), Transparency = 0.65 })
+        tween(pStroke, 0.16, { Color = self.Theme.StrokeSoft, Transparency = 0.70 })
     end)
 
     -- Rounded Squircle Avatar with Green Status Dot
@@ -4610,13 +4724,13 @@ function Library:Window(props: { [string]: any })
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
         Size = UDim2.fromOffset(36, 36),
-        BackgroundColor3 = Color3.fromRGB(15, 18, 28),
+        BackgroundColor3 = Color3.fromRGB(22, 24, 28),
         BorderSizePixel = 0,
         ClipsDescendants = false,
         Parent = profileCard,
     })
     corner(pAvatarWrap, 10)
-    stroke(pAvatarWrap, Color3.fromRGB(45, 55, 75), 1, 0.7)
+    stroke(pAvatarWrap, self.Theme.StrokeSoft, 1, 0.7)
 
     local pAvatarImgContainer = make("Frame", {
         Name = "AvatarImgContainer",
@@ -4641,13 +4755,13 @@ function Library:Window(props: { [string]: any })
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, 2, 1, 2),
         Size = UDim2.fromOffset(10, 10),
-        BackgroundColor3 = Color3.fromRGB(16, 185, 129),
+        BackgroundColor3 = self.Theme.Success,
         BorderSizePixel = 0,
         ZIndex = 5,
         Parent = pAvatarWrap,
     })
     corner(pStatusDot, 5)
-    stroke(pStatusDot, Color3.fromRGB(18, 21, 34), 1.5, 0)
+    stroke(pStatusDot, Color3.fromRGB(28, 30, 36), 1.5, 0)
 
     -- Info Wrap (Username on top, Badge + Perm on bottom row)
     local pInfoWrap = make("Frame", {
@@ -5056,6 +5170,9 @@ function Library:Window(props: { [string]: any })
         end
 
         root.BackgroundColor3 = self.Theme.Background
+        if self.BorderStroke then
+            self.BorderStroke.Color = self.Theme.Stroke
+        end
         if borderGradient and not self.CustomBorderGradient then
             borderGradient.Color = createDefaultBorderSequence(self.Theme)
         end
@@ -5063,7 +5180,7 @@ function Library:Window(props: { [string]: any })
             bgGradient.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0.00, self.Theme.Background),
                 ColorSequenceKeypoint.new(0.40, self.Theme.Sidebar),
-                ColorSequenceKeypoint.new(0.75, Color3.fromRGB(16, 20, 34)),
+                ColorSequenceKeypoint.new(0.75, Color3.fromRGB(28, 30, 36)),
                 ColorSequenceKeypoint.new(1.00, self.Theme.Background),
             })
         end
@@ -5108,8 +5225,8 @@ function Library:Window(props: { [string]: any })
             end
 
             tween(tab.Button, 0.18, {
-                BackgroundColor3 = selected and self.Theme.AccentSoft or self.Theme.Sidebar,
-                BackgroundTransparency = selected and 0.25 or 1,
+                BackgroundColor3 = selected and Color3.fromRGB(42, 45, 54) or self.Theme.Sidebar,
+                BackgroundTransparency = selected and 0.40 or 1,
             })
             if tab.Indicator then
                 tween(tab.Indicator, 0.18, {
@@ -5120,24 +5237,24 @@ function Library:Window(props: { [string]: any })
             end
             if tab.IconBox then
                 tween(tab.IconBox, 0.18, {
-                    BackgroundColor3 = selected and self.Theme.AccentSoft or Color3.fromRGB(20, 24, 36),
-                    BackgroundTransparency = selected and 0.15 or 0.60,
+                    BackgroundColor3 = selected and Color3.fromRGB(36, 38, 46) or Color3.fromRGB(30, 32, 38),
+                    BackgroundTransparency = selected and 0.20 or 0.60,
                 })
             end
             if tab.IconStroke then
                 tween(tab.IconStroke, 0.18, {
                     Color = selected and self.Theme.Accent or self.Theme.StrokeSoft,
-                    Transparency = selected and 0.35 or 0.80,
+                    Transparency = selected and 0.40 or 0.85,
                 })
             end
             if tab.Icon then
-                tween(tab.Icon, 0.18, { ImageColor3 = selected and self.Theme.Accent or self.Theme.Muted })
+                tween(tab.Icon, 0.18, { ImageColor3 = selected and Color3.fromRGB(255, 255, 255) or self.Theme.Muted })
             end
             if tab.TitleLabel then
                 tab.TitleLabel.TextColor3 = selected and Color3.fromRGB(255, 255, 255) or self.Theme.Muted
             end
             if tab.DescLabel then
-                tab.DescLabel.TextColor3 = selected and Color3.fromRGB(148, 220, 255) or Color3.fromRGB(100, 116, 139)
+                tab.DescLabel.TextColor3 = selected and Color3.fromRGB(180, 185, 195) or Color3.fromRGB(120, 125, 135)
             end
         end
         self.SelectedTab = name
@@ -5237,7 +5354,7 @@ function Library:Window(props: { [string]: any })
             AnchorPoint = Vector2.new(0, 0.5),
             Position = UDim2.new(0, 8, 0.5, 0),
             Size = UDim2.fromOffset(28, 28),
-            BackgroundColor3 = Color3.fromRGB(20, 24, 36),
+            BackgroundColor3 = Color3.fromRGB(30, 32, 38),
             BackgroundTransparency = 0.60,
             BorderSizePixel = 0,
             ZIndex = 7,
@@ -5310,7 +5427,7 @@ function Library:Window(props: { [string]: any })
             Text = subDesc,
             Font = Enum.Font.GothamMedium,
             TextSize = 10,
-            TextColor3 = Color3.fromRGB(100, 116, 139),
+            TextColor3 = Color3.fromRGB(120, 125, 135),
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTruncate = Enum.TextTruncate.AtEnd,
             BackgroundTransparency = 1,
@@ -5419,15 +5536,15 @@ function Library:Window(props: { [string]: any })
         local toast = make("Frame", {
             Name = "Toast",
             Size = UDim2.fromOffset(300, 68),
-            BackgroundColor3 = Color3.fromRGB(15, 18, 28),
-            BackgroundTransparency = 0.12,
+            BackgroundColor3 = Color3.fromRGB(24, 26, 32),
+            BackgroundTransparency = 0.18,
             BorderSizePixel = 0,
             ClipsDescendants = true,
             ZIndex = 501,
             Parent = notifHolder,
         })
         corner(toast, 10)
-        local tStroke = stroke(toast, Color3.fromRGB(38, 46, 68), 1, 0.65)
+        local tStroke = stroke(toast, self.Theme.Stroke, 1, 0.65)
         padding(toast, 14, 10, 14, 10)
 
         local accentLine = make("Frame", {
@@ -5670,10 +5787,12 @@ function Library:Window(props: { [string]: any })
 
     UserInputService.InputBegan:Connect(function(input, processed)
         elevateThread()
-        if processed then return end
-        if input.KeyCode == self.Keybind then
-            toggleVisibility()
-        end
+        pcall(function()
+            if processed then return end
+            if input.KeyCode == self.Keybind then
+                toggleVisibility()
+            end
+        end)
     end)
 
     clampWindowPosition(shadow, uiScale)
