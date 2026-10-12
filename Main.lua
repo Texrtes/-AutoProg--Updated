@@ -3608,6 +3608,7 @@ end)()
 local getAutoProgressNodeInfo = nil
 local refreshAutoProgUI = nil
 local progToggleRef = nil
+local getTowerCost = nil
 
 ;(function()
     local function isTowerOwned(name: string): boolean
@@ -3637,7 +3638,7 @@ local progToggleRef = nil
         return (#missing == 0), owned, missing
     end
 
-    local function getTowerCost(towerName: string): (number, string)
+    getTowerCost = function(towerName: string): (number, string)
         if not towerName or towerName == "" then return 0, "Coins" end
         local tList = (ProgressionConfig and ProgressionConfig.TowerList)
             or (Settings and Settings.TowerList)
@@ -9645,19 +9646,40 @@ task.spawn(function()
                             end
 
                             local boughtAny = false
-                            for _, towerName in ipairs(nodeInfo.towersToBuy) do
-                                local cost, cType = getTowerCost(towerName)
-                                if cType == "Coins" and cost > 0 and playerCoins >= cost then
-                                    Logger:Info(string.format("Auto Progress: Affordable tower '%s' (%d Coins, current balance: %d). Purchasing before matchmaking...", towerName, cost, playerCoins))
-                                    if typeof(attemptBuyMissingTowersList) == "function" then
-                                        local bought = attemptBuyMissingTowersList({ towerName })
-                                        if bought then
-                                            boughtAny = true
-                                            playerCoins = playerCoins - cost
-                                            task.wait(1.5)
+                            local okBuy, errBuy = pcall(function()
+                                for _, towerName in ipairs(nodeInfo.towersToBuy) do
+                                    local cost, cType = 0, "Coins"
+                                    if typeof(getTowerCost) == "function" then
+                                        cost, cType = getTowerCost(towerName)
+                                    else
+                                        local tList = (ProgressionConfig and ProgressionConfig.TowerList)
+                                            or (Settings and Settings.TowerList)
+                                        if tList and tList.Coins then
+                                            for _, item in ipairs(tList.Coins) do
+                                                if item.Name == towerName then
+                                                    cost = tonumber(item.Cost or item.Coins or 0) or 0
+                                                    cType = "Coins"
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+
+                                    if cType == "Coins" and cost > 0 and playerCoins >= cost then
+                                        Logger:Info(string.format("Auto Progress: Affordable tower '%s' (%d Coins, current balance: %d). Purchasing before matchmaking...", towerName, cost, playerCoins))
+                                        if typeof(attemptBuyMissingTowersList) == "function" then
+                                            local bought = attemptBuyMissingTowersList({ towerName })
+                                            if bought then
+                                                boughtAny = true
+                                                playerCoins = playerCoins - cost
+                                                task.wait(1.5)
+                                            end
                                         end
                                     end
                                 end
+                            end)
+                            if not okBuy then
+                                Logger:Warn("Auto Progress: Tower purchase check encountered error: " .. tostring(errBuy))
                             end
 
                             if boughtAny then
@@ -10406,9 +10428,32 @@ task.spawn(function()
                                     Desc = tostring(evoReason) .. "! Returning to lobby after round concludes.",
                                     Duration = 6,
                                     Type = "info",
+                                    })
+                            end
+                        end
+
+                        if activeMode == "Progress" and not pendingTargetReached then
+                            local nodeInfo = getAutoProgressNodeInfo and getAutoProgressNodeInfo()
+                            local nodeNum = (nodeInfo and nodeInfo.nodeNum) or 0
+                            local curLvl = getEffectivePlayerLevel()
+                            local matchDifficulty = ""
+                            local reps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                            local gsr = reps and reps:FindFirstChild("GameStateReplicator")
+                            if gsr then
+                                matchDifficulty = tostring(gsr:GetAttribute("Difficulty") or gsr:GetAttribute("DifficultyDisplayName") or "")
+                            end
+
+                            if (nodeNum == 1 and curLvl >= 15) or (nodeNum >= 2 and curLvl >= 50) or (nodeNum >= 2 and matchDifficulty ~= "" and string.lower(matchDifficulty) ~= "molten") then
+                                pendingTargetReached = true
+                                Logger:Info(string.format("Auto Progress: Node milestone reached (Level: %d, Node: %d)! Match in progress; waiting for lose condition to conclude round before smartLobby...", curLvl, nodeNum))
+                                Window:Notify({
+                                    Title = "Node Objective Complete!",
+                                    Desc = string.format("Node complete (Level %d)! Waiting for lose condition before smartLobby.", curLvl),
+                                    Duration = 6,
                                 })
                             end
                         end
+
 
                         -- B. Match Status Check: Match is concluded when GameOver is true on server
                         local matchStatus = GetMatchStatus()
@@ -10773,15 +10818,22 @@ task.spawn(function()
                                         curCoins = tonumber(DataHandler:GetCoins()) or 0
                                     end
 
+                                    local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+                                    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+                                    local matchDifficulty = ""
+                                    if gsr then
+                                        matchDifficulty = tostring(gsr:GetAttribute("Difficulty") or gsr:GetAttribute("DifficultyDisplayName") or "")
+                                    end
+
                                     local nodeNum = (nodeInfo and nodeInfo.nodeNum) or 1
 
                                     if nodeNum == 1 then
                                         -- Node 1: Target is Level 15!
                                         if curLvl >= 15 then
-                                            Logger:Info(string.format("Auto Progress (Node 1): Level 15 reached (Current Level: %d)! Returning to lobby via smartLobby to buy new towers and advance to Node 2...", curLvl))
+                                            Logger:Info(string.format("Auto Progress (Node 1): Level 15 reached (Current Level: %d)! Match concluded (%s). Returning to lobby via smartLobby to buy new towers and advance to Node 2...", curLvl, tostring(matchStatus)))
                                             if State.Misc.WebhookAlerts and State.Misc.WebhookUrl ~= "" and SendAutoCurrencyWebhook then
                                                 pcall(function()
-                                                    SendAutoCurrencyWebhook("Node 1 Completed", matchStatus, matchWave, "Level 15 reached! Returning to lobby via smartLobby to buy towers and enter Node 2.", rewards)
+                                                    SendAutoCurrencyWebhook("Node 1 Completed", matchStatus, matchWave, "Level 15 reached! Match concluded. Returning to lobby via smartLobby to buy towers and enter Node 2.", rewards)
                                                 end)
                                             end
                                             Window:Notify({
@@ -10793,16 +10845,16 @@ task.spawn(function()
                                             break
                                         else
                                             -- Keep grinding Casual in-place
-                                            Logger:Info(string.format("Auto Progress (Node 1): Match ended. Grinding in-place (Level: %d/15, Coins: %d).", curLvl, curCoins))
+                                            Logger:Info(string.format("Auto Progress (Node 1): Match ended (%s). Grinding in-place (Level: %d/15, Coins: %d).", tostring(matchStatus), curLvl, curCoins))
                                             doInPlaceRestart("Auto Progress (Node 1)")
                                         end
-                                    elseif nodeNum == 2 then
-                                        -- Node 2: Target is Level 50!
+                                    elseif nodeNum >= 2 then
+                                        -- Node 2: Target is Level 50 and Molten mode!
                                         if curLvl >= 50 then
-                                            Logger:Info(string.format("Auto Progress (Node 2): Level 50 reached (Current Level: %d)! Returning to lobby via smartLobby to claim rewards and complete progression...", curLvl))
+                                            Logger:Info(string.format("Auto Progress (Node 2): Level 50 reached (Current Level: %d)! Match concluded (%s). Returning to lobby via smartLobby to claim rewards and complete progression...", curLvl, tostring(matchStatus)))
                                             if State.Misc.WebhookAlerts and State.Misc.WebhookUrl ~= "" and SendAutoCurrencyWebhook then
                                                 pcall(function()
-                                                    SendAutoCurrencyWebhook("Node 2 Completed", matchStatus, matchWave, "Level 50 reached! Returning to lobby via smartLobby to claim rewards and finish Auto Prog.", rewards)
+                                                    SendAutoCurrencyWebhook("Node 2 Completed", matchStatus, matchWave, "Level 50 reached! Match concluded. Returning to lobby via smartLobby to claim rewards and finish Auto Prog.", rewards)
                                                 end)
                                             end
                                             Window:Notify({
@@ -10812,9 +10864,24 @@ task.spawn(function()
                                             })
                                             SmartTeleportToLobby()
                                             break
+                                        elseif matchDifficulty ~= "" and string.lower(matchDifficulty) ~= "molten" then
+                                            -- Previous match mode was not Molten (e.g. Casual from Node 1)! Return to lobby to queue the new node (Molten)!
+                                            Logger:Info(string.format("Auto Progress (Node 2): Match concluded (%s). Current match difficulty was '%s', but Node 2 requires Molten! Returning to lobby via smartLobby to queue Node 2 Molten...", tostring(matchStatus), matchDifficulty))
+                                            if State.Misc.WebhookAlerts and State.Misc.WebhookUrl ~= "" and SendAutoCurrencyWebhook then
+                                                pcall(function()
+                                                    SendAutoCurrencyWebhook("Advancing to Node 2", matchStatus, matchWave, string.format("Finished %s match! Returning to lobby via smartLobby to queue Node 2 (Molten).", matchDifficulty), rewards)
+                                                end)
+                                            end
+                                            Window:Notify({
+                                                Title = "Advancing to Node 2",
+                                                Desc = "Match finished! Returning to lobby via smartLobby to queue Node 2 (Molten).",
+                                                Duration = 6,
+                                            })
+                                            SmartTeleportToLobby()
+                                            break
                                         else
-                                            -- Keep grinding Molten in-place
-                                            Logger:Info(string.format("Auto Progress (Node 2): Match ended. Grinding in-place (Level: %d/50, Coins: %d).", curLvl, curCoins))
+                                            -- Match was Molten, and curLvl < 50: Keep grinding Molten in-place!
+                                            Logger:Info(string.format("Auto Progress (Node 2): Match ended (%s). Grinding Molten in-place (Level: %d/50, Coins: %d).", tostring(matchStatus), curLvl, curCoins))
                                             doInPlaceRestart("Auto Progress (Node 2)")
                                         end
                                     else
@@ -10822,6 +10889,7 @@ task.spawn(function()
                                         SmartTeleportToLobby()
                                         break
                                     end
+
                                 end
                             elseif isTrialsMatch then
                                 -- Standard Free Tier for Farm Timescales: Win or Lose -> always smartLobby
