@@ -10753,12 +10753,29 @@ task.spawn(function()
                     startStrat()
 
                     -- Gatling Loader Routine (Railgun or Gatlify)
-                    -- Automatically loads for Win conditions or Trials matches, or if Auto Gatling is enabled
+                    -- Automatically loads for Win conditions or Trials matches in Currency modes, or if Auto Gatling is explicitly enabled
                     local isAutoGatlingOn = (State and State.Utilities and State.Utilities.AutoGatling)
                         or (Globals and Globals.AutoGatling) == true
-                    local isWinOrTrials = (activeMode == "Timescales") or isTrialsMatch or (condition == "Win") or (condition == "Win Only")
+                    local isWinOrTrials = (activeMode ~= "Progress") and ((activeMode == "Timescales") or isTrialsMatch or (condition == "Win") or (condition == "Win Only"))
+                    local shouldLoadGatling = false
+                    if activeMode == "Progress" then
+                        if isAutoGatlingOn then
+                            local ownsGatling = false
+                            if PlayerDataHandler and typeof(PlayerDataHandler.IsTowerOwned) == "function" then
+                                local ok, owned = pcall(function() return PlayerDataHandler:IsTowerOwned("Gatling Gun") end)
+                                if ok and owned ~= nil then ownsGatling = owned end
+                            end
+                            if ownsGatling then
+                                shouldLoadGatling = true
+                            end
+                        end
+                    else
+                        if isAutoGatlingOn or isWinOrTrials then
+                            shouldLoadGatling = true
+                        end
+                    end
 
-                    if (isAutoGatlingOn or isWinOrTrials) and not GatlingExecuted then
+                    if shouldLoadGatling and not GatlingExecuted then
                         GatlingExecuted = true
                         task.spawn(function()
                             task.wait(2.5) -- Allow strategy script and initial placements to begin
@@ -10899,8 +10916,26 @@ task.spawn(function()
                             GatlingExecuted = false
                             local isAutoGatlingOn = (State and State.Utilities and State.Utilities.AutoGatling)
                                 or (Globals and Globals.AutoGatling) == true
-                            local isWinOrTrials = (activeMode == "Timescales") or isTrialsMatch or (condition == "Win") or (condition == "Win Only")
-                            if (isAutoGatlingOn or isWinOrTrials) then
+                            local isWinOrTrials = (activeMode ~= "Progress") and ((activeMode == "Timescales") or isTrialsMatch or (condition == "Win") or (condition == "Win Only"))
+                            local shouldLoadGatling = false
+                            if activeMode == "Progress" then
+                                if isAutoGatlingOn then
+                                    local ownsGatling = false
+                                    if PlayerDataHandler and typeof(PlayerDataHandler.IsTowerOwned) == "function" then
+                                        local ok, owned = pcall(function() return PlayerDataHandler:IsTowerOwned("Gatling Gun") end)
+                                        if ok and owned ~= nil then ownsGatling = owned end
+                                    end
+                                    if ownsGatling then
+                                        shouldLoadGatling = true
+                                    end
+                                end
+                            else
+                                if isAutoGatlingOn or isWinOrTrials then
+                                    shouldLoadGatling = true
+                                end
+                            end
+
+                            if shouldLoadGatling and not GatlingExecuted then
                                 GatlingExecuted = true
                                 task.spawn(function()
                                     task.wait(2.5)
