@@ -1091,95 +1091,16 @@ local AutoGoldModule = {
 }
 
 function AutoGoldModule.ExecuteGatlingLoader(forceChoice: string?)
-    if AutoGoldModule.GatlingExecuted then
-        Logger:Info("Auto Gatling: Already loaded (loads only once). Keeping GatlingExecuted = true.")
-        return
+    if not GatlingExecuted and executeGatlingScript then
+        GatlingExecuted = true
+        executeGatlingScript()
     end
-    AutoGoldModule.GatlingExecuted = true
-
-    local choice = forceChoice
-        or (State and State.Utilities and State.Utilities.SelectedGatling)
-        or (State and State.AdvancFunc and State.AdvancFunc.SelectedGatling)
-        or (Globals and Globals.SelectedGatling)
-        or "Railgun"
-
-    local gatlingUrl = (choice == "Gatlify")
-        and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
-        or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
-
-    Logger:Info(string.format("Auto Gatling: Loading %s script from %s...", choice, gatlingUrl))
-    if Window and typeof(Window.Notify) == "function" then
-        pcall(function()
-            Window:Notify({
-                Title = "Auto Gatling",
-                Desc = string.format("Executing %s loader...", choice),
-                Duration = 2.5,
-            })
-        end)
-    end
-
-    task.spawn(function()
-        local ok, err = pcall(function()
-            local chunk = game:HttpGet(gatlingUrl)
-            local fn = loadstring(chunk)
-            if fn then fn() end
-        end)
-        if ok then
-            Logger:Success(string.format("Auto Gatling: %s loaded successfully.", choice))
-            if Window and typeof(Window.Notify) == "function" then
-                pcall(function()
-                    Window:Notify({
-                        Title = "Auto Gatling",
-                        Desc = string.format("%s loaded successfully!", choice),
-                        Duration = 3,
-                    })
-                end)
-            end
-        else
-            Logger:Warn(string.format("Auto Gatling: Failed loading %s: %s", choice, tostring(err)))
-            if Window and typeof(Window.Notify) == "function" then
-                pcall(function()
-                    Window:Notify({
-                        Title = "Auto Gatling Error",
-                        Desc = "Failed to load " .. tostring(choice) .. ": " .. tostring(err),
-                        Duration = 4,
-                    })
-                end)
-            end
-        end
-    end)
 end
 
 function AutoGoldModule.StartAutoGatling()
-    if AutoGoldModule.AutoGatlingRunning then return end
-    local isEnabled = (State and State.Utilities and State.Utilities.AutoGatling)
-        or (State and State.AdvancFunc and (State.AdvancFunc.AutoGatling or State.AdvancFunc.ConditionGatlingLoader))
-        or (Globals and (Globals.AutoGatling or Globals.ConditionGatlingLoader))
-    if not isEnabled then return end
-    AutoGoldModule.AutoGatlingRunning = true
-
-    task.spawn(function()
-        while (State and State.Utilities and State.Utilities.AutoGatling)
-            or (State and State.AdvancFunc and (State.AdvancFunc.AutoGatling or State.AdvancFunc.ConditionGatlingLoader))
-            or (Globals and (Globals.AutoGatling or Globals.ConditionGatlingLoader)) do
-            if game.PlaceId ~= 3260590327 then
-                if not AutoGoldModule.GatlingExecuted then
-                    task.wait(2.5) -- Allow placements and match initialization
-                    if not AutoGoldModule.GatlingExecuted then
-                        local chosenScript = (State and State.Utilities and State.Utilities.SelectedGatling)
-                            or (State and State.AdvancFunc and State.AdvancFunc.SelectedGatling)
-                            or (Globals and Globals.SelectedGatling)
-                            or "Railgun"
-                        AutoGoldModule.ExecuteGatlingLoader(chosenScript)
-                    end
-                end
-            else
-                AutoGoldModule.GatlingExecuted = false
-            end
-            task.wait(1)
-        end
-        AutoGoldModule.AutoGatlingRunning = false
-    end)
+    if StartAutoGatling then
+        StartAutoGatling()
+    end
 end
 
 function AutoGoldModule.CastMapVote(mapId, posVec)
@@ -6416,6 +6337,10 @@ local applyStackerHooks = nil
 local StartAutoReady = nil
 local StartAutoSkip = nil
 local StartAutoRejoin = nil
+local StartAutoGatling = nil
+local executeGatlingScript = nil
+local GatlingExecuted = false
+local AutoGatlingRunning = false
 local StartInMatchTimescale = nil
 local StartAutoReloadGatling = nil
 local StartAutoPickups = nil
@@ -6699,6 +6624,43 @@ StartAutoRejoin = function()
             task.wait(1)
         end
         AutoRejoinRunning = false
+    end)
+end
+
+executeGatlingScript = function()
+    local chosen = (Globals and Globals.SelectedGatling)
+        or (State and State.Utilities and State.Utilities.SelectedGatling)
+        or "Railgun"
+    local url = (chosen == "Gatlify")
+        and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
+        or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
+    Logger:Info(string.format("Auto Gatling: Loading %s script from %s...", tostring(chosen), url))
+    pcall(function()
+        loadstring(game:HttpGet(url))()
+    end)
+end
+
+StartAutoGatling = function()
+    local isEnabled = (Globals and Globals.AutoGatling) or (State and State.Utilities and State.Utilities.AutoGatling)
+    if AutoGatlingRunning or not isEnabled then return end
+    AutoGatlingRunning = true
+
+    task.spawn(function()
+        while (Globals and Globals.AutoGatling) or (State and State.Utilities and State.Utilities.AutoGatling) do
+            local GameState = (game.PlaceId == LOBBY_PLACE_ID) and "LOBBY" or "GAME"
+            if GameState == "GAME" then
+                if not GatlingExecuted then
+                    GatlingExecuted = true
+                    task.spawn(function()
+                        pcall(executeGatlingScript)
+                    end)
+                end
+            else
+                GatlingExecuted = false
+            end
+            task.wait(1)
+        end
+        AutoGatlingRunning = false
     end)
 end
 
@@ -7161,10 +7123,8 @@ if ((State and State.Interactive and State.Interactive.EnableTimescale)
     or (Globals and (Globals.EnableTimescale or Globals.TimeScaleEnabled or Globals.InMatchTimescale))) then
     StartInMatchTimescale()
 end
-if ((State and State.Utilities and State.Utilities.AutoGatling)
-    or (State and State.AdvancFunc and (State.AdvancFunc.AutoGatling or State.AdvancFunc.ConditionGatlingLoader))
-    or (Globals and (Globals.AutoGatling or Globals.ConditionGatlingLoader))) then
-    AutoGoldModule.StartAutoGatling()
+if (Globals and Globals.AutoGatling == true) or (State and State.Utilities and State.Utilities.AutoGatling == true) then
+    StartAutoGatling()
 end
 if (State and State.Utilities and State.Utilities.AutoPickups) or (Globals and Globals.AutoPickups) then
     StartAutoPickups()
@@ -7551,26 +7511,11 @@ autoGatlingToggleRef = UtilitiesGatlingSection:Toggle({
         if Settings then Settings:Set("AutoGatling", val) end
         Logger:Info("Auto Gatling loader: " .. (val and "ENABLED" or "DISABLED"))
         if val then
-            AutoGoldModule.GatlingExecuted = false
-            local choice = State.Utilities.SelectedGatling or (State.AdvancFunc and State.AdvancFunc.SelectedGatling) or "Railgun"
-            if game.PlaceId ~= 3260590327 then
-                AutoGoldModule.ExecuteGatlingLoader(choice)
-            else
-                AutoGoldModule.StartAutoGatling()
+            GatlingExecuted = false
+            if StartAutoGatling then
+                StartAutoGatling()
             end
         end
-    end,
-})
-
-UtilitiesGatlingSection:Toggle({
-    Title = "Load on Win / Trials",
-    Desc = "Automatically loads Gatling gun during Win conditions and Trials matches (even if main loader is off)",
-    Value = (State.AdvancFunc and State.AdvancFunc.ConditionGatlingLoader ~= false),
-    Callback = function(val: boolean)
-        if State.AdvancFunc then State.AdvancFunc.ConditionGatlingLoader = val end
-        Globals.ConditionGatlingLoader = val
-        if Settings then Settings:Set("ConditionGatlingLoader", val) end
-        Logger:Info("Auto Gatling on Win/Trials: " .. (val and "ENABLED" or "DISABLED"))
     end,
 })
 
@@ -7578,16 +7523,13 @@ UtilitiesGatlingSection:Dropdown({
     Title = "Gatling Script",
     Desc = "Choose script to load for Gatling Gun (Railgun or Gatlify)",
     List = { "Railgun", "Gatlify" },
-    Value = State.Utilities.SelectedGatling or (State.AdvancFunc and State.AdvancFunc.SelectedGatling) or "Railgun",
+    Value = State.Utilities.SelectedGatling or (Globals and Globals.SelectedGatling) or "Railgun",
     Callback = function(choice: string)
         State.Utilities.SelectedGatling = choice
         if State.AdvancFunc then State.AdvancFunc.SelectedGatling = choice end
         Globals.SelectedGatling = choice
         if Settings then Settings:Set("SelectedGatling", choice) end
         Logger:Info("Selected Gatling Script: " .. tostring(choice))
-        if (State.Utilities.AutoGatling or (State.AdvancFunc and State.AdvancFunc.AutoGatling) or Globals.AutoGatling) and game.PlaceId ~= 3260590327 then
-            AutoGoldModule.ExecuteGatlingLoader(choice)
-        end
     end,
 })
 end
@@ -10283,42 +10225,20 @@ task.spawn(function()
                     startStrat()
 
                     -- Gatling Loader Routine (Railgun or Gatlify)
-                    -- 1. Auto Gatling: loads EVERY match if toggled on
-                    -- 2. Win / Trials condition: loads automatically if playing to Win or in Trials/Timescales
+                    -- Automatically loads for Win conditions or Trials matches, or if Auto Gatling is enabled
                     local isAutoGatlingOn = (State and State.Utilities and State.Utilities.AutoGatling)
-                        or (State and State.AdvancFunc and State.AdvancFunc.AutoGatling)
                         or (Globals and Globals.AutoGatling) == true
-
-                    local isConditionGatlingOn = (State and State.AdvancFunc and State.AdvancFunc.ConditionGatlingLoader ~= false)
-                        or (Globals and Globals.ConditionGatlingLoader ~= false)
-
                     local isWinOrTrials = (activeMode == "Timescales") or isTrialsMatch or (condition == "Win") or (condition == "Win Only")
-                    local shouldLoadGatling = false
-                    local chosenGatlingScript = (State and State.Utilities and State.Utilities.SelectedGatling)
-                        or (State and State.AdvancFunc and State.AdvancFunc.SelectedGatling)
-                        or (Globals and Globals.SelectedGatling)
-                        or "Railgun"
 
-                    if isAutoGatlingOn then
-                        shouldLoadGatling = true
-                        Logger:Info("Auto Currency: Auto Gatling toggle is ENABLED -> Gatling loader armed.")
-                    elseif isWinOrTrials and isConditionGatlingOn then
-                        shouldLoadGatling = true
-                        Logger:Info(string.format("Auto Currency: Win / Trials match detected (Mode: %s, Condition: %s) -> Gatling loader armed.", tostring(activeMode), tostring(condition)))
-                    else
-                        Logger:Info("Auto Currency: Gatling Loader skipped (condition is Lose; Gatling only loads for Win/Trials or when Auto Gatling is toggled).")
+                    if (isAutoGatlingOn or isWinOrTrials) and not GatlingExecuted then
+                        GatlingExecuted = true
+                        task.spawn(function()
+                            task.wait(2.5) -- Allow strategy script and initial placements to begin
+                            if executeGatlingScript then
+                                executeGatlingScript()
+                            end
+                        end)
                     end
-
-                    local function triggerGatlingLoad(delaySec)
-                        if shouldLoadGatling then
-                            task.spawn(function()
-                                task.wait(delaySec or 2.5) -- Allow strategy script and initial placements to begin
-                                AutoGoldModule.ExecuteGatlingLoader(chosenGatlingScript)
-                            end)
-                        end
-                    end
-
-                    triggerGatlingLoad(2.5)
 
                     local pendingTargetReached = false
                     local lastBoxRefresh = 0
@@ -11019,6 +10939,9 @@ task.spawn(function()
             end
             if ((State and State.Utilities and State.Utilities.AutoRejoin) or (Globals and Globals.AutoRejoin)) and not AutoRejoinRunning then
                 StartAutoRejoin()
+            end
+            if ((State and State.Utilities and State.Utilities.AutoGatling) or (Globals and Globals.AutoGatling)) and not AutoGatlingRunning and StartAutoGatling then
+                StartAutoGatling()
             end
         end
 
