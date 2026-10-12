@@ -22,13 +22,32 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 local PathfindingService = game:GetService("PathfindingService")
 
+if not game:IsLoaded() then
+    local loaded = false
+    local conn
+    conn = game.Loaded:Connect(function()
+        loaded = true
+        if conn then conn:Disconnect() end
+    end)
+    while not game:IsLoaded() and not loaded do
+        task.wait(0.2)
+    end
+    if conn then conn:Disconnect() end
+end
+
 local LocalPlayer = Players.LocalPlayer
 if not LocalPlayer then
     pcall(function()
         LocalPlayer = Players.PlayerAdded:Wait()
     end)
+    if not LocalPlayer then
+        while not Players.LocalPlayer do
+            task.wait(0.2)
+            LocalPlayer = Players.LocalPlayer
+        end
+    end
 end
-local PlayerGui = (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 10)) or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
+local PlayerGui = (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 20)) or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
 
 -- Filter placement, upgrade, and nil tower retry warning spam from console
 do
@@ -3152,8 +3171,75 @@ else
 end
 
 --==============================================================================
--- 3. Window & Theme Initialization
+-- 3. Window & Theme Initialization (Wait until game itself is fully loaded)
 --==============================================================================
+local function waitForGameLoaded(timeout: number?)
+    local maxWait = timeout or 60
+    local start = os.clock()
+
+    -- 1. Ensure Roblox engine DataModel is fully loaded
+    if not game:IsLoaded() then
+        local loaded = false
+        local conn
+        conn = game.Loaded:Connect(function()
+            loaded = true
+            if conn then conn:Disconnect() end
+        end)
+        while not game:IsLoaded() and not loaded and (os.clock() - start < maxWait) do
+            task.wait(0.2)
+        end
+        if conn then conn:Disconnect() end
+    end
+
+    -- 2. Ensure LocalPlayer & PlayerGui are ready
+    while not Players.LocalPlayer and (os.clock() - start < maxWait) do
+        task.wait(0.2)
+    end
+    local lp = Players.LocalPlayer
+    if lp then
+        pcall(function()
+            lp:WaitForChild("PlayerGui", 20)
+        end)
+    end
+
+    -- 3. Wait until game loading screens & loading attributes dismiss
+    while (os.clock() - start < maxWait) do
+        local isLoading = false
+        if lp and lp:GetAttribute("Loading") == true then
+            isLoading = true
+        end
+        local pg = lp and (lp:FindFirstChild("PlayerGui") or PlayerGui)
+        if pg then
+            local ls = pg:FindFirstChild("LoadingScreen")
+            if ls and ls.Enabled then
+                local content = ls:FindFirstChild("content")
+                if content and content.Visible then
+                    isLoading = true
+                elseif not content then
+                    isLoading = true
+                end
+            end
+            local rol = pg:FindFirstChild("ReactOverridesLoading")
+            if rol and rol.Enabled then
+                local tb = rol:FindFirstChild("TextButton")
+                if tb and tb.Visible then
+                    isLoading = true
+                end
+            end
+        end
+
+        if not isLoading then
+            break
+        end
+        task.wait(0.3)
+    end
+
+    -- Settling delay for camera, viewport, and GUI boundaries
+    task.wait(0.5)
+end
+
+waitForGameLoaded()
+
 Window = Library:Window({
     Title = "XTREME // TDS",
     Subtitle = "v2.0 // Active",

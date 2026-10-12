@@ -4031,6 +4031,18 @@ end
 -- Main Window Constructor
 function Library:Window(props: { [string]: any })
     props = props or {}
+    if not game:IsLoaded() then
+        local loaded = false
+        local conn
+        conn = game.Loaded:Connect(function()
+            loaded = true
+            if conn then conn:Disconnect() end
+        end)
+        while not game:IsLoaded() and not loaded do
+            task.wait(0.2)
+        end
+        if conn then conn:Disconnect() end
+    end
     local self = setmetatable({}, Library)
     self.ThemeName = (type(props.Theme) == "string" and props.Theme) or "AegisCyan"
     self.Theme = resolveTheme(props.Theme or "AegisCyan")
