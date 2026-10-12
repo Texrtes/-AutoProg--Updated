@@ -11047,7 +11047,7 @@ task.spawn(function()
                     end
 
                     -- 5. In-Match Game Over / Result Supervisor
-                    while activeInGameCurrencyLoop and State.Master do
+                    while activeInGameCurrencyLoop and (game.PlaceId ~= LOBBY_PLACE_ID) do
                         task.wait(1)
 
                         if tick() - lastBoxRefresh >= 5 then
@@ -11257,6 +11257,42 @@ task.spawn(function()
                                     SmartTeleportToLobby()
                                     break
                                 end
+                            end
+
+                            -- Check if user turned off the automation (or Master) during the match
+                            local isAutomationActive = false
+                            if State and State.Master then
+                                if activeMode == "Progress" then
+                                    isAutomationActive = (State.AutoProgress and State.AutoProgress.Enabled == true)
+                                        or (Globals and Globals.AutoProgressEnabled == true)
+                                elseif activeMode == "Coins" then
+                                    isAutomationActive = State.AutoCurrency and State.AutoCurrency.Coins and State.AutoCurrency.Coins.Enabled == true
+                                elseif activeMode == "Gems" then
+                                    isAutomationActive = State.AutoCurrency and State.AutoCurrency.Gems and State.AutoCurrency.Gems.Enabled == true
+                                elseif activeMode == "Timescales" then
+                                    isAutomationActive = State.AutoCurrency and State.AutoCurrency.Timescales and State.AutoCurrency.Timescales.Enabled == true
+                                elseif activeMode == "Levels" then
+                                    isAutomationActive = State.AutoCurrency and State.AutoCurrency.Levels and State.AutoCurrency.Levels.Enabled == true
+                                elseif activeMode == "Evo" then
+                                    isAutomationActive = State.AutoCurrency and State.AutoCurrency.Evo and State.AutoCurrency.Evo.Enabled == true
+                                else
+                                    isAutomationActive = true
+                                end
+                            end
+
+                            if not isAutomationActive then
+                                Logger:Info(string.format("Auto %s was turned off during the match. Concluding round and returning to lobby via smartLobby...", tostring(activeMode or "Automation")))
+                                if Window and typeof(Window.Notify) == "function" then
+                                    Window:Notify({
+                                        Title = "Automation Stopped",
+                                        Desc = string.format("Auto %s was turned off. Match ended, returning to lobby...", tostring(activeMode or "Match")),
+                                        Duration = 5,
+                                        Type = "info",
+                                    })
+                                end
+                                task.wait(0.5)
+                                SmartTeleportToLobby()
+                                break
                             end
 
                             local isPremUser = checkIsPremium()
