@@ -2764,6 +2764,18 @@ local DefaultSettings = {
     AutoRejoin = false,
     RejoinPrivateServerCode = "",
 
+    -- Auto Support & Abilities
+    AutoCommander = false,
+    AutoChain = false,
+    SupportCaravan = true,
+    AutoDj = false,
+    AutoDJ = false,
+    AutoNecromancer = false,
+    AutoNecro = false,
+    AutoMercenaryBase = false,
+    AutoMercenary = false,
+    MercenaryPath = 300,
+
     -- Private Server & Lobby
     PrivateServerCode = "",
     PrivateCode = "",
@@ -3071,10 +3083,11 @@ local State = {
         RejoinPrivateServerCode = GetSetting("PrivateServerCode", ""),
         AutoSkip = GetSetting("AutoSkip", false),
         AutoReady = GetSetting("AutoReady", false),
-        AutoCommander = false,
-        AutoDj = false,
-        AutoNecromancer = false,
-        AutoMercenaryBase = false,
+        AutoCommander = GetSetting("AutoCommander", false),
+        SupportCaravan = GetSetting("SupportCaravan", true),
+        AutoDj = GetSetting("AutoDj", false),
+        AutoNecromancer = GetSetting("AutoNecromancer", false),
+        AutoMercenaryBase = GetSetting("AutoMercenaryBase", false),
         AutoGatling = GetSetting("AutoGatling", false),
         SelectedGatling = GetSetting("SelectedGatling", "Railgun"),
         AutoPickups = GetSetting("AutoPickups", false),
@@ -6344,6 +6357,14 @@ local AutoGatlingRunning = false
 local StartInMatchTimescale = nil
 local StartAutoReloadGatling = nil
 local StartAutoPickups = nil
+local StartAutoChain = nil
+local StartAutoDjBooth = nil
+local StartAutoNecro = nil
+local StartAutoMercenary = nil
+local AutoChainRunning = false
+local AutoDjRunning = false
+local AutoNecroRunning = false
+local AutoMercenaryBaseRunning = false
 local ApplyInMatchTimescaleOnce = nil
 local extractPrivateServerCode = nil
 local SellAllPlacedTowers = nil
@@ -7105,6 +7126,338 @@ StartAutoPickups = function()
         AutoPickupsRunning = false
     end)
 end
+
+StartAutoMercenary = function()
+    local isEnabled = (Globals and (Globals.AutoMercenary or Globals.AutoMilitary or Globals.AutoMercenaryBase))
+        or (State and State.Utilities and State.Utilities.AutoMercenaryBase)
+    if not isEnabled then return end
+
+    if AutoMercenaryBaseRunning then return end
+    AutoMercenaryBaseRunning = true
+
+    task.spawn(function()
+        while (Globals and (Globals.AutoMercenary or Globals.AutoMilitary or Globals.AutoMercenaryBase))
+            or (State and State.Utilities and State.Utilities.AutoMercenaryBase) do
+            local TowersFolder = workspace:FindFirstChild("Towers")
+
+            if TowersFolder then
+                local myUserId = game.Players.LocalPlayer and game.Players.LocalPlayer.UserId
+                for _, towers in ipairs(TowersFolder:GetDescendants()) do
+                    local stillEnabled = (Globals and (Globals.AutoMercenary or Globals.AutoMilitary or Globals.AutoMercenaryBase))
+                        or (State and State.Utilities and State.Utilities.AutoMercenaryBase)
+                    if not stillEnabled then break end
+
+                    if towers:IsA("Folder") and towers.Name == "TowerReplicator"
+                    and towers:GetAttribute("Name") == "Mercenary Base"
+                    and (myUserId and towers:GetAttribute("OwnerId") == myUserId)
+                    and (towers:GetAttribute("Upgrade") or 0) >= 5 then
+
+                        local rf = ReplicatedStorage:FindFirstChild("RemoteFunction")
+                        if rf and rf:IsA("RemoteFunction") then
+                            pcall(function()
+                                rf:InvokeServer(
+                                    "Troops",
+                                    "Abilities",
+                                    "Activate",
+                                    { 
+                                        Troop = towers.Parent, 
+                                        Name = "Air-Drop", 
+                                        Data = {
+                                            pathName = 1, 
+                                            directionCFrame = CFrame.new(), 
+                                            dist = (Globals and Globals.MercenaryPath) or 300
+                                        } 
+                                    }
+                                )
+                            end)
+                        end
+
+                        task.wait(0.5)
+
+                        local checkEnabled = (Globals and (Globals.AutoMercenary or Globals.AutoMilitary or Globals.AutoMercenaryBase))
+                            or (State and State.Utilities and State.Utilities.AutoMercenaryBase)
+                        if not checkEnabled then break end
+                    end
+                end
+            end
+
+            task.wait(0.5)
+        end
+
+        AutoMercenaryBaseRunning = false
+    end)
+end
+
+StartAutoChain = function()
+    local isEnabled = (Globals and (Globals.AutoChain or Globals.AutoCommander))
+        or (State and State.Utilities and State.Utilities.AutoCommander)
+    if AutoChainRunning or not isEnabled then return end
+    AutoChainRunning = true
+
+    task.spawn(function()
+        local idx = 1
+
+        while (Globals and (Globals.AutoChain or Globals.AutoCommander))
+            or (State and State.Utilities and State.Utilities.AutoCommander) do
+            local commander = {}
+            local TowersFolder = workspace:FindFirstChild("Towers")
+            local myUserId = game.Players.LocalPlayer and game.Players.LocalPlayer.UserId
+
+            if TowersFolder then
+                for _, towers in ipairs(TowersFolder:GetDescendants()) do
+                    if towers:IsA("Folder") and towers.Name == "TowerReplicator"
+                    and towers:GetAttribute("Name") == "Commander"
+                    and (myUserId and towers:GetAttribute("OwnerId") == myUserId)
+                    and (towers:GetAttribute("Upgrade") or 0) >= 2 then
+                        commander[#commander + 1] = towers.Parent
+                    end
+                end
+            end
+
+            if #commander >= 3 then
+                if idx > #commander then idx = 1 end
+
+                local CurrentCommander = commander[idx]
+                local replicator = CurrentCommander and CurrentCommander:FindFirstChild("TowerReplicator")
+                local UpgradeLevel = replicator and (replicator:GetAttribute("Upgrade") or 0) or 0
+                local rf = ReplicatedStorage:FindFirstChild("RemoteFunction")
+
+                local supportCaravanEnabled = (Globals and Globals.SupportCaravan)
+                    or (State and State.Utilities and State.Utilities.SupportCaravan)
+                if UpgradeLevel >= 4 and supportCaravanEnabled ~= false and rf and rf:IsA("RemoteFunction") then
+                    pcall(function()
+                        rf:InvokeServer(
+                            "Troops",
+                            "Abilities",
+                            "Activate",
+                            { Troop = CurrentCommander, Name = "Support Caravan", Data = {} }
+                        )
+                    end)
+                    task.wait(0.1) 
+                end
+
+                local response = nil
+                if rf and rf:IsA("RemoteFunction") then
+                    local ok, res = pcall(function()
+                        return rf:InvokeServer(
+                            "Troops",
+                            "Abilities",
+                            "Activate",
+                            { Troop = CurrentCommander, Name = "Call Of Arms", Data = {} }
+                        )
+                    end)
+                    if ok then response = res end
+                end
+
+                if response then
+                    idx += 1
+
+                    local hotbar = PlayerGui:FindFirstChild("ReactUniversalHotbar")
+                    local TimescaleFrame = hotbar and hotbar:FindFirstChild("Frame") and hotbar.Frame:FindFirstChild("timescale")
+
+                    if TimescaleFrame and TimescaleFrame.Visible then
+                        if TimescaleFrame:FindFirstChild("Lock") then
+                            task.wait(10.3)
+                        else
+                            task.wait(5.25)
+                        end
+                    else
+                        task.wait(10.3)
+                    end
+                else
+                    task.wait(0.5)
+                end
+            else
+                task.wait(1)
+            end
+        end
+
+        AutoChainRunning = false
+    end)
+end
+
+StartAutoDjBooth = function()
+    local isEnabled = (Globals and (Globals.AutoDJ or Globals.AutoDj))
+        or (State and State.Utilities and State.Utilities.AutoDj)
+    if AutoDjRunning or not isEnabled then return end
+    AutoDjRunning = true
+
+    task.spawn(function()
+        while (Globals and (Globals.AutoDJ or Globals.AutoDj))
+            or (State and State.Utilities and State.Utilities.AutoDj) do
+            local DJ = nil
+            local TowersFolder = workspace:FindFirstChild("Towers")
+            local myUserId = game.Players.LocalPlayer and game.Players.LocalPlayer.UserId
+
+            if TowersFolder then
+                for _, towers in ipairs(TowersFolder:GetDescendants()) do
+                    if towers:IsA("Folder") and towers.Name == "TowerReplicator"
+                    and towers:GetAttribute("Name") == "DJ Booth"
+                    and (myUserId and towers:GetAttribute("OwnerId") == myUserId)
+                    and (towers:GetAttribute("Upgrade") or 0) >= 3 then
+                        DJ = towers.Parent
+                        break
+                    end
+                end
+            end
+
+            if DJ then
+                local rf = ReplicatedStorage:FindFirstChild("RemoteFunction")
+                if rf and rf:IsA("RemoteFunction") then
+                    pcall(function()
+                        rf:InvokeServer(
+                            "Troops",
+                            "Abilities",
+                            "Activate",
+                            { Troop = DJ, Name = "Drop The Beat", Data = {} }
+                        )
+                    end)
+                end
+            end
+
+            task.wait(1)
+        end
+
+        AutoDjRunning = false
+    end)
+end
+
+StartAutoNecro = function()
+    local isEnabled = (Globals and (Globals.AutoNecro or Globals.AutoNecromancer))
+        or (State and State.Utilities and State.Utilities.AutoNecromancer)
+    if AutoNecroRunning or not isEnabled then return end
+    AutoNecroRunning = true
+
+    local lastActivation = 0
+    local ownerId = game.Players.LocalPlayer and game.Players.LocalPlayer.UserId
+
+    local function getNecros(towersFolder)
+        local list = {}
+        if not towersFolder then
+            return list
+        end
+        for _, rep in ipairs(towersFolder:GetDescendants()) do
+            if rep:IsA("Folder") and rep.Name == "TowerReplicator"
+            and rep:GetAttribute("Name") == "Necromancer"
+            and (ownerId and rep:GetAttribute("OwnerId") == ownerId) then
+                list[#list + 1] = rep.Parent
+            end
+        end
+        return list
+    end
+
+    local function pickMaxGraves(rep, graveStore, up)
+        local maxGraves = rep and rep:GetAttribute("Max_Graves")
+        if graveStore then
+            local gMax = graveStore:GetAttribute("Max_Graves")
+            if type(gMax) == "number" and gMax > 0 then
+                maxGraves = gMax
+            end
+        end
+        if not maxGraves or maxGraves < 2 then
+            if up >= 4 then
+                maxGraves = 9
+            elseif up >= 2 then
+                maxGraves = 6
+            else
+                maxGraves = 3
+            end
+        end
+        return maxGraves
+    end
+
+    local function countGraves(graveStore)
+        if not graveStore then
+            return 0
+        end
+        local cnt = 0
+        for k, v in pairs(graveStore:GetAttributes()) do
+            if type(k) == "string" and #k > 20 then
+                local isDestroy = false
+                if type(v) == "table" then
+                    for _, elem in pairs(v) do
+                        if tostring(elem) == "Destroy" then
+                            isDestroy = true
+                            break
+                        end
+                    end
+                elseif tostring(v):find("Destroy") then
+                    isDestroy = true
+                end
+                if isDestroy then
+                    graveStore:SetAttribute(k, nil)
+                else
+                    cnt += 1
+                end
+            end
+        end
+        return cnt
+    end
+
+    local function cleanAllGraves(list)
+        for _, necro in ipairs(list) do
+            local rep = necro and necro:FindFirstChild("TowerReplicator")
+            local store = rep and rep:FindFirstChild("GraveStone")
+            if store then
+                countGraves(store)
+            end
+        end
+    end
+
+    task.spawn(function()
+        local idx = 1
+
+        while (Globals and (Globals.AutoNecro or Globals.AutoNecromancer))
+            or (State and State.Utilities and State.Utilities.AutoNecromancer) do
+            local TowersFolder = workspace:FindFirstChild("Towers")
+            local necromancer = getNecros(TowersFolder)
+            cleanAllGraves(necromancer)
+
+            if #necromancer >= 1 then
+                if idx > #necromancer then idx = 1 end
+                local CurrentNecromancer = necromancer[idx]
+                local replicator = CurrentNecromancer and CurrentNecromancer:FindFirstChild("TowerReplicator")
+
+                local up = replicator and (replicator:GetAttribute("Upgrade") or 0) or 0
+                local graveStore = replicator and replicator:FindFirstChild("GraveStone")
+                local maxGraves = pickMaxGraves(replicator, graveStore, up)
+                local graveCount = countGraves(graveStore)
+                local debounce = (replicator and replicator:GetAttribute("AbilityDebounce")) or 5
+                local now = os.clock()
+
+                if maxGraves and graveCount >= maxGraves and (now - lastActivation >= debounce) then
+                    local rf = ReplicatedStorage:FindFirstChild("RemoteFunction")
+                    local response = nil
+                    if rf and rf:IsA("RemoteFunction") then
+                        local ok, res = pcall(function()
+                            return rf:InvokeServer(
+                                "Troops",
+                                "Abilities",
+                                "Activate",
+                                { Troop = CurrentNecromancer, Name = "Raise The Dead", Data = {} }
+                            )
+                        end)
+                        if ok then response = res end
+                    end
+
+                    if response then 
+                        lastActivation = now
+                        idx += 1
+                        task.wait(1)
+                    else
+                        task.wait(0.5)
+                    end
+                else
+                    task.wait(0.1)
+                end
+            else
+                task.wait(1)
+            end
+        end
+
+        AutoNecroRunning = false
+    end)
+end
 end)() -- Automation routines block
 
 do
@@ -7128,6 +7481,18 @@ if (Globals and Globals.AutoGatling == true) or (State and State.Utilities and S
 end
 if (State and State.Utilities and State.Utilities.AutoPickups) or (Globals and Globals.AutoPickups) then
     StartAutoPickups()
+end
+if ((State and State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain))) and StartAutoChain then
+    StartAutoChain()
+end
+if ((State and State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDj or Globals.AutoDJ))) and StartAutoDjBooth then
+    StartAutoDjBooth()
+end
+if ((State and State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro))) and StartAutoNecro then
+    StartAutoNecro()
+end
+if ((State and State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary or Globals.AutoMilitary))) and StartAutoMercenary then
+    StartAutoMercenary()
 end
 end
 
@@ -7369,65 +7734,93 @@ UtilitiesAutomationSection:Toggle({
     end,
 })
 
--- 5. Pending features add for decoration
-local UtilitiesPendingSection = UtilitiesTab:Section({ Title = "Combat Automations (Pending)" })
+-- 5. Auto Support & Combat Abilities
+local UtilitiesCombatSection = UtilitiesTab:Section({ Title = "Auto Support & Abilities" })
 
-UtilitiesPendingSection:Toggle({
+UtilitiesCombatSection:Toggle({
     Title = "Auto Commander",
-    Desc = "Pending feature — Automated Commander Call to Arms ability cycle (Coming Soon)",
-    Value = false,
+    Desc = "Automatically chains Call of Arms across 3+ Commander towers with timescale timing",
+    Value = (State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain)) or false,
     Callback = function(val: boolean)
-        if val then
-            Window:Notify({
-                Title = "Feature Pending",
-                Desc = "Auto Commander is coming in an upcoming update!",
-                Duration = 2.5,
-            })
+        State.Utilities.AutoCommander = val
+        Globals.AutoCommander = val
+        Globals.AutoChain = val
+        if Settings then
+            Settings:Set("AutoCommander", val)
+            Settings:Set("AutoChain", val)
+        end
+        Logger:Info("Auto Commander: " .. (val and "ENABLED" or "DISABLED"))
+        if val and StartAutoChain then
+            StartAutoChain()
         end
     end,
 })
 
-UtilitiesPendingSection:Toggle({
-    Title = "Auto Dj",
-    Desc = "Pending feature — Automated DJ boost and track ability management (Coming Soon)",
-    Value = false,
+UtilitiesCombatSection:Toggle({
+    Title = "Support Caravan",
+    Desc = "Activates Commander Support Caravan ability at level 4+ during chain",
+    Value = (State.Utilities and State.Utilities.SupportCaravan ~= false) and (Globals and Globals.SupportCaravan ~= false),
     Callback = function(val: boolean)
-        if val then
-            Window:Notify({
-                Title = "Feature Pending",
-                Desc = "Auto DJ is coming in an upcoming update!",
-                Duration = 2.5,
-            })
+        State.Utilities.SupportCaravan = val
+        Globals.SupportCaravan = val
+        if Settings then Settings:Set("SupportCaravan", val) end
+        Logger:Info("Support Caravan: " .. (val and "ENABLED" or "DISABLED"))
+    end,
+})
+
+UtilitiesCombatSection:Toggle({
+    Title = "Auto DJ Booth",
+    Desc = "Automatically triggers Drop The Beat ability on Level 3+ DJ Booth",
+    Value = (State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDJ or Globals.AutoDj)) or false,
+    Callback = function(val: boolean)
+        State.Utilities.AutoDj = val
+        Globals.AutoDJ = val
+        Globals.AutoDj = val
+        if Settings then
+            Settings:Set("AutoDj", val)
+            Settings:Set("AutoDJ", val)
+        end
+        Logger:Info("Auto DJ: " .. (val and "ENABLED" or "DISABLED"))
+        if val and StartAutoDjBooth then
+            StartAutoDjBooth()
         end
     end,
 })
 
-UtilitiesPendingSection:Toggle({
+UtilitiesCombatSection:Toggle({
     Title = "Auto Necromancer",
-    Desc = "Pending feature — Automated Necromancer summon ability cycle (Coming Soon)",
-    Value = false,
+    Desc = "Automatically triggers Raise The Dead when GraveStone reaches max capacity",
+    Value = (State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro)) or false,
     Callback = function(val: boolean)
-        if val then
-            Window:Notify({
-                Title = "Feature Pending",
-                Desc = "Auto Necromancer is coming in an upcoming update!",
-                Duration = 2.5,
-            })
+        State.Utilities.AutoNecromancer = val
+        Globals.AutoNecromancer = val
+        Globals.AutoNecro = val
+        if Settings then
+            Settings:Set("AutoNecromancer", val)
+            Settings:Set("AutoNecro", val)
+        end
+        Logger:Info("Auto Necromancer: " .. (val and "ENABLED" or "DISABLED"))
+        if val and StartAutoNecro then
+            StartAutoNecro()
         end
     end,
 })
 
-UtilitiesPendingSection:Toggle({
+UtilitiesCombatSection:Toggle({
     Title = "Auto Mercenary Base",
-    Desc = "Pending feature — Automated Mercenary Base deployment cycle (Coming Soon)",
-    Value = false,
+    Desc = "Automatically activates Air-Drop ability on Level 5+ Mercenary Base (Distance: 300)",
+    Value = (State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary)) or false,
     Callback = function(val: boolean)
-        if val then
-            Window:Notify({
-                Title = "Feature Pending",
-                Desc = "Auto Mercenary Base is coming in an upcoming update!",
-                Duration = 2.5,
-            })
+        State.Utilities.AutoMercenaryBase = val
+        Globals.AutoMercenaryBase = val
+        Globals.AutoMercenary = val
+        if Settings then
+            Settings:Set("AutoMercenaryBase", val)
+            Settings:Set("AutoMercenary", val)
+        end
+        Logger:Info("Auto Mercenary Base: " .. (val and "ENABLED" or "DISABLED"))
+        if val and StartAutoMercenary then
+            StartAutoMercenary()
         end
     end,
 })
@@ -10942,6 +11335,18 @@ task.spawn(function()
             end
             if ((State and State.Utilities and State.Utilities.AutoGatling) or (Globals and Globals.AutoGatling)) and not AutoGatlingRunning and StartAutoGatling then
                 StartAutoGatling()
+            end
+            if ((State and State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain))) and not AutoChainRunning and StartAutoChain then
+                StartAutoChain()
+            end
+            if ((State and State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDj or Globals.AutoDJ))) and not AutoDjRunning and StartAutoDjBooth then
+                StartAutoDjBooth()
+            end
+            if ((State and State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro))) and not AutoNecroRunning and StartAutoNecro then
+                StartAutoNecro()
+            end
+            if ((State and State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary or Globals.AutoMilitary))) and not AutoMercenaryBaseRunning and StartAutoMercenary then
+                StartAutoMercenary()
             end
         end
 

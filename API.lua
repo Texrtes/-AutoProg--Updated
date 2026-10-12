@@ -1741,7 +1741,18 @@ function TDS:AutoChain(...)
                 DoActivateAbility(tower, "Call Of Arms")
             end
 
-            task.wait(10.5)
+            local hotbar = PlayerGui:FindFirstChild("ReactUniversalHotbar") and PlayerGui.ReactUniversalHotbar:FindFirstChild("Frame")
+            local timescale = hotbar and hotbar:FindFirstChild("timescale")
+
+            if timescale then
+                if timescale:FindFirstChild("Lock") then
+                    task.wait(10.5)
+                else
+                    task.wait(5.5)
+                end
+            else
+                task.wait(10.5)
+            end
 
             i += 1
             if i > #TowerIndices then
@@ -1758,6 +1769,7 @@ end
 function TDS:SetOption(idx, name, val, ReqWave)
     local t = self.PlacedTowers[idx]
     if t then
+        Logger:Log("Setting option '" .. name .. "' for tower index: " .. idx)
         return DoSetOption(t, name, val, ReqWave)
     end
     return false
@@ -2020,7 +2032,19 @@ local function StartAutoChain()
 
                 if response then
                     idx += 1
-                    task.wait(10.3)
+
+                    local hotbar = PlayerGui:FindFirstChild("ReactUniversalHotbar")
+                    local TimescaleFrame = hotbar and hotbar.Frame:FindFirstChild("timescale")
+
+                    if TimescaleFrame and TimescaleFrame.Visible then
+                        if TimescaleFrame:FindFirstChild("Lock") then
+                            task.wait(10.3)
+                        else
+                            task.wait(5.25)
+                        end
+                    else
+                        task.wait(10.3)
+                    end
                 else
                     task.wait(0.5)
                 end
@@ -2205,7 +2229,7 @@ local function StartAutoNecro()
 end
 
 local function StartAutoMercenary()
-    if not Globals.AutoMercenary then return end
+    if not Globals.AutoMercenary and not Globals.AutoMilitary then return end
 
     if AutoMercenaryBaseRunning then return end
     AutoMercenaryBaseRunning = true
@@ -2232,7 +2256,7 @@ local function StartAutoMercenary()
                                 Data = {
                                     pathName = 1, 
                                     directionCFrame = CFrame.new(), 
-                                    dist = Globals.MercenaryPath or 195
+                                    dist = Globals.MercenaryPath or 300
                                 } 
                             }
                         )
