@@ -3240,6 +3240,18 @@ end
 
 waitForGameLoaded()
 
+pcall(function()
+    local setid = setthreadidentity or set_thread_identity or (syn and syn.set_thread_identity) or setidentity
+    if setid then
+        if not pcall(setid, 7) then
+            pcall(setid, 8)
+        end
+    end
+    if setthreadcaps then
+        pcall(setthreadcaps, 0x3FFFFFFFFFFFFFFF)
+    end
+end)
+
 Window = Library:Window({
     Title = "XTREME // TDS",
     Subtitle = "v2.0 // Active",

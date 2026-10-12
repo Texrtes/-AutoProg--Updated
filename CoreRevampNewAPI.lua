@@ -519,14 +519,40 @@ local function createDefaultBorderSequence(theme: { [string]: Color3 }): ColorSe
     })
 end
 
+local function isUsableGuiParent(inst: any): boolean
+    if not inst then return false end
+    local ok = pcall(function()
+        local _ = inst.Name
+        local _ = inst:FindFirstChild("CapabilityCheck")
+    end)
+    return ok
+end
+
 local function getParentGui()
+    elevateThread()
     if gethui then
         local ok, h = pcall(gethui)
-        if ok and h then return h end
+        if ok and isUsableGuiParent(h) then
+            return h
+        end
     end
-    local ok, parent = pcall(function() return CoreGui end)
-    if ok and parent then return parent end
-    return LocalPlayer:WaitForChild("PlayerGui")
+    local okCore, cg = pcall(function() return CoreGui end)
+    if okCore and isUsableGuiParent(cg) then
+        return cg
+    end
+    local lp = LocalPlayer or Players.LocalPlayer
+    if lp then
+        local pg = lp:FindFirstChild("PlayerGui")
+        if not pg then
+            pcall(function()
+                pg = lp:WaitForChild("PlayerGui", 5)
+            end)
+        end
+        if isUsableGuiParent(pg) then
+            return pg
+        end
+    end
+    return Players.LocalPlayer and Players.LocalPlayer:WaitForChild("PlayerGui", 5)
 end
 
 local function addRipple(button: GuiButton, color: Color3)
@@ -4031,6 +4057,7 @@ end
 -- Main Window Constructor
 function Library:Window(props: { [string]: any })
     props = props or {}
+    elevateThread()
     if not game:IsLoaded() then
         local loaded = false
         local conn
@@ -4042,6 +4069,7 @@ function Library:Window(props: { [string]: any })
             task.wait(0.2)
         end
         if conn then conn:Disconnect() end
+        elevateThread()
     end
     local self = setmetatable({}, Library)
     self.ThemeName = (type(props.Theme) == "string" and props.Theme) or "AegisCyan"
@@ -4055,8 +4083,14 @@ function Library:Window(props: { [string]: any })
 
     local appTitle = tostring(props.Title or "AUTOPROG // v2.0")
     local guiName = props.Name or "AutoProg_Window"
-    local existing = getParentGui():FindFirstChild(guiName)
-    if existing then existing:Destroy() end
+    local parentContainer = getParentGui()
+
+    pcall(function()
+        if parentContainer then
+            local existing = parentContainer:FindFirstChild(guiName)
+            if existing then existing:Destroy() end
+        end
+    end)
 
     local screenGui = make("ScreenGui", {
         Name = guiName,
@@ -4064,8 +4098,19 @@ function Library:Window(props: { [string]: any })
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         DisplayOrder = props.DisplayOrder or 999,
         IgnoreGuiInset = true, -- Never displace or jerk on mobile menu toggle
-        Parent = getParentGui(),
     })
+
+    local parentOk = pcall(function()
+        screenGui.Parent = parentContainer
+    end)
+    if not parentOk or not screenGui.Parent then
+        pcall(function()
+            local lp = LocalPlayer or Players.LocalPlayer
+            local pg = lp and (lp:FindFirstChild("PlayerGui") or lp:WaitForChild("PlayerGui", 5))
+            screenGui.Parent = pg
+        end)
+    end
+
     if typeof(protectgui) == "function" then
         pcall(protectgui, screenGui)
     elseif typeof(syn) == "table" and typeof((syn :: any).protect_gui) == "function" then
