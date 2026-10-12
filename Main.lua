@@ -8689,7 +8689,7 @@ local RewardItemNames = {
 }
 
 local function GetAllMatchRewards(maxWaitSecs: number?)
-    local timeout = maxWaitSecs or 2.5
+    local timeout = maxWaitSecs or 4.5
     local t0 = tick()
     local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
     local uiRoot = nil
@@ -8697,12 +8697,15 @@ local function GetAllMatchRewards(maxWaitSecs: number?)
 
     while (tick() - t0) < timeout do
         if pg then
-            local rgnr = pg:FindFirstChild("ReactGameNewRewards")
-            local frame = rgnr and rgnr:FindFirstChild("Frame")
-            local gameOver = frame and frame:FindFirstChild("gameOver")
-            rewardsScreen = gameOver and gameOver:FindFirstChild("RewardsScreen")
-            uiRoot = rewardsScreen and rewardsScreen:FindFirstChild("RewardsSection")
-            if uiRoot then break end
+            local rgnr = pg:FindFirstChild("ReactGameNewRewards") or pg:FindFirstChild("GameOver")
+            if rgnr then
+                rewardsScreen = rgnr:FindFirstChild("RewardsScreen", true)
+                uiRoot = rgnr:FindFirstChild("RewardsSection", true)
+                if uiRoot and #uiRoot:GetChildren() > 0 then
+                    task.wait(0.35)
+                    break
+                end
+            end
         end
         task.wait(0.2)
     end
@@ -8720,8 +8723,8 @@ local function GetAllMatchRewards(maxWaitSecs: number?)
     }
 
     if rewardsScreen then
-        local gameStats = rewardsScreen:FindFirstChild("gameStats")
-        local statsList = gameStats and gameStats:FindFirstChild("stats")
+        local gameStats = rewardsScreen:FindFirstChild("gameStats", true)
+        local statsList = (gameStats and gameStats:FindFirstChild("stats")) or gameStats
         if statsList then
             for _, frame in ipairs(statsList:GetChildren()) do
                 local l1 = frame:FindFirstChild("textLabel")
@@ -8734,13 +8737,25 @@ local function GetAllMatchRewards(maxWaitSecs: number?)
             end
         end
 
-        local topBanner = rewardsScreen:FindFirstChild("RewardBanner")
-        if topBanner and topBanner:FindFirstChild("textLabel") then
-            local txt = topBanner.textLabel.Text:upper()
-            if txt:find("TRIUMPH") or txt:find("VICTORY") or txt:find("WIN") then
-                results.Status = "WIN"
-            elseif txt:find("LOST") or txt:find("DEFEAT") then
-                results.Status = "DEFEAT"
+        if results.Time == "00:00" then
+            for _, desc in ipairs(rewardsScreen:GetDescendants()) do
+                if desc:IsA("TextLabel") and desc.Text:match("^%d+:%d%d$") then
+                    results.Time = desc.Text
+                    break
+                end
+            end
+        end
+
+        local topBanner = rewardsScreen:FindFirstChild("RewardBanner", true)
+        if topBanner then
+            local bannerLabel = topBanner:FindFirstChildWhichIsA("TextLabel", true)
+            if bannerLabel then
+                local txt = bannerLabel.Text:upper()
+                if txt:find("TRIUMPH") or txt:find("VICTORY") or txt:find("WIN") then
+                    results.Status = "WIN"
+                elseif txt:find("LOST") or txt:find("DEFEAT") then
+                    results.Status = "DEFEAT"
+                end
             end
         end
     end
@@ -8750,9 +8765,11 @@ local function GetAllMatchRewards(maxWaitSecs: number?)
         local lvlObj = LocalPlayer and LocalPlayer:FindFirstChild("Level")
         if lvlObj then
             results.Level = lvlObj.Value or 0
+        elseif DataHandler and typeof(DataHandler.GetLevel) == "function" then
+            results.Level = tonumber(DataHandler:GetLevel()) or 0
         elseif DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
             local st = DataHandler:GetPlayerStats()
-            if st and st.Level then results.Level = st.Level end
+            if st and st.Level then results.Level = tonumber(st.Level) or 0 end
         end
     end)
 
@@ -8776,34 +8793,56 @@ local function GetAllMatchRewards(maxWaitSecs: number?)
     -- Scrape RewardsSection
     if uiRoot then
         for _, item in ipairs(uiRoot:GetChildren()) do
-            if tonumber(item.Name) then
+            if item:IsA("GuiObject") then
                 local iconId = "0"
                 local img = item:FindFirstChildWhichIsA("ImageLabel", true)
                 if img and img.Image then
                     iconId = img.Image:match("%d+") or "0"
                 end
 
-                for _, child in ipairs(item:GetDescendants()) do
-                    if child:IsA("TextLabel") then
-                        local text = child.Text or ""
-                        local amt = tonumber(text:match("(%d+)")) or 0
+                local texts = {}
+                local cardAmt = 0
 
-                        if text:find("Coins") or text:find("Gold") then
-                            results.Coins = amt
-                        elseif text:find("Gems") or text:find("Diamonds") then
-                            results.Gems = amt
-                        elseif text:find("XP") or text:find("Exp") then
-                            results.XP = amt
-                        elseif text:lower():find("timescale") or iconId == "17447507910" then
-                            results.Timescales = (results.Timescales or 0) + (amt > 0 and amt or 1)
-                        elseif text:lower():find("x%d+") then
-                            local displayName = RewardItemNames[iconId] or ("Unknown Item (" .. iconId .. ")")
-                            if displayName:find("Timescale Ticket") then
-                                local bonusAmt = tonumber(text:match("(%d+)")) or 1
-                                results.Timescales = (results.Timescales or 0) + bonusAmt
+                for _, child in ipairs(item:GetDescendants()) do
+                    if child:IsA("TextLabel") and child.Text and child.Text ~= "" then
+                        table.insert(texts, child.Text)
+                        local rawClean = child.Text:gsub("[^%d]", "")
+                        local num = tonumber(rawClean)
+                        if num and num > 0 and cardAmt == 0 then
+                            if child.Text:find("[%+xX]") or not child.Text:match("%a") then
+                                cardAmt = num
                             end
-                            table.insert(results.Others, { Amount = text:match("x%d+"), Name = displayName })
                         end
+                    end
+                end
+
+                if cardAmt == 0 then
+                    for _, t in ipairs(texts) do
+                        local n = tonumber(t:gsub("[^%d]", ""))
+                        if n and n > 0 then
+                            cardAmt = n
+                            break
+                        end
+                    end
+                end
+
+                local combinedText = table.concat(texts, " "):lower()
+
+                if combinedText:find("coin") or combinedText:find("gold") or iconId == "17447507669" then
+                    results.Coins = (results.Coins or 0) + cardAmt
+                elseif combinedText:find("gem") or combinedText:find("diamond") or iconId == "17447507788" then
+                    results.Gems = (results.Gems or 0) + cardAmt
+                elseif combinedText:find("xp") or combinedText:find("exp") or iconId == "17447507567" then
+                    results.XP = (results.XP or 0) + cardAmt
+                elseif combinedText:find("timescale") or iconId == "17447507910" then
+                    results.Timescales = (results.Timescales or 0) + (cardAmt > 0 and cardAmt or 1)
+                else
+                    local displayName = RewardItemNames[iconId] or ("Unknown Item (" .. iconId .. ")")
+                    if displayName:lower():find("timescale") then
+                        results.Timescales = (results.Timescales or 0) + (cardAmt > 0 and cardAmt or 1)
+                    else
+                        local displayAmt = cardAmt > 0 and ("x" .. tostring(cardAmt)) or "x1"
+                        table.insert(results.Others, { Amount = displayAmt, Name = displayName })
                     end
                 end
             end
@@ -10361,6 +10400,27 @@ task.spawn(function()
                         applyStackerHooks()
                     end
 
+                    local matchStartTime = tick()
+                    local matchStartCoins = 0
+                    local matchStartGems = 0
+                    local matchStartTimescales = 0
+                    local function snapshotStartCurrency()
+                        pcall(function()
+                            if DataHandler then
+                                if typeof(DataHandler.GetCoins) == "function" then
+                                    matchStartCoins = tonumber(DataHandler:GetCoins()) or 0
+                                end
+                                if typeof(DataHandler.GetGems) == "function" then
+                                    matchStartGems = tonumber(DataHandler:GetGems()) or 0
+                                end
+                                if typeof(DataHandler.GetTimescaleTickets) == "function" then
+                                    matchStartTimescales = tonumber(DataHandler:GetTimescaleTickets()) or 0
+                                end
+                            end
+                        end)
+                    end
+                    snapshotStartCurrency()
+
                     local TDS = loadTDSAPI()
                     local isTrialsMatch = false
                     local gsrGlobalTrial = nil
@@ -10948,6 +11008,8 @@ task.spawn(function()
 
                             task.wait(1)
                             resetAllTDSIndices(TDS)
+                            matchStartTime = tick()
+                            snapshotStartCurrency()
 
                             -- Reset Gatling execution flag so Gatling/Railgun loads for the new restarted match!
                             GatlingExecuted = false
@@ -11160,7 +11222,7 @@ task.spawn(function()
 
                             local rewards = nil
                             pcall(function()
-                                rewards = GetAllMatchRewards(2.5)
+                                rewards = GetAllMatchRewards(4.5)
                             end)
                             if not rewards then
                                 rewards = {
@@ -11178,10 +11240,54 @@ task.spawn(function()
                             if matchStatus and (rewards.Status == "UNKNOWN" or rewards.Status == "") then
                                 rewards.Status = (matchStatus == "WIN" or matchStatus == "VICTORY") and "WIN" or "DEFEAT"
                             end
+
+                            -- Fallback match time from matchStartTime if GUI had 00:00
+                            if (not rewards.Time) or rewards.Time == "00:00" then
+                                local elapsed = math.max(0, math.floor(tick() - (matchStartTime or tick())))
+                                local mins = math.floor(elapsed / 60)
+                                local secs = elapsed % 60
+                                rewards.Time = string.format("%02d:%02d", mins, secs)
+                            end
+
+                            -- Fallback via DataHandler stat delta if GUI returned 0 or was delayed
+                            pcall(function()
+                                if DataHandler then
+                                    if rewards.Coins == 0 and typeof(DataHandler.GetCoins) == "function" then
+                                        local curCoins = tonumber(DataHandler:GetCoins()) or 0
+                                        if curCoins > matchStartCoins then
+                                            rewards.Coins = curCoins - matchStartCoins
+                                            Logger:Info(string.format("Rewards Fallback: Captured +%d Coins via DataHandler delta (%d -> %d)", rewards.Coins, matchStartCoins, curCoins))
+                                        end
+                                    end
+                                    if rewards.Gems == 0 and typeof(DataHandler.GetGems) == "function" then
+                                        local curGems = tonumber(DataHandler:GetGems()) or 0
+                                        if curGems > matchStartGems then
+                                            rewards.Gems = curGems - matchStartGems
+                                            Logger:Info(string.format("Rewards Fallback: Captured +%d Gems via DataHandler delta (%d -> %d)", rewards.Gems, matchStartGems, curGems))
+                                        end
+                                    end
+                                    if rewards.Timescales == 0 and typeof(DataHandler.GetTimescaleTickets) == "function" then
+                                        local curTimescales = tonumber(DataHandler:GetTimescaleTickets()) or 0
+                                        if curTimescales > matchStartTimescales then
+                                            rewards.Timescales = curTimescales - matchStartTimescales
+                                            Logger:Info(string.format("Rewards Fallback: Captured +%d Timescales via DataHandler delta (%d -> %d)", rewards.Timescales, matchStartTimescales, curTimescales))
+                                        end
+                                    end
+                                end
+                            end)
+
                             if (matchStatus == "WIN" or matchStatus == "VICTORY") and (rewards.Timescales == 0) and currentActiveTrialTitle then
                                 local tTickets = getTrialTimescaleReward(currentActiveTrialTitle)
                                 if tTickets > 0 then rewards.Timescales = tTickets end
                             end
+
+                            Logger:Info(string.format("Match Rewards Recorded: Coins: +%s | Gems: +%s | XP: +%s | Tickets: +%s | Time: %s",
+                                tostring(rewards.Coins or 0),
+                                tostring(rewards.Gems or 0),
+                                tostring(rewards.XP or 0),
+                                tostring(rewards.Timescales or 0),
+                                tostring(rewards.Time or "00:00")
+                            ))
 
                             -- Update session totals
                             if getgenv then
@@ -11364,6 +11470,8 @@ task.spawn(function()
                                         until (not towersFolder or #towersFolder:GetChildren() == 0) or (tick() - cleanWaitT0 >= 8)
 
                                         task.wait(1)
+                                        matchStartTime = tick()
+                                        snapshotStartCurrency()
                                         startStrat()
                                     else
                                         Logger:Warn("Auto Timescales: Rematch timed out or failed. Returning to lobby via smartLobby...")
@@ -11435,6 +11543,8 @@ task.spawn(function()
                                             until (not towersFolder or #towersFolder:GetChildren() == 0) or (tick() - cleanWaitT0 >= 8)
 
                                             task.wait(1)
+                                            matchStartTime = tick()
+                                            snapshotStartCurrency()
                                             startStrat()
                                         else
                                             Logger:Warn("Auto Timescales: Match restart failed. Returning to lobby via smartLobby...")
