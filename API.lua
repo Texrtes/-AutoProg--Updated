@@ -259,14 +259,23 @@ shared["TDS_Table"] = TDS
 
 function TDS:ResetAllStates()
     self.__matchRestarted = true
-    table.clear(self.PlacedTowers)
-    table.clear(UpgradeHistory)
-    table.clear(executed_actions)
+    if self.PlacedTowers and type(self.PlacedTowers) == "table" then pcall(table.clear, self.PlacedTowers) end
+    self.PlacedTowers = {}
+    self["placed_towers"] = self.PlacedTowers
+    if self.PlacedTraps and type(self.PlacedTraps) == "table" then pcall(table.clear, self.PlacedTraps) end
+    self.PlacedTraps = {}
+    if self.MapInteractions and type(self.MapInteractions) == "table" then pcall(table.clear, self.MapInteractions) end
+    self.MapInteractions = {}
+    if UpgradeHistory and type(UpgradeHistory) == "table" then pcall(table.clear, UpgradeHistory) end
+    if self.UpgradeHistory and type(self.UpgradeHistory) == "table" then pcall(table.clear, self.UpgradeHistory) end
+    if executed_actions and type(executed_actions) == "table" then pcall(table.clear, executed_actions) end
     if Logger and Logger.Clear then
         pcall(function()
             Logger:Clear()
         end)
     end
+    warn("[TDS:ResetAllStates] All states, indices, and action histories reset.")
+    return true
 end
 
 function TDS:RunStrategy()
@@ -2385,14 +2394,45 @@ function TDS:Rejoin()
 end
 
 function TDS:RemoveIndex()
-	self.PlacedTowers = {}
-    self.PlacedTraps = {}
-    self.MapInteractions = {}
-  
-    if UpgradeHistory then
-        table.clear(UpgradeHistory)
+    if self.PlacedTowers and type(self.PlacedTowers) == "table" then
+        pcall(table.clear, self.PlacedTowers)
     end
-	
+    self.PlacedTowers = {}
+    self["placed_towers"] = self.PlacedTowers
+
+    if self.PlacedTraps and type(self.PlacedTraps) == "table" then
+        pcall(table.clear, self.PlacedTraps)
+    end
+    self.PlacedTraps = {}
+
+    if self.MapInteractions and type(self.MapInteractions) == "table" then
+        pcall(table.clear, self.MapInteractions)
+    end
+    self.MapInteractions = {}
+
+    if self.UpgradeHistory and type(self.UpgradeHistory) == "table" then
+        pcall(table.clear, self.UpgradeHistory)
+    end
+    if UpgradeHistory and type(UpgradeHistory) == "table" then
+        pcall(table.clear, UpgradeHistory)
+    end
+    if executed_actions and type(executed_actions) == "table" then
+        pcall(table.clear, executed_actions)
+    end
+    self.__matchRestarted = true
+    warn("[TDS:RemoveIndex] Tower indices, traps, and interaction history cleared.")
+    return true
+end
+
+TDS.RemoveIndex = TDS.RemoveIndex
+TDS["remove_index"] = TDS.RemoveIndex
+TDS.removeIndex = TDS.RemoveIndex
+if getgenv then
+    getgenv().RemoveIndex = function(...)
+        if TDS and typeof(TDS.RemoveIndex) == "function" then
+            return TDS:RemoveIndex(...)
+        end
+    end
 end
 
 task.spawn(function()

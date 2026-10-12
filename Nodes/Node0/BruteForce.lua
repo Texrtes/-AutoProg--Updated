@@ -1,3 +1,4 @@
+if TDS and TDS.RemoveIndex then pcall(function() TDS:RemoveIndex() end) end
 -- Chapter 0 Mission 4: Brute Force
 -- Story already provides its own loadout.
 -- No dialogue gate is required in the current working route.

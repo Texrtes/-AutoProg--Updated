@@ -1,3 +1,4 @@
+if TDS and TDS.RemoveIndex then pcall(function() TDS:RemoveIndex() end) end
 TDS:Loadout("Scout", "None", "None", "None", "None")
 
 TDS:Mode("Easy")

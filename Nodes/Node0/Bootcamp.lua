@@ -1,3 +1,4 @@
+if TDS and TDS.RemoveIndex then pcall(function() TDS:RemoveIndex() end) end
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")

@@ -17,10 +17,10 @@ local Config = {
                 TowerToBuy = { "Assassin" },
                 StoryMode = { "Boot Camp", "Live Fire", "Breach Protocol", "Brute Force" }, -- Story Missions
                 scripts = {
-                    ["Boot Camp"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/Bootcamp.lua",
-                    ["Live Fire"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/LiveFire.lua",
-                    ["Breach Protocol"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/BreachProtocol.lua",
-                    ["Brute Force"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node0/BruteForce.lua",
+                    ["Boot Camp"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node0/Bootcamp.lua",
+                    ["Live Fire"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node0/LiveFire.lua",
+                    ["Breach Protocol"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node0/BreachProtocol.lua",
+                    ["Brute Force"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node0/BruteForce.lua",
                 }
             }
         },
@@ -36,11 +36,11 @@ local Config = {
                 TowerToBuy = { "Soldier" }, -- Node 1 things to do: Grind coins until Soldier is purchased
                 Maps = { "Simplicity", "Meltdown", "Midnight Issue", "Spring Fever", "Stained Temple" }, -- Available Maps
                 scripts = {
-                    ["Simplicity"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/simplicity.lua",
-                    ["Meltdown"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/meltdown.lua",
-                    ["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/midnight_issue.lua",
-                    ["Spring Fever"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/spring_fever.lua",
-                    ["Stained Temple"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node1/stained_temple.lua",
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node1/simplicity.lua",
+                    ["Meltdown"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node1/meltdown.lua",
+                    ["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node1/midnight_issue.lua",
+                    ["Spring Fever"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node1/spring_fever.lua",
+                    ["Stained Temple"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node1/stained_temple.lua",
                 }
             }
         },
@@ -58,10 +58,10 @@ local Config = {
                 TowersToClaim = { "Crook Boss" },
                 Maps = { "Lighthaos", "Midnight Issue", "Nether", "Wrecked Battlefield II" }, -- Available Maps
                 scripts = {
-                    ["Lighthaos"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/lighthaos.lua",
-                    ["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/midnight_issue.lua",
-                    ["Nether"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/nether.lua",
-                    ["Wrecked Battlefield II"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Nodes/Node2/wrecked_battlefield_ii.lua",
+                    ["Lighthaos"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node2/lighthaos.lua",
+                    ["Midnight Issue"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node2/midnight_issue.lua",
+                    ["Nether"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node2/nether.lua",
+                    ["Wrecked Battlefield II"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Nodes/Node2/wrecked_battlefield_ii.lua",
                 }
             }
         },
@@ -78,7 +78,7 @@ local Config = {
                 TowerToBuy = { "Brawler", "Necromancer", "Accelerator", "Engineer", "Hacker" }, 
                 Maps = { "Wretched Front" }, -- Available Maps
                 scripts = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg-/main/Recording/Node3/wretched_front.lua",
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/main/Recording/Node3/wretched_front.lua",
                 }
             }
         }

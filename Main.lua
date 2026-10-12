@@ -716,6 +716,56 @@ local function loadTDSAPI()
     return nil
 end
 
+local function resetAllTDSIndices(extraTDS)
+    local instances = {
+        extraTDS,
+        cachedTDSAPI,
+        shared.TDSTable,
+        shared["TDS_Table"],
+        (getgenv and getgenv().TDS),
+        _G.TDS
+    }
+    local cleared = false
+    for _, api in ipairs(instances) do
+        if api and type(api) == "table" then
+            if typeof(api.RemoveIndex) == "function" then
+                pcall(function() api:RemoveIndex() end)
+                cleared = true
+            elseif typeof(api.removeIndex) == "function" then
+                pcall(function() api:removeIndex() end)
+                cleared = true
+            end
+            if typeof(api.ResetAllStates) == "function" then
+                pcall(function() api:ResetAllStates() end)
+                cleared = true
+            end
+            if api.PlacedTowers and type(api.PlacedTowers) == "table" then
+                pcall(table.clear, api.PlacedTowers)
+                api["placed_towers"] = api.PlacedTowers
+                cleared = true
+            end
+            if api.PlacedTraps and type(api.PlacedTraps) == "table" then
+                pcall(table.clear, api.PlacedTraps)
+            end
+            if api.MapInteractions and type(api.MapInteractions) == "table" then
+                pcall(table.clear, api.MapInteractions)
+            end
+            if api.UpgradeHistory and type(api.UpgradeHistory) == "table" then
+                pcall(table.clear, api.UpgradeHistory)
+            end
+            api.__matchRestarted = true
+        end
+    end
+    if getgenv and typeof(getgenv().RemoveIndex) == "function" then
+        pcall(getgenv().RemoveIndex)
+        cleared = true
+    end
+    if Logger and typeof(Logger.Info) == "function" then
+        Logger:Info("resetAllTDSIndices: Successfully cleared placed tower indices and execution histories across all TDS tables.")
+    end
+    return cleared
+end
+
 local function formatCommas(amount: number): string
     local formatted = tostring(math.floor(amount or 0))
     local k
@@ -6125,12 +6175,7 @@ local function executeStrategyFile(stratName, optPath, isAuto)
             if shared then shared.SmartTeleportToLobby = SmartTeleportToLobby end
             if Globals then Globals.SmartTeleportToLobby = SmartTeleportToLobby end
         end
-        if typeof(activeTDS.RemoveIndex) == "function" then
-            pcall(function() activeTDS:RemoveIndex() end)
-        end
-        if typeof(activeTDS.ResetAllStates) == "function" then
-            pcall(function() activeTDS:ResetAllStates() end)
-        end
+        resetAllTDSIndices(activeTDS)
     end
 
     currentRunningStratName = stratName
@@ -10636,12 +10681,7 @@ task.spawn(function()
                     until (not State.Master) or (not activeInGameCurrencyLoop) or (tick() - waitStartT0 >= 30)
 
                     -- 3. State reset and clean index before strategy run
-                    if TDS and typeof(TDS.RemoveIndex) == "function" then
-                        pcall(function() TDS:RemoveIndex() end)
-                    end
-                    if TDS and typeof(TDS.ResetAllStates) == "function" then
-                        pcall(function() TDS:ResetAllStates() end)
-                    end
+                    resetAllTDSIndices(TDS)
 
                     -- 4. Identify active map and load strategy script (skip for Story Mode to preserve mission-specific mapping)
                     if not isStoryMode and activeMode ~= "Timescales" then
@@ -10708,6 +10748,7 @@ task.spawn(function()
                                         return true
                                     end
                                     activeTDS.Map = activeTDS.GameInfo
+                                    resetAllTDSIndices(activeTDS)
                                 end
 
                                 local rawContent = nil
@@ -10880,12 +10921,7 @@ task.spawn(function()
                                 pcall(task.cancel, stratThread)
                                 stratThread = nil
                             end
-                            if TDS and typeof(TDS.RemoveIndex) == "function" then
-                                pcall(function() TDS:RemoveIndex() end)
-                            end
-                            if TDS and typeof(TDS.ResetAllStates) == "function" then
-                                pcall(function() TDS:ResetAllStates() end)
-                            end
+                            resetAllTDSIndices(TDS)
                             pcall(function()
                                 local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
                                 if pg then
@@ -10911,6 +10947,7 @@ task.spawn(function()
                             until (tick() - cleanWaitT0 >= 10)
 
                             task.wait(1)
+                            resetAllTDSIndices(TDS)
 
                             -- Reset Gatling execution flag so Gatling/Railgun loads for the new restarted match!
                             GatlingExecuted = false
@@ -11273,12 +11310,7 @@ task.spawn(function()
                                             pcall(task.cancel, stratThread)
                                             stratThread = nil
                                         end
-                                        if TDS and typeof(TDS.RemoveIndex) == "function" then
-                                            pcall(function() TDS:RemoveIndex() end)
-                                        end
-                                        if TDS and typeof(TDS.ResetAllStates) == "function" then
-                                            pcall(function() TDS:ResetAllStates() end)
-                                        end
+                                        resetAllTDSIndices(TDS)
                                         pcall(function()
                                             local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
                                             if pg then
@@ -11358,12 +11390,7 @@ task.spawn(function()
                                                 pcall(task.cancel, stratThread)
                                                 stratThread = nil
                                             end
-                                            if TDS and typeof(TDS.RemoveIndex) == "function" then
-                                                pcall(function() TDS:RemoveIndex() end)
-                                            end
-                                            if TDS and typeof(TDS.ResetAllStates) == "function" then
-                                                pcall(function() TDS:ResetAllStates() end)
-                                            end
+                                            resetAllTDSIndices(TDS)
 
                                             local cleanWaitT0 = tick()
                                             repeat
@@ -11396,6 +11423,7 @@ task.spawn(function()
                                             local remote = ReplicatedStorage:FindFirstChild("RemoteFunction")
                                             if remote and remote:IsA("RemoteFunction") then
                                                 pcall(function() remote:InvokeServer("Multiplayer", "v2:stop") end)
+                                                resetAllTDSIndices()
                                                 task.wait(0.2)
                                                 remote:InvokeServer("Multiplayer", "v2:start", {
                                                     mode = "story",
