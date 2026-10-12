@@ -1091,6 +1091,12 @@ local AutoGoldModule = {
 }
 
 function AutoGoldModule.ExecuteGatlingLoader(forceChoice: string?)
+    if AutoGoldModule.GatlingExecuted then
+        Logger:Info("Auto Gatling: Already loaded (loads only once). Keeping GatlingExecuted = true.")
+        return
+    end
+    AutoGoldModule.GatlingExecuted = true
+
     local choice = forceChoice
         or (State and State.Utilities and State.Utilities.SelectedGatling)
         or (State and State.AdvancFunc and State.AdvancFunc.SelectedGatling)
@@ -1101,7 +1107,6 @@ function AutoGoldModule.ExecuteGatlingLoader(forceChoice: string?)
         and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
         or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
 
-    AutoGoldModule.GatlingExecuted = true
     Logger:Info(string.format("Auto Gatling: Loading %s script from %s...", choice, gatlingUrl))
     if Window and typeof(Window.Notify) == "function" then
         pcall(function()
@@ -1158,22 +1163,15 @@ function AutoGoldModule.StartAutoGatling()
             or (State and State.AdvancFunc and (State.AdvancFunc.AutoGatling or State.AdvancFunc.ConditionGatlingLoader))
             or (Globals and (Globals.AutoGatling or Globals.ConditionGatlingLoader)) do
             if game.PlaceId ~= 3260590327 then
-                local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
-                local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
-                local isOver = gsr and gsr:GetAttribute("GameOver")
-                local wave = gsr and (gsr:GetAttribute("Wave") or 0) or 0
-
-                if isOver == true then
-                    AutoGoldModule.GatlingExecuted = false
-                end
-
-                if not AutoGoldModule.GatlingExecuted and isOver == false then
+                if not AutoGoldModule.GatlingExecuted then
                     task.wait(2.5) -- Allow placements and match initialization
-                    local chosenScript = (State and State.Utilities and State.Utilities.SelectedGatling)
-                        or (State and State.AdvancFunc and State.AdvancFunc.SelectedGatling)
-                        or (Globals and Globals.SelectedGatling)
-                        or "Railgun"
-                    AutoGoldModule.ExecuteGatlingLoader(chosenScript)
+                    if not AutoGoldModule.GatlingExecuted then
+                        local chosenScript = (State and State.Utilities and State.Utilities.SelectedGatling)
+                            or (State and State.AdvancFunc and State.AdvancFunc.SelectedGatling)
+                            or (Globals and Globals.SelectedGatling)
+                            or "Railgun"
+                        AutoGoldModule.ExecuteGatlingLoader(chosenScript)
+                    end
                 end
             else
                 AutoGoldModule.GatlingExecuted = false
@@ -10422,9 +10420,7 @@ task.spawn(function()
                                 end)
                             end
 
-                            AutoGoldModule.GatlingExecuted = false
                             startStrat()
-                            triggerGatlingLoad(3.0)
                             task.wait(3)
                             return true
                         else
