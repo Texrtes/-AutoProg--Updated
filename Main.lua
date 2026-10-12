@@ -3875,8 +3875,32 @@ local progToggleRef = nil
             local coinsMet = (#tMissing == 0) or (tTotalCoins == 0) or (playerCoins >= tTotalCoins)
             local coinsDeficit = math.max(0, tTotalCoins - playerCoins)
 
-            local tToClaim = n2.TowersToClaim or (n2Step and n2Step.TowersToClaim)
-            local claimDone, claimOwned, claimMissing = checkTowersListOwned(tToClaim)
+            local claimUnlockLevels = {
+                ["Crook Boss"] = 30,
+                ["Turret"] = 50,
+                ["Mortar"] = 75,
+                ["Pursuit"] = 100,
+            }
+            local tToClaim = n2.TowersToClaim or (n2Step and n2Step.TowersToClaim) or {}
+            local claimDone = true
+            local claimOwned = {}
+            local claimMissing = {}
+
+            for _, t in ipairs(tToClaim) do
+                local reqLvl = claimUnlockLevels[t] or 30
+                local owned = isTowerOwned(t)
+                local levelMet = (playerLevel >= reqLvl)
+
+                if owned then
+                    table.insert(claimOwned, t .. " (Claimed ✓)")
+                elseif levelMet then
+                    -- Level requirement reached! Can be claimed in lobby, so mark as checked for match progression
+                    table.insert(claimOwned, string.format("%s (Lv%d Reached ✓ - Claim in Lobby)", t, reqLvl))
+                else
+                    claimDone = false
+                    table.insert(claimMissing, string.format("%s (Unlock at Lv%d)", t, reqLvl))
+                end
+            end
 
             if not (lvlPassed and tDone and claimDone) then
                 local lvlRatio = math.clamp((playerLevel - 15) / (lvlGoal - 15), 0, 1)
@@ -3899,10 +3923,11 @@ local progToggleRef = nil
                     table.insert(objLines, string.format("🛒 Towers to Buy: %s (Owned ✓)", table.concat(tOwned, ", ")))
                 end
                 if #claimMissing > 0 then
-                    table.insert(objLines, string.format("🎁 Towers to Claim: %s (Unlock at Lv30)", table.concat(claimMissing, ", ")))
+                    table.insert(objLines, string.format("🎁 Towers to Claim: %s", table.concat(claimMissing, ", ")))
                 else
-                    table.insert(objLines, string.format("🎁 Towers to Claim: %s (Claimed ✓)", table.concat(claimOwned, ", ")))
+                    table.insert(objLines, string.format("🎁 Towers to Claim: %s", table.concat(claimOwned, ", ")))
                 end
+
                 table.insert(objLines, string.format("🛡️ Equip Loadout: %s", table.concat(n2Step.TowersToEquip or {"Soldier"}, ", ")))
                 table.insert(objLines, string.format("⚔️ Mode: %s | Maps: %s", tostring(n2Step.Modes or "Molten"), table.concat(n2Step.Maps or {"Lighthaos"}, ", ")))
 
@@ -8083,7 +8108,10 @@ end
 local function getActiveCurrencyInfo()
     local mode = "None (Idle)"
     local config = nil
-    if State and State.AutoCurrency then
+    if State and State.AutoProgress and State.AutoProgress.Enabled then
+        mode = "Auto Progress"
+        config = State.AutoProgress
+    elseif State and State.AutoCurrency then
         if State.AutoCurrency.Coins and State.AutoCurrency.Coins.Enabled then
             mode = "Auto Coins"
             config = State.AutoCurrency.Coins
@@ -8365,6 +8393,38 @@ local function appendTargetProgressField(fields: {any}, activeMode: string, acti
                 inline = false,
             })
         end
+    elseif activeMode == "Auto Progress" then
+        local nodeInfo = getAutoProgressNodeInfo and getAutoProgressNodeInfo()
+        local nodeNum = (nodeInfo and nodeInfo.nodeNum) or 0
+        local nodeName = (nodeInfo and nodeInfo.nodeName) or ("Node " .. tostring(nodeNum))
+        local prog = (nodeInfo and nodeInfo.progress) or 0
+        local pct = math.clamp(math.floor(prog * 100), 0, 100)
+        local bar = makeProgressBarASCII(pct, 10)
+        local isPrem = checkIsPremium()
+        local tierText = isPrem and "Premium" or "Free"
+        local curLvl = getEffectivePlayerLevel()
+        local goalLvl = (nodeInfo and nodeInfo.levelGoal) or (nodeNum == 0 and 0 or (nodeNum == 1 and 15 or 50))
+
+        local progLines = {}
+        table.insert(progLines, string.format("`[%s] %d%%`", bar, pct))
+        table.insert(progLines, string.format("> **Node:** `%d` (%s)", nodeNum, nodeName))
+        table.insert(progLines, string.format("> **Tier:** `%s`", tierText))
+        table.insert(progLines, string.format("> **Level:** `%d%s`", curLvl, (goalLvl > 0 and (" / " .. tostring(goalLvl)) or "")))
+        if nodeInfo and nodeInfo.status then
+            table.insert(progLines, string.format("> **Status:** `%s`", tostring(nodeInfo.status)))
+        end
+        if nodeInfo and nodeInfo.towersToBuy and #nodeInfo.towersToBuy > 0 then
+            table.insert(progLines, string.format("> **Towers to Buy:** `%s`", table.concat(nodeInfo.towersToBuy, ", ")))
+        end
+        if nodeInfo and nodeInfo.towersToClaim and #nodeInfo.towersToClaim > 0 then
+            table.insert(progLines, string.format("> **Towers to Claim:** `%s`", table.concat(nodeInfo.towersToClaim, ", ")))
+        end
+
+        table.insert(fields, {
+            name = "📈 Auto Prog Progress",
+            value = table.concat(progLines, "\n"),
+            inline = false,
+        })
     else
         table.insert(fields, {
             name = "📊 Target Progress",
@@ -8510,11 +8570,15 @@ SendAutoCurrencyWebhook = function(eventTitle: string?, matchResult: string?, ex
             value = string.format("🪙 `%s` Coins • 💎 `%s` Gems • ⌛ `%s` Timescales", formatNumber(stats.Coins), formatNumber(stats.Gems), formatNumber(tsBalance)),
             inline = false,
         })
+        local modeDesc = (activeMode == "Auto Progress")
+            and string.format("`Auto Progress [Node %s]` • Tier: `%s`", tostring((getAutoProgressNodeInfo and getAutoProgressNodeInfo().nodeNum) or 0), planText)
+            or string.format("`%s [%s]` • Plan: `%s`", activeMode, condition, planText)
         table.insert(fields, {
-            name = "⚙️ Mode & Plan",
-            value = string.format("`%s [%s]` • Plan: `%s`", activeMode, condition, planText),
+            name = "⚙️ Mode & Tier",
+            value = modeDesc,
             inline = true,
         })
+
         table.insert(fields, {
             name = "⏱️ Session Runtime",
             value = string.format("`%s (%s)`", clockStr, totalHoursStr),
@@ -8557,11 +8621,15 @@ SendAutoCurrencyWebhook = function(eventTitle: string?, matchResult: string?, ex
             value = string.format("`%s`", planText),
             inline = true,
         })
+        local actModeDesc = (activeMode == "Auto Progress")
+            and string.format("`Auto Progress [Node %s]`", tostring((getAutoProgressNodeInfo and getAutoProgressNodeInfo().nodeNum) or 0))
+            or string.format("`%s [%s]`", activeMode, condition)
         table.insert(fields, {
-            name = "⚙️ Active Currency",
-            value = string.format("`%s [%s]`", activeMode, condition),
+            name = "⚙️ Active Mode",
+            value = actModeDesc,
             inline = true,
         })
+
         table.insert(fields, {
             name = "⏱️ Session Time",
             value = string.format("`%s (%s)`", clockStr, totalHoursStr),
@@ -10701,23 +10769,58 @@ task.spawn(function()
                                     if DataHandler and typeof(DataHandler.GetPlayerStats) == "function" then
                                         local st = DataHandler:GetPlayerStats()
                                         if st and st.Coins then curCoins = tonumber(st.Coins) or 0 end
+                                    elseif DataHandler and typeof(DataHandler.GetCoins) == "function" then
+                                        curCoins = tonumber(DataHandler:GetCoins()) or 0
                                     end
 
-                                    local goal = (nodeInfo and nodeInfo.levelGoal) or 15
-                                    local neededCoins = (nodeInfo and nodeInfo.totalCoinsNeeded) or 0
-                                    local hasAllTowers = (nodeInfo and nodeInfo.towersToBuy and #nodeInfo.towersToBuy == 0)
+                                    local nodeNum = (nodeInfo and nodeInfo.nodeNum) or 1
 
-                                    local lvlDone = (curLvl >= goal)
-                                    local coinsDone = hasAllTowers or (neededCoins == 0) or (curCoins >= neededCoins)
-
-                                    if lvlDone and coinsDone then
-                                        Logger:Info(string.format("Auto Progress (%s): Objectives reached (Level: %d/%d, Coins: %d/%d)! Returning to lobby via smartLobby to buy towers and advance...", tostring(nodeInfo and nodeInfo.nodeName), curLvl, goal, curCoins, neededCoins))
+                                    if nodeNum == 1 then
+                                        -- Node 1: Target is Level 15!
+                                        if curLvl >= 15 then
+                                            Logger:Info(string.format("Auto Progress (Node 1): Level 15 reached (Current Level: %d)! Returning to lobby via smartLobby to buy new towers and advance to Node 2...", curLvl))
+                                            if State.Misc.WebhookAlerts and State.Misc.WebhookUrl ~= "" and SendAutoCurrencyWebhook then
+                                                pcall(function()
+                                                    SendAutoCurrencyWebhook("Node 1 Completed", matchStatus, matchWave, "Level 15 reached! Returning to lobby via smartLobby to buy towers and enter Node 2.", rewards)
+                                                end)
+                                            end
+                                            Window:Notify({
+                                                Title = "Node 1 Completed!",
+                                                Desc = "Reached Level 15! Returning to lobby to buy new towers and advance to Node 2.",
+                                                Duration = 6,
+                                            })
+                                            SmartTeleportToLobby()
+                                            break
+                                        else
+                                            -- Keep grinding Casual in-place
+                                            Logger:Info(string.format("Auto Progress (Node 1): Match ended. Grinding in-place (Level: %d/15, Coins: %d).", curLvl, curCoins))
+                                            doInPlaceRestart("Auto Progress (Node 1)")
+                                        end
+                                    elseif nodeNum == 2 then
+                                        -- Node 2: Target is Level 50!
+                                        if curLvl >= 50 then
+                                            Logger:Info(string.format("Auto Progress (Node 2): Level 50 reached (Current Level: %d)! Returning to lobby via smartLobby to claim rewards and complete progression...", curLvl))
+                                            if State.Misc.WebhookAlerts and State.Misc.WebhookUrl ~= "" and SendAutoCurrencyWebhook then
+                                                pcall(function()
+                                                    SendAutoCurrencyWebhook("Node 2 Completed", matchStatus, matchWave, "Level 50 reached! Returning to lobby via smartLobby to claim rewards and finish Auto Prog.", rewards)
+                                                end)
+                                            end
+                                            Window:Notify({
+                                                Title = "Node 2 Completed!",
+                                                Desc = "Reached Level 50! Returning to lobby to claim rewards and finish Auto Prog.",
+                                                Duration = 8,
+                                            })
+                                            SmartTeleportToLobby()
+                                            break
+                                        else
+                                            -- Keep grinding Molten in-place
+                                            Logger:Info(string.format("Auto Progress (Node 2): Match ended. Grinding in-place (Level: %d/50, Coins: %d).", curLvl, curCoins))
+                                            doInPlaceRestart("Auto Progress (Node 2)")
+                                        end
+                                    else
+                                        -- Fallback
                                         SmartTeleportToLobby()
                                         break
-                                    else
-                                        -- Lose strat fast grind: in-place Restart Match to farm coins and level without lobby delay!
-                                        Logger:Info(string.format("Auto Progress (%s): Match ended. Grinding in-place (Level: %d/%d, Coins: %d/%d).", tostring(nodeInfo and nodeInfo.nodeName), curLvl, goal, curCoins, neededCoins))
-                                        doInPlaceRestart(string.format("Auto Progress (%s)", tostring(nodeInfo and nodeInfo.nodeName)))
                                     end
                                 end
                             elseif isTrialsMatch then
