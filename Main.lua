@@ -1043,7 +1043,7 @@ local function getOwnedTrialsChecklist(forceRefresh: boolean?): { string }
     return all
 end
 
-local LOBBY_PLACE_ID = 3260590327
+LOBBY_PLACE_ID = 3260590327
 
 local function attemptBuyMissingTowersList(missingTowers)
     local remote = ReplicatedStorage:FindFirstChild("RemoteFunction")
@@ -4009,6 +4009,15 @@ end)()
 --==============================================================================
 -- 6. AUTO CURRENCY TAB
 --==============================================================================
+-- External references needed by Overview tab and matchmaking
+local evoToggleRef = nil
+local EvoTrackerSection = nil
+local evoTowersLabelRef = nil
+local missingCoinsLabel = nil
+local missingGemsLabel = nil
+local missingLevelsLabel = nil
+
+do
 -- Segmented navigation at top of Auto Currency tab
 local CurrencyModesSegmented = CurrencyTab:Segmented({
     Options = { "Auto Coins", "Auto Gems", "Auto Levels", "Auto Timescales", "Auto Evo" },
@@ -4024,19 +4033,13 @@ local GemsSection = nil
 local LevelsSection = nil
 local TimescalesSection = nil
 local EvoSection = nil
-local EvoTrackerSection = nil
 
-local evoToggleRef = nil
 local evoTargetDropdownRef = nil
 local evoStratDropdownRef = nil
 local evoStatusLabelRef = nil
 local evoMissingLabelRef = nil
 local evoCoinsGemsLabelRef = nil
-local evoTowersLabelRef = nil
 
-local missingCoinsLabel = nil
-local missingGemsLabel = nil
-local missingLevelsLabel = nil
 local missingTimescalesLabel = nil
 
 local coinsProgressLabel = nil
@@ -5078,6 +5081,7 @@ evoTowersLabelRef = EvoTrackerSection:Label({
 
 -- Activate initial mode view
 showCurrencySection(State.AutoCurrency.SelectedTab or "Auto Coins")
+end
 
 --==============================================================================
 -- 6.5 AUTO PLAY (RECORDING) & STRATEGY LIBRARY TABS
@@ -6357,14 +6361,6 @@ local AutoGatlingRunning = false
 local StartInMatchTimescale = nil
 local StartAutoReloadGatling = nil
 local StartAutoPickups = nil
-local StartAutoChain = nil
-local StartAutoDjBooth = nil
-local StartAutoNecro = nil
-local StartAutoMercenary = nil
-local AutoChainRunning = false
-local AutoDjRunning = false
-local AutoNecroRunning = false
-local AutoMercenaryBaseRunning = false
 local ApplyInMatchTimescaleOnce = nil
 local extractPrivateServerCode = nil
 local SellAllPlacedTowers = nil
@@ -7127,13 +7123,13 @@ StartAutoPickups = function()
     end)
 end
 
-StartAutoMercenary = function()
+Globals.StartAutoMercenary = function()
     local isEnabled = (Globals and (Globals.AutoMercenary or Globals.AutoMilitary or Globals.AutoMercenaryBase))
         or (State and State.Utilities and State.Utilities.AutoMercenaryBase)
     if not isEnabled then return end
 
-    if AutoMercenaryBaseRunning then return end
-    AutoMercenaryBaseRunning = true
+    if Globals.AutoMercenaryBaseRunning then return end
+    Globals.AutoMercenaryBaseRunning = true
 
     task.spawn(function()
         while (Globals and (Globals.AutoMercenary or Globals.AutoMilitary or Globals.AutoMercenaryBase))
@@ -7184,15 +7180,15 @@ StartAutoMercenary = function()
             task.wait(0.5)
         end
 
-        AutoMercenaryBaseRunning = false
+        Globals.AutoMercenaryBaseRunning = false
     end)
 end
 
-StartAutoChain = function()
+Globals.StartAutoChain = function()
     local isEnabled = (Globals and (Globals.AutoChain or Globals.AutoCommander))
         or (State and State.Utilities and State.Utilities.AutoCommander)
-    if AutoChainRunning or not isEnabled then return end
-    AutoChainRunning = true
+    if Globals.AutoChainRunning or not isEnabled then return end
+    Globals.AutoChainRunning = true
 
     task.spawn(function()
         local idx = 1
@@ -7272,15 +7268,15 @@ StartAutoChain = function()
             end
         end
 
-        AutoChainRunning = false
+        Globals.AutoChainRunning = false
     end)
 end
 
-StartAutoDjBooth = function()
+Globals.StartAutoDjBooth = function()
     local isEnabled = (Globals and (Globals.AutoDJ or Globals.AutoDj))
         or (State and State.Utilities and State.Utilities.AutoDj)
-    if AutoDjRunning or not isEnabled then return end
-    AutoDjRunning = true
+    if Globals.AutoDjRunning or not isEnabled then return end
+    Globals.AutoDjRunning = true
 
     task.spawn(function()
         while (Globals and (Globals.AutoDJ or Globals.AutoDj))
@@ -7318,15 +7314,15 @@ StartAutoDjBooth = function()
             task.wait(1)
         end
 
-        AutoDjRunning = false
+        Globals.AutoDjRunning = false
     end)
 end
 
-StartAutoNecro = function()
+Globals.StartAutoNecro = function()
     local isEnabled = (Globals and (Globals.AutoNecro or Globals.AutoNecromancer))
         or (State and State.Utilities and State.Utilities.AutoNecromancer)
-    if AutoNecroRunning or not isEnabled then return end
-    AutoNecroRunning = true
+    if Globals.AutoNecroRunning or not isEnabled then return end
+    Globals.AutoNecroRunning = true
 
     local lastActivation = 0
     local ownerId = game.Players.LocalPlayer and game.Players.LocalPlayer.UserId
@@ -7455,7 +7451,7 @@ StartAutoNecro = function()
             end
         end
 
-        AutoNecroRunning = false
+        Globals.AutoNecroRunning = false
     end)
 end
 end)() -- Automation routines block
@@ -7482,17 +7478,17 @@ end
 if (State and State.Utilities and State.Utilities.AutoPickups) or (Globals and Globals.AutoPickups) then
     StartAutoPickups()
 end
-if ((State and State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain))) and StartAutoChain then
-    StartAutoChain()
+if ((State and State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain))) and Globals.StartAutoChain then
+    Globals.StartAutoChain()
 end
-if ((State and State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDj or Globals.AutoDJ))) and StartAutoDjBooth then
-    StartAutoDjBooth()
+if ((State and State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDj or Globals.AutoDJ))) and Globals.StartAutoDjBooth then
+    Globals.StartAutoDjBooth()
 end
-if ((State and State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro))) and StartAutoNecro then
-    StartAutoNecro()
+if ((State and State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro))) and Globals.StartAutoNecro then
+    Globals.StartAutoNecro()
 end
-if ((State and State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary or Globals.AutoMilitary))) and StartAutoMercenary then
-    StartAutoMercenary()
+if ((State and State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary or Globals.AutoMilitary))) and Globals.StartAutoMercenary then
+    Globals.StartAutoMercenary()
 end
 end
 
@@ -7734,6 +7730,7 @@ UtilitiesAutomationSection:Toggle({
     end,
 })
 
+do
 -- 5. Auto Support & Combat Abilities
 local UtilitiesCombatSection = UtilitiesTab:Section({ Title = "Auto Support & Abilities" })
 
@@ -7750,8 +7747,8 @@ UtilitiesCombatSection:Toggle({
             Settings:Set("AutoChain", val)
         end
         Logger:Info("Auto Commander: " .. (val and "ENABLED" or "DISABLED"))
-        if val and StartAutoChain then
-            StartAutoChain()
+        if val and Globals.StartAutoChain then
+            Globals.StartAutoChain()
         end
     end,
 })
@@ -7781,8 +7778,8 @@ UtilitiesCombatSection:Toggle({
             Settings:Set("AutoDJ", val)
         end
         Logger:Info("Auto DJ: " .. (val and "ENABLED" or "DISABLED"))
-        if val and StartAutoDjBooth then
-            StartAutoDjBooth()
+        if val and Globals.StartAutoDjBooth then
+            Globals.StartAutoDjBooth()
         end
     end,
 })
@@ -7800,8 +7797,8 @@ UtilitiesCombatSection:Toggle({
             Settings:Set("AutoNecro", val)
         end
         Logger:Info("Auto Necromancer: " .. (val and "ENABLED" or "DISABLED"))
-        if val and StartAutoNecro then
-            StartAutoNecro()
+        if val and Globals.StartAutoNecro then
+            Globals.StartAutoNecro()
         end
     end,
 })
@@ -7819,11 +7816,12 @@ UtilitiesCombatSection:Toggle({
             Settings:Set("AutoMercenary", val)
         end
         Logger:Info("Auto Mercenary Base: " .. (val and "ENABLED" or "DISABLED"))
-        if val and StartAutoMercenary then
-            StartAutoMercenary()
+        if val and Globals.StartAutoMercenary then
+            Globals.StartAutoMercenary()
         end
     end,
 })
+end
 
 -- Extra tools (Auto Collect & Unlock Admin)
 local UtilitiesToolsSection = UtilitiesTab:Section({ Title = "Item Collection & Admin" })
@@ -8116,7 +8114,7 @@ local function clearActiveMode()
     -- Teardown match/mode hook
 end
 
-local function extractPrivateServerCode(linkOrCode: string?)
+extractPrivateServerCode = function(linkOrCode: string?)
     if not linkOrCode or type(linkOrCode) ~= "string" then return "" end
     local trimmed = linkOrCode:gsub("^%s*(.-)%s*$", "%1")
     if trimmed == "" then return "" end
@@ -8278,8 +8276,9 @@ MiscPrivateServer:Button({
         SmartTeleportToLobby()
     end,
 })
+end
 
-
+do
 local MiscPlayer = MiscTab:Section({ Title = "Player Modifications" })
 
 MiscPlayer:Toggle({
@@ -8292,7 +8291,9 @@ MiscPlayer:Toggle({
         Logger:Info("Anti-AFK: " .. (val and "ACTIVE" or "DISABLED"))
     end,
 })
+end
 
+do
 -- Performance & Anti-Lag Functions
 local AntiLagRunning = false
 
@@ -11336,17 +11337,17 @@ task.spawn(function()
             if ((State and State.Utilities and State.Utilities.AutoGatling) or (Globals and Globals.AutoGatling)) and not AutoGatlingRunning and StartAutoGatling then
                 StartAutoGatling()
             end
-            if ((State and State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain))) and not AutoChainRunning and StartAutoChain then
-                StartAutoChain()
+            if ((State and State.Utilities and State.Utilities.AutoCommander) or (Globals and (Globals.AutoCommander or Globals.AutoChain))) and not Globals.AutoChainRunning and Globals.StartAutoChain then
+                Globals.StartAutoChain()
             end
-            if ((State and State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDj or Globals.AutoDJ))) and not AutoDjRunning and StartAutoDjBooth then
-                StartAutoDjBooth()
+            if ((State and State.Utilities and State.Utilities.AutoDj) or (Globals and (Globals.AutoDj or Globals.AutoDJ))) and not Globals.AutoDjRunning and Globals.StartAutoDjBooth then
+                Globals.StartAutoDjBooth()
             end
-            if ((State and State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro))) and not AutoNecroRunning and StartAutoNecro then
-                StartAutoNecro()
+            if ((State and State.Utilities and State.Utilities.AutoNecromancer) or (Globals and (Globals.AutoNecromancer or Globals.AutoNecro))) and not Globals.AutoNecroRunning and Globals.StartAutoNecro then
+                Globals.StartAutoNecro()
             end
-            if ((State and State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary or Globals.AutoMilitary))) and not AutoMercenaryBaseRunning and StartAutoMercenary then
-                StartAutoMercenary()
+            if ((State and State.Utilities and State.Utilities.AutoMercenaryBase) or (Globals and (Globals.AutoMercenaryBase or Globals.AutoMercenary or Globals.AutoMilitary))) and not Globals.AutoMercenaryBaseRunning and Globals.StartAutoMercenary then
+                Globals.StartAutoMercenary()
             end
         end
 
