@@ -756,6 +756,11 @@ local function loadTDSAPI()
     return nil
 end
 
+local currentRunningStratThread = nil
+local currentRunningStratName = nil
+local hasAutoExecutedThisMatch = false
+local isStrategyActiveInMatch = false
+
 local function resetAllTDSIndices(extraTDS)
     local instances = {
         extraTDS,
@@ -804,6 +809,84 @@ local function resetAllTDSIndices(extraTDS)
         Logger:Info("resetAllTDSIndices: Successfully cleared placed tower indices and execution histories across all TDS tables.")
     end
     return cleared
+end
+
+local function isStrategyAlreadyRunning(): boolean
+    -- If we are in the lobby, no in-match strategy is actively running
+    if game.PlaceId == LOBBY_PLACE_ID then
+        return false
+    end
+
+    -- Check if match has already concluded
+    local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+    if gsr and gsr:GetAttribute("GameOver") == true then
+        return false
+    end
+
+    -- 1. Explicit in-match strategy execution flags
+    if isStrategyActiveInMatch == true
+        or (Globals and Globals.isStrategyActiveInMatch == true)
+        or (shared and shared.isStrategyActiveInMatch == true)
+        or (Globals and Globals.tdsReplaying == true) then
+        return true
+    end
+
+    -- 2. Strategy execution thread / coroutine status
+    if currentRunningStratThread and type(currentRunningStratThread) == "thread" then
+        local st = coroutine.status(currentRunningStratThread)
+        if st == "running" or st == "suspended" or st == "normal" then
+            return true
+        end
+    end
+    if Globals and Globals.activeStrategyThread and type(Globals.activeStrategyThread) == "thread" then
+        local st = coroutine.status(Globals.activeStrategyThread)
+        if st == "running" or st == "suspended" or st == "normal" then
+            return true
+        end
+    end
+
+    -- 3. Check active TDS API placed towers and active strategy state
+    local instances = {
+        cachedTDSAPI,
+        shared.TDSTable,
+        shared["TDS_Table"],
+        (getgenv and getgenv().TDS),
+        _G.TDS
+    }
+    for _, api in ipairs(instances) do
+        if api and type(api) == "table" then
+            if api.ActiveStrat == true and ((api.PlacedTowers and #api.PlacedTowers > 0) or (api.TowerCount and api.TowerCount > 0)) then
+                return true
+            end
+            if api.PlacedTowers and type(api.PlacedTowers) == "table" and #api.PlacedTowers > 0 then
+                return true
+            end
+            if api.TowerCount and type(api.TowerCount) == "number" and api.TowerCount > 0 then
+                return true
+            end
+        end
+    end
+
+    -- 4. Check workspace placed towers owned by local player if game has started
+    local gameStarted = (gsr and (gsr:GetAttribute("GameStarted") == true or (gsr:GetAttribute("Wave") or 0) > 0))
+        or (workspace:GetAttribute("GameStarted") == true or (workspace:GetAttribute("Wave") or 0) > 0)
+    if gameStarted then
+        local towersFolder = workspace:FindFirstChild("Towers")
+        if towersFolder and #towersFolder:GetChildren() > 0 then
+            local myUserId = LocalPlayer and LocalPlayer.UserId
+            if myUserId then
+                for _, t in ipairs(towersFolder:GetChildren()) do
+                    local owner = t:FindFirstChild("Owner")
+                    if owner and owner.Value == myUserId then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+
+    return false
 end
 
 local function formatCommas(amount: number): string
@@ -1176,6 +1259,12 @@ end
 --==============================================================================
 local SmartTeleportToLobby
 SmartTeleportToLobby = function(...)
+    isStrategyActiveInMatch = false
+    if Globals then Globals.isStrategyActiveInMatch = false end
+    if shared then shared.isStrategyActiveInMatch = false end
+    hasAutoExecutedThisMatch = false
+    currentRunningStratThread = nil
+    currentRunningStratName = nil
     if AutoGoldModule and AutoGoldModule.SmartTeleportToLobby then
         return AutoGoldModule.SmartTeleportToLobby(...)
     end
@@ -3889,16 +3978,23 @@ local function setAutomationMode(targetMode: string, enable: boolean)
 
         -- In-game behavior when toggled or switched during a match:
         if isIngame and not isUIInitializing then
-            flaggedSmartLobbyAfterMatch = true
-            flaggedSmartLobbyReason = (currentActive and currentActive ~= targetMode) and "Settings changed" or "Mode enabled mid-game"
-            Logger:Info(string.format("Automation mode set to %s mid-game (previous: %s). Flagged to return to smartLobby after match to reset strat cleanly.", targetMode, tostring(currentActive or "None")))
-            if Window and typeof(Window.Notify) == "function" then
-                Window:Notify({
-                    Title = "Settings Changed",
-                    Desc = "Settings changed returning to smartLobby after the game ends",
-                    Duration = 6,
-                    Type = "info",
-                })
+            if isStrategyAlreadyRunning() and (currentActive == targetMode or currentActive == nil) then
+                -- Accidental off/on toggle of the same mode mid-game while strategy is running:
+                flaggedSmartLobbyAfterMatch = false
+                flaggedSmartLobbyReason = ""
+                Logger:Info(string.format("Auto %s re-enabled mid-game while strategy is running. Preserving active game (smartLobby flag cleared).", targetMode))
+            else
+                flaggedSmartLobbyAfterMatch = true
+                flaggedSmartLobbyReason = (currentActive and currentActive ~= targetMode) and "Settings changed" or "Mode enabled mid-game"
+                Logger:Info(string.format("Automation mode set to %s mid-game (previous: %s). Flagged to return to smartLobby after match to reset strat cleanly.", targetMode, tostring(currentActive or "None")))
+                if Window and typeof(Window.Notify) == "function" then
+                    Window:Notify({
+                        Title = "Settings Changed",
+                        Desc = "Settings changed returning to smartLobby after the game ends",
+                        Duration = 6,
+                        Type = "info",
+                    })
+                end
             end
         end
 
@@ -6299,12 +6395,22 @@ Globals.selectedStrat = savedAutoStrat
 Globals.SelectedStrat = savedAutoStrat
 Globals.SelectedAutoStrat = savedAutoStrat
 
-local currentRunningStratThread = nil
-local currentRunningStratName = nil
-local hasAutoExecutedThisMatch = false
-
 local function executeStrategyFile(stratName, optPath, isAuto)
     if not stratName or stratName == "" then return false end
+
+    -- Strategy Watchdog: If a strategy is already running, prevent duplicate execution and index reset
+    if isStrategyAlreadyRunning() then
+        Logger:Info("strat was already running waiting")
+        if Window and typeof(Window.Notify) == "function" then
+            Window:Notify({
+                Title = "Strategy Running",
+                Desc = "strat was already running waiting",
+                Duration = 4,
+                Type = "info",
+            })
+        end
+        return true
+    end
 
     local possiblePaths = {}
     if optPath and type(optPath) == "string" and optPath ~= "" then
@@ -6434,6 +6540,9 @@ local function executeStrategyFile(stratName, optPath, isAuto)
 
     currentRunningStratName = stratName
     hasAutoExecutedThisMatch = true
+    isStrategyActiveInMatch = true
+    if Globals then Globals.isStrategyActiveInMatch = true end
+    if shared then shared.isStrategyActiveInMatch = true end
 
     Window:Notify({
         Title = isAuto and "Auto-Executing Strategy" or "Executing Strategy",
@@ -6699,7 +6808,11 @@ stratManagerRef = LibrarySection:StrategyManager({
             Type = val and "success" or "info",
         })
         if val and target and target ~= "" then
-            executeStrategyFile(target, nil, true)
+            if isStrategyAlreadyRunning() then
+                Logger:Info("strat was already running waiting")
+            else
+                executeStrategyFile(target, nil, true)
+            end
         end
     end,
 })
@@ -6719,8 +6832,12 @@ task.spawn(function()
     end
 
     if isAuto and target and target ~= "" then
-        Logger:Info("[Auto Execute on Run] Executing selected strategy immediately on script run: " .. tostring(target))
-        executeStrategyFile(target, nil, true)
+        if isStrategyAlreadyRunning() then
+            Logger:Info("strat was already running waiting")
+        else
+            Logger:Info("[Auto Execute on Run] Executing selected strategy immediately on script run: " .. tostring(target))
+            executeStrategyFile(target, nil, true)
+        end
     end
 end)
 
@@ -8542,6 +8659,12 @@ extractPrivateServerCode = function(linkOrCode: string?)
 end
 
 SmartTeleportToLobby = function()
+    isStrategyActiveInMatch = false
+    if Globals then Globals.isStrategyActiveInMatch = false end
+    if shared then shared.isStrategyActiveInMatch = false end
+    hasAutoExecutedThisMatch = false
+    currentRunningStratThread = nil
+    currentRunningStratName = nil
     if Globals then Globals.SmartTeleportToLobby = SmartTeleportToLobby end
     if shared then
         shared.SmartTeleportToLobby = SmartTeleportToLobby
@@ -10351,6 +10474,12 @@ task.spawn(function()
         if isLobby then
             flaggedSmartLobbyAfterMatch = false
             flaggedSmartLobbyReason = ""
+            isStrategyActiveInMatch = false
+            if Globals then Globals.isStrategyActiveInMatch = false end
+            if shared then shared.isStrategyActiveInMatch = false end
+            hasAutoExecutedThisMatch = false
+            currentRunningStratThread = nil
+            currentRunningStratName = nil
         end
 
         -- Check target limit threshold (Lobby only)
@@ -10902,7 +11031,11 @@ task.spawn(function()
                                 end
                             end
 
-                            Logger:Info(string.format("Auto Progress (Node 0): Pre-made Story Mission %d (%s) detected. Executing script directly (skipping map voting)...", mNum, missionName))
+                            if isStrategyAlreadyRunning() then
+                                Logger:Info("strat was already running waiting")
+                            else
+                                Logger:Info(string.format("Auto Progress (Node 0): Pre-made Story Mission %d (%s) detected. Executing script directly (skipping map voting)...", mNum, missionName))
+                            end
 
                             -- Auto Ready Watcher for Story Mode: keep voting Ready until prompt is dismissed
                             task.spawn(function()
@@ -11033,7 +11166,11 @@ task.spawn(function()
                     until (not State.Master) or (not activeInGameCurrencyLoop) or (tick() - waitStartT0 >= 30)
 
                     -- 3. State reset and clean index before strategy run
-                    resetAllTDSIndices(TDS)
+                    if not isStrategyAlreadyRunning() then
+                        resetAllTDSIndices(TDS)
+                    else
+                        Logger:Info("strat was already running waiting")
+                    end
 
                     -- 4. Identify active map and load strategy script (skip for Story Mode to preserve mission-specific mapping)
                     if not isStoryMode and activeMode ~= "Timescales" then
@@ -11067,6 +11204,10 @@ task.spawn(function()
 
                     local stratThread = nil
                     local function startStrat()
+                        if isStrategyAlreadyRunning() then
+                            Logger:Info("strat was already running waiting")
+                            return
+                        end
                         if not scriptUrl or scriptUrl == "" then
                             local isLoseCondition = (condition == "Lose") or (activeMode == "Progress")
                             if isLoseCondition and (game.PlaceId ~= LOBBY_PLACE_ID) then
@@ -11113,7 +11254,12 @@ task.spawn(function()
                             return
                         end
                         Logger:Info("Auto Currency: Running strategy script for map: " .. tostring(activeMap))
+                        isStrategyActiveInMatch = true
+                        if Globals then Globals.isStrategyActiveInMatch = true end
+                        if shared then shared.isStrategyActiveInMatch = true end
+                        currentRunningStratName = tostring(activeMap)
                         stratThread = task.spawn(function()
+                            currentRunningStratThread = coroutine.running()
                             local ok, sErr = pcall(function()
                                 local activeTDS = TDS or cachedTDSAPI or shared.TDSTable or (getgenv and getgenv().TDS) or _G.TDS
                                 if not activeTDS then
@@ -11331,10 +11477,19 @@ task.spawn(function()
 
                         if restartSuccess then
                             Logger:Info(string.format("%s: Match restarted! Cleaning state and executing strategy...", prefix))
+                            isStrategyActiveInMatch = false
+                            if Globals then Globals.isStrategyActiveInMatch = false end
+                            if shared then shared.isStrategyActiveInMatch = false end
+                            hasAutoExecutedThisMatch = false
                             if stratThread then
                                 pcall(task.cancel, stratThread)
                                 stratThread = nil
                             end
+                            if currentRunningStratThread then
+                                pcall(task.cancel, currentRunningStratThread)
+                                currentRunningStratThread = nil
+                            end
+                            currentRunningStratName = nil
                             resetAllTDSIndices(TDS)
                             pcall(function()
                                 local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
@@ -11802,10 +11957,19 @@ task.spawn(function()
 
                                     if rematchSuccess then
                                         Logger:Info("Auto Timescales: Rematch successful! Resetting states and starting strategy...")
+                                        isStrategyActiveInMatch = false
+                                        if Globals then Globals.isStrategyActiveInMatch = false end
+                                        if shared then shared.isStrategyActiveInMatch = false end
+                                        hasAutoExecutedThisMatch = false
                                         if stratThread then
                                             pcall(task.cancel, stratThread)
                                             stratThread = nil
                                         end
+                                        if currentRunningStratThread then
+                                            pcall(task.cancel, currentRunningStratThread)
+                                            currentRunningStratThread = nil
+                                        end
+                                        currentRunningStratName = nil
                                         resetAllTDSIndices(TDS)
                                         pcall(function()
                                             local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
@@ -11884,10 +12048,19 @@ task.spawn(function()
 
                                         if restartSuccess then
                                             Logger:Info("Auto Timescales: Match restarted! Cleaning state and executing strategy...")
+                                            isStrategyActiveInMatch = false
+                                            if Globals then Globals.isStrategyActiveInMatch = false end
+                                            if shared then shared.isStrategyActiveInMatch = false end
+                                            hasAutoExecutedThisMatch = false
                                             if stratThread then
                                                 pcall(task.cancel, stratThread)
                                                 stratThread = nil
                                             end
+                                            if currentRunningStratThread then
+                                                pcall(task.cancel, currentRunningStratThread)
+                                                currentRunningStratThread = nil
+                                            end
+                                            currentRunningStratName = nil
                                             resetAllTDSIndices(TDS)
 
                                             local cleanWaitT0 = tick()
@@ -12202,6 +12375,9 @@ task.spawn(function()
 
             if isOver then
                 hasAutoExecutedThisMatch = false
+                isStrategyActiveInMatch = false
+                if Globals then Globals.isStrategyActiveInMatch = false end
+                if shared then shared.isStrategyActiveInMatch = false end
             elseif gameStarted and not hasAutoExecutedThisMatch then
                 local currentTarget = selectedStrat
                 if not currentTarget or currentTarget == "" then
@@ -12210,8 +12386,13 @@ task.spawn(function()
                         or selectedLibraryFile
                 end
                 if currentTarget and currentTarget ~= "" then
-                    Logger:Info("[Auto-Exec Match] In-game match detected! Auto-executing: " .. tostring(currentTarget))
-                    executeStrategyFile(currentTarget, nil, true)
+                    if isStrategyAlreadyRunning() then
+                        Logger:Info("strat was already running waiting")
+                        hasAutoExecutedThisMatch = true
+                    else
+                        Logger:Info("[Auto-Exec Match] In-game match detected! Auto-executing: " .. tostring(currentTarget))
+                        executeStrategyFile(currentTarget, nil, true)
+                    end
                 end
             end
         end
