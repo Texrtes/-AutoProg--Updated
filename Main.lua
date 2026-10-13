@@ -3239,6 +3239,33 @@ State = {
     }
 }
 
+do
+    -- Enforce mutual exclusivity across loaded settings
+    local loadedActive = nil
+    if State.AutoProgress and State.AutoProgress.Enabled then
+        loadedActive = "Progress"
+    elseif State.AutoCurrency.Coins.Enabled then
+        loadedActive = "Coins"
+    elseif State.AutoCurrency.Gems.Enabled then
+        loadedActive = "Gems"
+    elseif State.AutoCurrency.Levels.Enabled then
+        loadedActive = "Levels"
+    elseif State.AutoCurrency.Timescales.Enabled then
+        loadedActive = "Timescales"
+    elseif State.AutoCurrency.Evo and State.AutoCurrency.Evo.Enabled then
+        loadedActive = "Evo"
+    end
+
+    if loadedActive then
+        if loadedActive ~= "Progress" and State.AutoProgress then State.AutoProgress.Enabled = false end
+        if loadedActive ~= "Coins" then State.AutoCurrency.Coins.Enabled = false end
+        if loadedActive ~= "Gems" then State.AutoCurrency.Gems.Enabled = false end
+        if loadedActive ~= "Levels" then State.AutoCurrency.Levels.Enabled = false end
+        if loadedActive ~= "Timescales" then State.AutoCurrency.Timescales.Enabled = false end
+        if loadedActive ~= "Evo" and State.AutoCurrency.Evo then State.AutoCurrency.Evo.Enabled = false end
+    end
+end
+
 -- Initial AutoRestart and AutoRejoin synchronization for API and in-game supervisor
 local initialCond = (State.AutoCurrency.Coins.Enabled and State.AutoCurrency.Coins.Condition)
     or (State.AutoCurrency.Gems.Enabled and State.AutoCurrency.Gems.Condition)
@@ -3738,8 +3765,195 @@ end)()
 --==============================================================================
 local getAutoProgressNodeInfo = nil
 local refreshAutoProgUI = nil
-local progToggleRef = nil
 local getTowerCost = nil
+
+-- Forward references for all automation toggles and mutual exclusion controller
+local progToggleRef = nil
+local coinsToggleRef = nil
+local gemsToggleRef = nil
+local levelsToggleRef = nil
+local timescalesToggleRef = nil
+local evoToggleRef = nil
+
+local flaggedSmartLobbyAfterMatch = false
+local flaggedSmartLobbyReason = ""
+local isTogglingAutomationInternally = false
+local isUIInitializing = true
+
+local function getActiveAutomationMode(): string?
+    if State and State.AutoProgress and State.AutoProgress.Enabled then
+        return "Progress"
+    elseif State and State.AutoCurrency then
+        if State.AutoCurrency.Coins and State.AutoCurrency.Coins.Enabled then
+            return "Coins"
+        elseif State.AutoCurrency.Gems and State.AutoCurrency.Gems.Enabled then
+            return "Gems"
+        elseif State.AutoCurrency.Levels and State.AutoCurrency.Levels.Enabled then
+            return "Levels"
+        elseif State.AutoCurrency.Timescales and State.AutoCurrency.Timescales.Enabled then
+            return "Timescales"
+        elseif State.AutoCurrency.Evo and State.AutoCurrency.Evo.Enabled then
+            return "Evo"
+        end
+    end
+    return nil
+end
+
+local function setToggleUI(toggleRef: any, val: boolean)
+    if not toggleRef then return end
+    pcall(function()
+        if typeof(toggleRef.SetValue) == "function" then
+            toggleRef:SetValue(val)
+        elseif typeof(toggleRef.Set) == "function" then
+            toggleRef:Set(val)
+        end
+    end)
+end
+
+local function setAutomationMode(targetMode: string, enable: boolean)
+    if isTogglingAutomationInternally then return end
+
+    local currentActive = getActiveAutomationMode()
+    local isIngame = (game.PlaceId ~= LOBBY_PLACE_ID)
+
+    if enable then
+        isTogglingAutomationInternally = true
+
+        -- 1. Turn off all other automation modes (Global mutual exclusion switch)
+        local allModes = { "Progress", "Coins", "Gems", "Levels", "Timescales", "Evo" }
+        for _, m in ipairs(allModes) do
+            if m ~= targetMode then
+                if m == "Progress" then
+                    if State and State.AutoProgress then State.AutoProgress.Enabled = false end
+                    if Globals then Globals.AutoProgressEnabled = false end
+                    if Settings then Settings:Set("AutoProgressEnabled", false) end
+                    setToggleUI(progToggleRef, false)
+                elseif m == "Evo" then
+                    if State and State.AutoCurrency and State.AutoCurrency.Evo then State.AutoCurrency.Evo.Enabled = false end
+                    if Globals then Globals.AutoEvo = false end
+                    if Settings then Settings:Set("AutoEvoEnabled", false) end
+                    setToggleUI(evoToggleRef, false)
+                else
+                    if State and State.AutoCurrency and State.AutoCurrency[m] then
+                        State.AutoCurrency[m].Enabled = false
+                    end
+                    if Settings then Settings:Set("Auto" .. m .. "Enabled", false) end
+                    local toggleRef = (m == "Coins" and coinsToggleRef)
+                        or (m == "Gems" and gemsToggleRef)
+                        or (m == "Levels" and levelsToggleRef)
+                        or (m == "Timescales" and timescalesToggleRef)
+                    setToggleUI(toggleRef, false)
+                end
+            end
+        end
+
+        -- 2. Enable target mode
+        if targetMode == "Progress" then
+            if State and State.AutoProgress then State.AutoProgress.Enabled = true end
+            if Globals then Globals.AutoProgressEnabled = true end
+            if Settings then Settings:Set("AutoProgressEnabled", true) end
+            setToggleUI(progToggleRef, true)
+        elseif targetMode == "Evo" then
+            if State and State.AutoCurrency and State.AutoCurrency.Evo then State.AutoCurrency.Evo.Enabled = true end
+            if Globals then Globals.AutoEvo = true end
+            if Settings then Settings:Set("AutoEvoEnabled", true) end
+            setToggleUI(evoToggleRef, true)
+        else
+            if State and State.AutoCurrency and State.AutoCurrency[targetMode] then
+                State.AutoCurrency[targetMode].Enabled = true
+            end
+            if Settings then Settings:Set("Auto" .. targetMode .. "Enabled", true) end
+            local toggleRef = (targetMode == "Coins" and coinsToggleRef)
+                or (targetMode == "Gems" and gemsToggleRef)
+                or (targetMode == "Levels" and levelsToggleRef)
+                or (targetMode == "Timescales" and timescalesToggleRef)
+            setToggleUI(toggleRef, true)
+        end
+
+        isTogglingAutomationInternally = false
+
+        if SaveSettings then SaveSettings(true) end
+        if refreshCurrencyBox then pcall(refreshCurrencyBox) end
+        if refreshAutoProgUI then pcall(refreshAutoProgUI) end
+
+        if StatsGrid and typeof(StatsGrid.UpdateItem) == "function" then
+            local label = (targetMode == "Coins" and "Farming coins")
+                or (targetMode == "Gems" and "Farming gems")
+                or (targetMode == "Levels" and "Farming levels")
+                or (targetMode == "Timescales" and "Farming timescales")
+                or (targetMode == "Evo" and "Farming evolution")
+                or (targetMode == "Progress" and "Progressing story/nodes")
+                or "Active"
+            pcall(function() StatsGrid:UpdateItem(5, "ACTIVE", label) end)
+        end
+
+        -- In-game behavior when toggled or switched during a match:
+        if isIngame and not isUIInitializing then
+            flaggedSmartLobbyAfterMatch = true
+            flaggedSmartLobbyReason = (currentActive and currentActive ~= targetMode) and "Settings changed" or "Mode enabled mid-game"
+            Logger:Info(string.format("Automation mode set to %s mid-game (previous: %s). Flagged to return to smartLobby after match to reset strat cleanly.", targetMode, tostring(currentActive or "None")))
+            if Window and typeof(Window.Notify) == "function" then
+                Window:Notify({
+                    Title = "Settings Changed",
+                    Desc = "Settings changed returning to smartLobby after the game ends",
+                    Duration = 6,
+                    Type = "info",
+                })
+            end
+        end
+
+    else
+        -- Disabling targetMode
+        isTogglingAutomationInternally = true
+
+        if targetMode == "Progress" then
+            if State and State.AutoProgress then State.AutoProgress.Enabled = false end
+            if Globals then Globals.AutoProgressEnabled = false end
+            if Settings then Settings:Set("AutoProgressEnabled", false) end
+            setToggleUI(progToggleRef, false)
+        elseif targetMode == "Evo" then
+            if State and State.AutoCurrency and State.AutoCurrency.Evo then State.AutoCurrency.Evo.Enabled = false end
+            if Globals then Globals.AutoEvo = false end
+            if Settings then Settings:Set("AutoEvoEnabled", false) end
+            setToggleUI(evoToggleRef, false)
+        else
+            if State and State.AutoCurrency and State.AutoCurrency[targetMode] then
+                State.AutoCurrency[targetMode].Enabled = false
+            end
+            if Settings then Settings:Set("Auto" .. targetMode .. "Enabled", false) end
+            local toggleRef = (targetMode == "Coins" and coinsToggleRef)
+                or (targetMode == "Gems" and gemsToggleRef)
+                or (targetMode == "Levels" and levelsToggleRef)
+                or (targetMode == "Timescales" and timescalesToggleRef)
+            setToggleUI(toggleRef, false)
+        end
+
+        isTogglingAutomationInternally = false
+
+        if SaveSettings then SaveSettings(true) end
+        if refreshCurrencyBox then pcall(refreshCurrencyBox) end
+        if refreshAutoProgUI then pcall(refreshAutoProgUI) end
+
+        if StatsGrid and typeof(StatsGrid.UpdateItem) == "function" then
+            pcall(function() StatsGrid:UpdateItem(5, "OFF", "Standing by") end)
+        end
+
+        -- In-game behavior when disabled during a match:
+        if isIngame and not isUIInitializing then
+            flaggedSmartLobbyAfterMatch = true
+            flaggedSmartLobbyReason = "Toggle turned off"
+            Logger:Info(string.format("Auto %s turned off mid-game. Flagged to return to smartLobby after match ends.", targetMode))
+            if Window and typeof(Window.Notify) == "function" then
+                Window:Notify({
+                    Title = "Automation Stopped",
+                    Desc = "Toggle has been turned off returning to smartLobby after the game ends",
+                    Duration = 6,
+                    Type = "info",
+                })
+            end
+        end
+    end
+end
 
 ;(function()
     local function isTowerOwned(name: string): boolean
@@ -4107,6 +4321,7 @@ local getTowerCost = nil
         Desc = "Automatically completes story missions, grinds node levels, equips loadouts, and buys towers per node.",
         Value = State.AutoProgress.Enabled,
         Callback = function(val: boolean)
+            if isTogglingAutomationInternally then return end
             if val then
                 local checkNode = getAutoProgressNodeInfo and getAutoProgressNodeInfo()
                 if checkNode and checkNode.isComplete then
@@ -4128,12 +4343,8 @@ local getTowerCost = nil
                     return
                 end
             end
-            State.AutoProgress.Enabled = val
-            Globals.AutoProgressEnabled = val
-            if Settings then Settings:Set("AutoProgressEnabled", val) end
-            SaveSettings(true)
+            setAutomationMode("Progress", val)
             Logger:Info("Auto Progress: " .. (val and "Enabled" or "Disabled"))
-            if refreshAutoProgUI then refreshAutoProgUI() end
         end,
     })
 
@@ -4198,7 +4409,7 @@ end)()
 -- 6. AUTO CURRENCY TAB
 --==============================================================================
 -- External references needed by Overview tab and matchmaking
-local evoToggleRef = nil
+evoToggleRef = nil
 local EvoTrackerSection = nil
 local evoTowersLabelRef = nil
 local missingCoinsLabel = nil
@@ -4720,10 +4931,8 @@ coinsToggleRef = CoinsSection:Toggle({
     Desc = "Toggle automated coin farming routines",
     Value = State.AutoCurrency.Coins.Enabled,
     Callback = function(val: boolean)
-        State.AutoCurrency.Coins.Enabled = val
-        if Settings then Settings:Set("AutoCoinsEnabled", val) end
-        refreshCurrencyBox()
-        StatsGrid:UpdateItem(5, val and "ACTIVE" or "OFF", val and "Farming coins" or "Standing by")
+        if isTogglingAutomationInternally then return end
+        setAutomationMode("Coins", val)
         Logger:Info("Auto Coins: " .. (val and "ACTIVE" or "OFF"))
     end,
 })
@@ -4818,10 +5027,8 @@ gemsToggleRef = GemsSection:Toggle({
     Desc = "Toggle automated gem farming routines",
     Value = State.AutoCurrency.Gems.Enabled,
     Callback = function(val: boolean)
-        State.AutoCurrency.Gems.Enabled = val
-        if Settings then Settings:Set("AutoGemsEnabled", val) end
-        refreshCurrencyBox()
-        StatsGrid:UpdateItem(5, val and "ACTIVE" or "OFF", val and "Farming gems" or "Standing by")
+        if isTogglingAutomationInternally then return end
+        setAutomationMode("Gems", val)
         Logger:Info("Auto Gems: " .. (val and "ACTIVE" or "OFF"))
     end,
 })
@@ -4917,10 +5124,8 @@ levelsToggleRef = LevelsSection:Toggle({
     Desc = "Toggle automated EXP leveling routines",
     Value = State.AutoCurrency.Levels.Enabled,
     Callback = function(val: boolean)
-        State.AutoCurrency.Levels.Enabled = val
-        if Settings then Settings:Set("AutoLevelsEnabled", val) end
-        refreshCurrencyBox()
-        StatsGrid:UpdateItem(5, val and "ACTIVE" or "OFF", val and "Farming levels" or "Standing by")
+        if isTogglingAutomationInternally then return end
+        setAutomationMode("Levels", val)
         Logger:Info("Auto Levels: " .. (val and "ACTIVE" or "OFF"))
     end,
 })
@@ -5032,10 +5237,8 @@ timescalesToggleRef = TimescalesSection:Toggle({
     Desc = "Toggle automated Trials timescale ticket farming routines",
     Value = State.AutoCurrency.Timescales.Enabled,
     Callback = function(val: boolean)
-        State.AutoCurrency.Timescales.Enabled = val
-        if Settings then Settings:Set("AutoTimescalesEnabled", val) end
-        refreshCurrencyBox()
-        StatsGrid:UpdateItem(5, val and "ACTIVE" or "OFF", val and "Farming timescales" or "Standing by")
+        if isTogglingAutomationInternally then return end
+        setAutomationMode("Timescales", val)
         Logger:Info("Auto Timescales: " .. (val and "ACTIVE" or "OFF"))
     end,
 })
@@ -5179,11 +5382,22 @@ evoToggleRef = EvoSection:Toggle({
     Desc = "Toggle automated evolution progression routines (Premium)",
     Value = State.AutoCurrency.Evo.Enabled,
     Callback = function(val: boolean)
-        State.AutoCurrency.Evo.Enabled = val
-        if Settings then Settings:Set("AutoEvoEnabled", val) end
-        Globals.AutoEvo = val
-        refreshCurrencyBox()
-        StatsGrid:UpdateItem(5, val and "ACTIVE" or "OFF", val and "Farming evolution" or "Standing by")
+        if isTogglingAutomationInternally then return end
+        if val and not checkIsPremium() then
+            Window:Notify({
+                Title = "Premium Plan Required",
+                Desc = "Auto Evo is a Premium feature. Please activate key at product key.",
+                Duration = 5,
+            })
+            task.spawn(function()
+                task.wait(0.1)
+                if evoToggleRef and typeof(evoToggleRef.SetValue) == "function" then
+                    pcall(function() evoToggleRef:SetValue(false) end)
+                end
+            end)
+            return
+        end
+        setAutomationMode("Evo", val)
         Logger:Info("Auto Evo: " .. (val and "ACTIVE" or "OFF"))
     end,
 })
@@ -9484,6 +9698,9 @@ local function setupAntiAFK()
 end
 
 setupAntiAFK()
+task.delay(1, function()
+    isUIInitializing = false
+end)
 
 -- 9.3 Character Spawn Listener (re-apply speed/jump)
 local function onCharacter(char: Model)
@@ -10122,11 +10339,19 @@ task.spawn(function()
         end
 
         if not activeMode then
-            activeInGameCurrencyLoop = false
+            if game.PlaceId == LOBBY_PLACE_ID then
+                activeInGameCurrencyLoop = false
+                flaggedSmartLobbyAfterMatch = false
+                flaggedSmartLobbyReason = ""
+            end
             continue
         end
 
         local isLobby = (game.PlaceId == LOBBY_PLACE_ID)
+        if isLobby then
+            flaggedSmartLobbyAfterMatch = false
+            flaggedSmartLobbyReason = ""
+        end
 
         -- Check target limit threshold (Lobby only)
         if isLobby then
@@ -11061,6 +11286,11 @@ task.spawn(function()
 
                     local function doInPlaceRestart(tag: string?)
                         local prefix = tag or "Auto Currency"
+                        if flaggedSmartLobbyAfterMatch then
+                            Logger:Info(string.format("%s: Aborting in-place restart because match is flagged to return to lobby (%s). Teleporting via smartLobby...", prefix, tostring(flaggedSmartLobbyReason or "")))
+                            pcall(SmartTeleportToLobby)
+                            return false
+                        end
                         Logger:Info(string.format("%s: Firing in-place Restart Match...", prefix))
                         isTeleporting = false
 
@@ -11233,7 +11463,7 @@ task.spawn(function()
                     end
 
                     -- 5. In-Match Game Over / Result Supervisor
-                    while activeInGameCurrencyLoop and (game.PlaceId ~= LOBBY_PLACE_ID) do
+                    while (activeInGameCurrencyLoop or flaggedSmartLobbyAfterMatch) and (game.PlaceId ~= LOBBY_PLACE_ID) do
                         task.wait(1)
 
                         if tick() - lastBoxRefresh >= 5 then
@@ -11489,7 +11719,7 @@ task.spawn(function()
                                 end
                             end
 
-                            -- Check if user turned off the automation (or Master) during the match
+                            -- Check if user turned off the automation (or Master) during the match, or if flagged for smartLobby
                             local isAutomationActive = false
                             if State and State.Master then
                                 if activeMode == "Progress" then
@@ -11510,12 +11740,12 @@ task.spawn(function()
                                 end
                             end
 
-                            if not isAutomationActive then
-                                Logger:Info(string.format("Auto %s was turned off during the match. Concluding round and returning to lobby via smartLobby...", tostring(activeMode or "Automation")))
+                            if flaggedSmartLobbyAfterMatch or (not isAutomationActive) then
+                                Logger:Info(string.format("Auto %s: Return to lobby triggered (flagged=%s, reason=%s, active=%s). Concluding round and returning to lobby via smartLobby...", tostring(activeMode or "Automation"), tostring(flaggedSmartLobbyAfterMatch), tostring(flaggedSmartLobbyReason or ""), tostring(isAutomationActive)))
                                 if Window and typeof(Window.Notify) == "function" then
                                     Window:Notify({
-                                        Title = "Automation Stopped",
-                                        Desc = string.format("Auto %s was turned off. Match ended, returning to lobby...", tostring(activeMode or "Match")),
+                                        Title = "Returning to Lobby",
+                                        Desc = "Match concluded. Returning to lobby via smartLobby...",
                                         Duration = 5,
                                         Type = "info",
                                     })
@@ -11879,6 +12109,22 @@ task.spawn(function()
                                         SmartTeleportToLobby()
                                         break
                                     end
+                                end
+
+                                -- If flagged to return to lobby or automation turned off, abort restart and smartLobby
+                                if flaggedSmartLobbyAfterMatch or (not isAutomationActive) then
+                                    Logger:Info(string.format("Auto %s: Lose condition flagged to return to lobby (reason=%s). Returning to lobby via smartLobby...", tostring(activeMode or "Automation"), tostring(flaggedSmartLobbyReason or "")))
+                                    if Window and typeof(Window.Notify) == "function" then
+                                        Window:Notify({
+                                            Title = "Returning to Lobby",
+                                            Desc = "Match concluded. Returning to lobby via smartLobby...",
+                                            Duration = 5,
+                                            Type = "info",
+                                        })
+                                    end
+                                    task.wait(0.5)
+                                    SmartTeleportToLobby()
+                                    break
                                 end
 
                                 -- Condition is "Lose": Fires Restart Match -> Clears state -> Replays strategy in-game
