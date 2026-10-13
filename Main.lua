@@ -10349,6 +10349,19 @@ task.spawn(function()
                             Logger:Warn("Auto Evo: Missing requirements: " .. table.concat(evoAnalysis.missingParts, " | "))
                         end
                     else
+                        local evoLoadout = nil
+                        if evoAnalysis.config and type(evoAnalysis.config.Towers) == "table" then
+                            if evoAnalysis.activeTower and evoAnalysis.config.Towers[evoAnalysis.activeTower] then
+                                evoLoadout = evoAnalysis.config.Towers[evoAnalysis.activeTower]
+                            else
+                                evoLoadout = evoAnalysis.config.Towers
+                            end
+                        end
+                        local activeTDS = TDS or cachedTDSAPI or (typeof(loadTDSAPI) == "function" and loadTDSAPI())
+                        if evoLoadout and type(evoLoadout) == "table" and #evoLoadout > 0 and activeTDS and typeof(activeTDS.Loadout) == "function" then
+                            pcall(function() activeTDS:Loadout(unpack(evoLoadout)) end)
+                            task.wait(0.5)
+                        end
                         triggerCurrencyQueue("Evo", evoAnalysis.config)
                     end
                 elseif activeMode == "Timescales" then
@@ -10373,6 +10386,13 @@ task.spawn(function()
                     end
 
                     if isEligible then
+                        if loadout and type(loadout) == "table" and #loadout > 0 then
+                            local activeTDS = TDS or cachedTDSAPI or (typeof(loadTDSAPI) == "function" and loadTDSAPI())
+                            if activeTDS and typeof(activeTDS.Loadout) == "function" then
+                                pcall(function() activeTDS:Loadout(unpack(loadout)) end)
+                                task.wait(0.5)
+                            end
+                        end
                         triggerCurrencyQueue("Timescales", { isEligible = true, Trial = trialTitle })
                     else
                         -- Fallback mode for ineligible or ignored trial
@@ -10425,6 +10445,13 @@ task.spawn(function()
                             Logger:Warn(string.format("Auto %s: Missing requirements: %s", activeMode, table.concat(checker.missingParts, " | ")))
                         end
                     else
+                        -- Equip required towers in lobby before matchmaking queue
+                        local loadoutTowers = checker.config and (checker.config.Towers or checker.config.towers or checker.config.TowerRequirments)
+                        local activeTDS = TDS or cachedTDSAPI or (typeof(loadTDSAPI) == "function" and loadTDSAPI())
+                        if loadoutTowers and type(loadoutTowers) == "table" and #loadoutTowers > 0 and activeTDS and typeof(activeTDS.Loadout) == "function" then
+                            pcall(function() activeTDS:Loadout(unpack(loadoutTowers)) end)
+                            task.wait(0.5)
+                        end
                         -- Queue matchmaking if not already teleporting or loading
                         triggerCurrencyQueue(activeMode, checker.config)
                     end

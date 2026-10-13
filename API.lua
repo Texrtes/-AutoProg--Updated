@@ -1023,10 +1023,6 @@ function TDS:Mode(difficulty, code)
 end
 
 function TDS:Loadout(...)
-    if game.PlaceId == 3260590327 then
-        return
-    end
-
     while IsCurrentlyLoading do
         task.wait(0.2)
     end
@@ -1035,60 +1031,277 @@ function TDS:Loadout(...)
     IsEquippingLoadout = true
     self.IsEquippingLoadout = true
 
-    local towers = {...}
+    local rawArgs = {...}
+    local towers = {}
+    if #rawArgs == 1 and type(rawArgs[1]) == "table" then
+        for _, t in ipairs(rawArgs[1]) do
+            if type(t) == "string" and t ~= "" and t ~= "None" then
+                table.insert(towers, t)
+            end
+        end
+    else
+        for _, t in ipairs(rawArgs) do
+            if type(t) == "string" and t ~= "" and t ~= "None" then
+                table.insert(towers, t)
+            end
+        end
+    end
+
     local remote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvent")
-    local StateReplicators = ReplicatedStorage:FindFirstChild("StateReplicators")
+    local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
+
+    local function normalizeTower(name: any): (string, string)
+        if type(name) ~= "string" then return "", "" end
+        local trimmed = name:gsub("^%s*(.-)%s*$", "%1")
+        local lower = trimmed:lower()
+        local base = lower:gsub("^golden%s+", "")
+        return lower, base
+    end
+
+    local function readEquipped(): {string}
+        local eq = {}
+        local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
+        if stateReps then
+            for _, folder in ipairs(stateReps:GetChildren()) do
+                if folder.Name == "PlayerReplicator" and folder:GetAttribute("UserId") == LocalPlayer.UserId then
+                    local equippedAttr = folder:GetAttribute("EquippedTowers")
+                    if type(equippedAttr) == "string" then
+                        local cleanedJson = equippedAttr:match("%[.*%]")
+                        if cleanedJson then
+                            local ok, decoded = pcall(function()
+                                return HttpService:JSONDecode(cleanedJson)
+                            end)
+                            if ok and type(decoded) == "table" then
+                                for _, name in ipairs(decoded) do
+                                    if type(name) == "string" and name ~= "None" and name ~= "" then
+                                        table.insert(eq, name)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    break
+                end
+            end
+        end
+
+        -- Fallback 1: DataHandler
+        if #eq == 0 and DataHandler and typeof(DataHandler.GetEquippedTowers) == "function" then
+            pcall(function()
+                local eqList = DataHandler:GetEquippedTowers()
+                if type(eqList) == "table" then
+                    for _, name in ipairs(eqList) do
+                        if type(name) == "string" and name ~= "None" and name ~= "" then
+                            table.insert(eq, name)
+                        end
+                    end
+                end
+            end)
+        end
+
+        -- Fallback 2: Legacy InventoryController (Lobby)
+        if #eq == 0 then
+            pcall(function()
+                local client = ReplicatedStorage:FindFirstChild("Client")
+                local interfaces = client and client:FindFirstChild("Interfaces")
+                local legacy = interfaces and interfaces:FindFirstChild("LegacyInterface")
+                local controllers = legacy and legacy:FindFirstChild("Controllers")
+                local invCtrlMod = controllers and controllers:FindFirstChild("InventoryController")
+                if invCtrlMod then
+                    local InvCtrl = require(invCtrlMod)
+                    if InvCtrl and type(InvCtrl.getItems) == "function" then
+                        local items = InvCtrl:getItems()
+                        if items then
+                            for _, item in pairs(items) do
+                                if type(item) == "table" and item.type == "tower" and item.equipped == true and item.name then
+                                    table.insert(eq, item.name)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+
+        -- Fallback 3: Cache Troops
+        if #eq == 0 then
+            pcall(function()
+                local client = ReplicatedStorage:FindFirstChild("Client")
+                local modules = client and client:FindFirstChild("Modules")
+                local cacheMod = modules and modules:FindFirstChild("Cache")
+                if cacheMod then
+                    local Cache = require(cacheMod)
+                    local eqAtom = Cache and Cache("Equipped.Troops")
+                    local eqData = eqAtom and type(eqAtom.GetValue) == "function" and eqAtom:GetValue()
+                    if type(eqData) == "table" then
+                        for _, tName in ipairs(eqData) do
+                            if type(tName) == "string" and tName ~= "" and tName ~= "None" then
+                                table.insert(eq, tName)
+                            end
+                        end
+                    end
+                    if #eq == 0 then
+                        local atom = Cache and Cache("Inventory.Troops")
+                        local troops = atom and type(atom.GetValue) == "function" and atom:GetValue()
+                        if type(troops) == "table" then
+                            for tName, tData in pairs(troops) do
+                                if type(tData) == "table" and tData.Equipped == true then
+                                    table.insert(eq, tName)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+
+        return eq
+    end
 
     local success = pcall(function()
-        local CurrentlyEquipped = {}
+        local CurrentlyEquipped = readEquipped()
+        if #CurrentlyEquipped == 0 then
+            for _ = 1, 5 do
+                task.wait(0.2)
+                CurrentlyEquipped = readEquipped()
+                if #CurrentlyEquipped > 0 then break end
+            end
+        end
 
-        if StateReplicators then
-            for _, folder in ipairs(StateReplicators:GetChildren()) do
-                if folder.Name == "PlayerReplicator" and folder:GetAttribute("UserId") == LocalPlayer.UserId then
-                    local EquippedAttr = folder:GetAttribute("EquippedTowers")
-                    if type(EquippedAttr) == "string" then
-                        local CleanedJson = EquippedAttr:match("%[.*%]") 
-                        local DecodeSuccess, decoded = pcall(function()
-                            return HttpService:JSONDecode(CleanedJson)
-                        end)
+        local function getExactTowerName(tName)
+            if not tName or tName == "" or tName == "None" then return tName end
+            local lowerT = string.lower(tostring(tName))
+            local resolved = tName
+            pcall(function()
+                local client = ReplicatedStorage:FindFirstChild("Client")
+                local modules = client and client:FindFirstChild("Modules")
+                local cacheMod = modules and modules:FindFirstChild("Cache")
+                if cacheMod then
+                    local Cache = require(cacheMod)
+                    local atom = Cache and Cache("Inventory.Troops")
+                    local troops = atom and atom:GetValue()
+                    if type(troops) == "table" then
+                        for realName, _ in pairs(troops) do
+                            if string.lower(tostring(realName)) == lowerT then
+                                resolved = realName
+                                return
+                            end
+                        end
+                    end
+                end
+            end)
+            return resolved
+        end
 
-                        if DecodeSuccess and type(decoded) == "table" then
-                            CurrentlyEquipped = decoded
+        local matchedCurrentIndices = {}
+        local matchedTargetIndices = {}
+
+        -- Pass 1: Exact case-insensitive name match
+        for tIdx, targetName in ipairs(towers) do
+            local tLower = normalizeTower(targetName)
+            if tLower ~= "" then
+                for cIdx, currentName in ipairs(CurrentlyEquipped) do
+                    if not matchedCurrentIndices[cIdx] and not matchedTargetIndices[tIdx] then
+                        local cLower = normalizeTower(currentName)
+                        if cLower == tLower then
+                            matchedCurrentIndices[cIdx] = true
+                            matchedTargetIndices[tIdx] = true
+                            break
                         end
                     end
                 end
             end
         end
 
-        for _, CurrentTower in ipairs(CurrentlyEquipped) do
-            if CurrentTower ~= "None" then
-                local UnequipDone = false
-                repeat
-                    local ok = pcall(function()
-                        remote:FireServer("Inventory", "Unequip", "Tower", CurrentTower)
-                        task.wait(0.3)
-                    end)
-                    if ok then UnequipDone = true else task.wait(0.2) end
-                until UnequipDone
+        -- Pass 2: Base tower match (e.g. Scout vs Golden Scout)
+        for tIdx, targetName in ipairs(towers) do
+            if not matchedTargetIndices[tIdx] then
+                local _, tBase = normalizeTower(targetName)
+                if tBase ~= "" then
+                    for cIdx, currentName in ipairs(CurrentlyEquipped) do
+                        if not matchedCurrentIndices[cIdx] and not matchedTargetIndices[tIdx] then
+                            local _, cBase = normalizeTower(currentName)
+                            if cBase == tBase then
+                                matchedCurrentIndices[cIdx] = true
+                                matchedTargetIndices[tIdx] = true
+                                break
+                            end
+                        end
+                    end
+                end
             end
         end
 
-        task.wait(0.5)
-
-        for _, TowerName in ipairs(towers) do
-            if TowerName and TowerName ~= "" then
-                local EquipSuccess = false
-                repeat
-                    local ok = pcall(function()
-                        remote:FireServer("Inventory", "Equip", "Tower", TowerName)
-                        task.wait(0.3)
-                    end)
-                    if ok then EquipSuccess = true else task.wait(0.2) end
-                until EquipSuccess
+        -- Towers currently equipped that are not needed in target loadout
+        local toUnequip = {}
+        for cIdx, currentName in ipairs(CurrentlyEquipped) do
+            if not matchedCurrentIndices[cIdx] then
+                table.insert(toUnequip, currentName)
             end
         end
 
-        task.wait(0.5)
+        -- Target towers that need to be equipped
+        local toEquip = {}
+        for tIdx, targetName in ipairs(towers) do
+            if not matchedTargetIndices[tIdx] then
+                table.insert(toEquip, targetName)
+            end
+        end
+
+        -- If all target towers are already equipped and no unwanted towers exist, skip swap!
+        if #toUnequip == 0 and #toEquip == 0 then
+            warn("[TDS:Loadout] Target towers already equipped, no swap needed.")
+            return true
+        end
+
+        -- Unequip only towers that are not needed (do NOT reset matching towers!)
+        for _, currentTower in ipairs(toUnequip) do
+            local unequipDone = false
+            local attempts = 0
+            repeat
+                attempts = attempts + 1
+                local ok = pcall(function()
+                    if remoteFunc then
+                        remoteFunc:InvokeServer("Inventory", "Unequip", "Tower", currentTower)
+                    end
+                    if remote then
+                        remote:FireServer("Inventory", "Unequip", "Tower", currentTower)
+                    end
+                    task.wait(0.25)
+                end)
+                if ok then unequipDone = true else task.wait(0.2) end
+            until unequipDone or attempts >= 4
+        end
+
+        if #toUnequip > 0 then
+            task.wait(0.3)
+        end
+
+        -- Equip only towers that are missing from current loadout
+        for _, rawTowerName in ipairs(toEquip) do
+            local towerName = getExactTowerName(rawTowerName)
+            local equipSuccess = false
+            local attempts = 0
+            repeat
+                attempts = attempts + 1
+                local ok = pcall(function()
+                    if remoteFunc then
+                        remoteFunc:InvokeServer("Inventory", "Equip", "Tower", towerName)
+                    end
+                    if remote then
+                        remote:FireServer("Inventory", "Equip", "Tower", towerName)
+                    end
+                    task.wait(0.25)
+                end)
+                if ok then equipSuccess = true else task.wait(0.2) end
+            until equipSuccess or attempts >= 4
+        end
+
+        if #toEquip > 0 then
+            task.wait(0.3)
+        end
+
+        return true
     end)
 
     IsCurrentlyLoading = false
