@@ -9642,18 +9642,6 @@ MiscWebhook:Textbox({
     end,
 })
 
-MiscWebhook:Textbox({
-    Title = "Node Identifier",
-    Desc = "Multi-account instance tag (e.g. Node 1, Alt 1)",
-    Placeholder = "Node 1",
-    ClearTextOnFocus = false,
-    Value = State.Misc.NodeName or "Node 1",
-    Callback = function(txt: string)
-        local val = (txt ~= "" and txt) or "Node 1"
-        State.Misc.NodeName = val
-        if Settings then Settings:Set("NodeName", val) end
-    end,
-})
 
 MiscWebhook:Toggle({
     Title = "Auto Currency Webhook Alerts",
@@ -9705,17 +9693,6 @@ end)
 do
 local MiscUI = MiscTab:Section({ Title = "Hub Customization" })
 
-MiscUI:Dropdown({
-    Title = "Glassmorphic Theme",
-    Desc = "Instantly shift the accent color scheme and glass tint",
-    List = { "Dark", "LightGray", "SkyBlue", "DeepAzure", "MidnightEmerald", "CrimsonEclipse", "SolarAmber" },
-    Value = State.Misc.SelectedTheme or "Dark",
-    Callback = function(themeName: string)
-        Window:SetTheme(themeName)
-        if Settings then Settings:Set("SelectedTheme", themeName) end
-        Logger:Info("Theme shifted to: " .. themeName)
-    end,
-})
 
 MiscUI:Keybind({
     Title = "Toggle Menu Keybind",
@@ -9734,7 +9711,7 @@ MiscUI:Button({
     Callback = function()
         Window:Dialog({
             Title = "Confirm Unload",
-            Content = "Are you sure you want to unload SomethingNew Hub?",
+            Content = "Are you sure you want to unload Xtreme Hub?",
             ConfirmText = "Unload Now",
             Danger = true,
             OnConfirm = function()
