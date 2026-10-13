@@ -1031,17 +1031,65 @@ function TDS:Loadout(...)
     IsEquippingLoadout = true
     self.IsEquippingLoadout = true
 
+    local function isIgnoredPlaceholder(t: any): boolean
+        if type(t) ~= "string" then return true end
+        local s = t:gsub("^%s+", ""):gsub("%s+$", ""):lower()
+        return s == "" or s == "none" or s == "empty" or s == "nil" or s == "false"
+    end
+
+    local TOWER_ALIASES = {
+        ["crook"] = "Crook Boss",
+        ["crookboss"] = "Crook Boss",
+        ["kingpin"] = "Crook Boss",
+        ["evolvedkingpin"] = "Crook Boss",
+        ["gatling"] = "Gatling Gun",
+        ["gatlinggun"] = "Gatling Gun",
+        ["mini"] = "Minigunner",
+        ["minigunner"] = "Minigunner",
+        ["juggernaut"] = "Minigunner",
+        ["evolvedjuggernaut"] = "Minigunner",
+        ["mili"] = "Military Base",
+        ["military"] = "Military Base",
+        ["militarybase"] = "Military Base",
+        ["merc"] = "Mercenary Base",
+        ["mercenary"] = "Mercenary Base",
+        ["mercenarybase"] = "Mercenary Base",
+        ["ace"] = "Ace Pilot",
+        ["acepilot"] = "Ace Pilot",
+        ["electro"] = "Electroshocker",
+        ["electroshocker"] = "Electroshocker",
+        ["shotgun"] = "Shotgunner",
+        ["shotgunner"] = "Shotgunner",
+        ["enforcer"] = "Shotgunner",
+        ["evolvedenforcer"] = "Shotgunner",
+        ["slime"] = "Slime Trooper",
+        ["slimetrooper"] = "Slime Trooper",
+        ["dj"] = "DJ Booth",
+        ["djbooth"] = "DJ Booth",
+        ["pyro"] = "Pyromancer",
+        ["pyromancer"] = "Pyromancer",
+        ["acc"] = "Accelerator",
+        ["accel"] = "Accelerator",
+        ["accelerator"] = "Accelerator",
+        ["necro"] = "Necromancer",
+        ["necromancer"] = "Necromancer",
+        ["engi"] = "Engineer",
+        ["engineer"] = "Engineer",
+        ["operator"] = "Scout",
+        ["evolvedoperator"] = "Scout",
+    }
+
     local rawArgs = {...}
     local towers = {}
     if #rawArgs == 1 and type(rawArgs[1]) == "table" then
         for _, t in ipairs(rawArgs[1]) do
-            if type(t) == "string" and t ~= "" and t ~= "None" then
+            if not isIgnoredPlaceholder(t) then
                 table.insert(towers, t)
             end
         end
     else
         for _, t in ipairs(rawArgs) do
-            if type(t) == "string" and t ~= "" and t ~= "None" then
+            if not isIgnoredPlaceholder(t) then
                 table.insert(towers, t)
             end
         end
@@ -1051,11 +1099,15 @@ function TDS:Loadout(...)
     local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
 
     local function normalizeTower(name: any): (string, string)
-        if type(name) ~= "string" then return "", "" end
+        if type(name) ~= "string" or isIgnoredPlaceholder(name) then return "", "" end
         local trimmed = name:gsub("^%s*(.-)%s*$", "%1")
         local lower = trimmed:lower()
         local base = lower:gsub("^golden%s+", "")
-        return lower, base
+        local cleanKey = base:gsub("%s+", "")
+        if TOWER_ALIASES[cleanKey] then
+            base = TOWER_ALIASES[cleanKey]:lower()
+        end
+        return base, base
     end
 
     local function readEquipped(): {string}
@@ -1169,9 +1221,14 @@ function TDS:Loadout(...)
         end
 
         local function getExactTowerName(tName)
-            if not tName or tName == "" or tName == "None" then return tName end
-            local lowerT = string.lower(tostring(tName))
-            local resolved = tName
+            if not tName or isIgnoredPlaceholder(tName) then return tName end
+            local trimmed = tostring(tName):gsub("^%s*(.-)%s*$", "%1")
+            local cleanKey = trimmed:lower():gsub("^golden%s+", ""):gsub("%s+", "")
+            if TOWER_ALIASES[cleanKey] then
+                trimmed = TOWER_ALIASES[cleanKey]
+            end
+            local lowerT = string.lower(trimmed)
+            local resolved = trimmed
             pcall(function()
                 local client = ReplicatedStorage:FindFirstChild("Client")
                 local modules = client and client:FindFirstChild("Modules")
@@ -1182,7 +1239,7 @@ function TDS:Loadout(...)
                     local troops = atom and atom:GetValue()
                     if type(troops) == "table" then
                         for realName, _ in pairs(troops) do
-                            if string.lower(tostring(realName)) == lowerT then
+                            if string.lower(tostring(realName)) == lowerT or string.lower(tostring(realName)):gsub("%s+", "") == cleanKey then
                                 resolved = realName
                                 return
                             end
