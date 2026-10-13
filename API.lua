@@ -2111,10 +2111,7 @@ local function StartAutoGatling()
                     GatlingExecuted = true 
                     task.spawn(function()
                         task.wait(2)
-                        local selected = Globals.SelectedGatling or "Railgun"
-                        local url = (selected == "Gatlify")
-                            and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
-                            or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
+                        local url = "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
                         pcall(function()
                             loadstring(game:HttpGet(url))()
                         end)

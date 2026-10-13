@@ -3027,9 +3027,9 @@ local DefaultSettings = {
 
     -- Advanced Functions
     AutoGatling = false,
-    SelectedGatling = "Railgun",
+    SelectedGatling = "Default",
     ConditionGatlingLoader = false,
-    ConditionGatlingScript = "Railgun",
+    ConditionGatlingScript = "Default",
 
     -- Misc
     AntiAFK = true,
@@ -3061,7 +3061,7 @@ local DefaultSettings = {
     AutoGatlingPriority = "Last",
     AutoReloadGatling = false,
     GatlingReloadPercent = 100,
-    SelectedGatling = "Railgun",
+    SelectedGatling = "Default",
 
     -- Strategy Manager
     AutoExecuteStrat = false,
@@ -3333,7 +3333,7 @@ State = {
         AutoNecromancer = GetSetting("AutoNecromancer", false),
         AutoMercenaryBase = GetSetting("AutoMercenaryBase", false),
         AutoGatling = GetSetting("AutoGatling", false),
-        SelectedGatling = GetSetting("SelectedGatling", "Railgun"),
+        SelectedGatling = (GetSetting("SelectedGatling", "Default") == "Railgun" or GetSetting("SelectedGatling", "Default") == "Gatlify") and "Default" or GetSetting("SelectedGatling", "Default"),
         AutoPickups = GetSetting("AutoPickups", false),
         PickupMethod = GetSetting("PickupMethod", "Pathfinding"),
         Stacker = checkIsPremium() and GetSetting("Stacker", false) or false,
@@ -3343,9 +3343,9 @@ State = {
 
     AdvancFunc = {
         AutoGatling = GetSetting("AutoGatling", false),
-        SelectedGatling = GetSetting("SelectedGatling", "Railgun"),
+        SelectedGatling = (GetSetting("SelectedGatling", "Default") == "Railgun" or GetSetting("SelectedGatling", "Default") == "Gatlify") and "Default" or GetSetting("SelectedGatling", "Default"),
         ConditionGatlingLoader = GetSetting("ConditionGatlingLoader", true),
-        ConditionGatlingScript = GetSetting("ConditionGatlingScript", "Railgun"),
+        ConditionGatlingScript = (GetSetting("ConditionGatlingScript", "Default") == "Railgun" or GetSetting("ConditionGatlingScript", "Default") == "Gatlify") and "Default" or GetSetting("ConditionGatlingScript", "Default"),
     },
 
     StrategyManager = {
@@ -7207,10 +7207,8 @@ end
 executeGatlingScript = function()
     local chosen = (Globals and Globals.SelectedGatling)
         or (State and State.Utilities and State.Utilities.SelectedGatling)
-        or "Railgun"
-    local url = (chosen == "Gatlify")
-        and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
-        or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
+        or "Default"
+    local url = "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
     Logger:Info("Loaded Gatling")
     pcall(function()
         loadstring(game:HttpGet(url))()
@@ -8472,15 +8470,16 @@ autoGatlingToggleRef = UtilitiesGatlingSection:Toggle({
 
 UtilitiesGatlingSection:Dropdown({
     Title = "Gatling Script",
-    Desc = "Choose script to load for Gatling Gun (Railgun or Gatlify)",
-    List = { "Railgun", "Gatlify" },
-    Value = State.Utilities.SelectedGatling or (Globals and Globals.SelectedGatling) or "Railgun",
+    Desc = "Choose script to load for Gatling Gun (Default)",
+    List = { "Default" },
+    Value = ((State.Utilities.SelectedGatling == "Railgun" or State.Utilities.SelectedGatling == "Gatlify") and "Default" or State.Utilities.SelectedGatling) or (Globals and ((Globals.SelectedGatling == "Railgun" or Globals.SelectedGatling == "Gatlify") and "Default" or Globals.SelectedGatling)) or "Default",
     Callback = function(choice: string)
-        State.Utilities.SelectedGatling = choice
-        if State.AdvancFunc then State.AdvancFunc.SelectedGatling = choice end
-        Globals.SelectedGatling = choice
-        if Settings then Settings:Set("SelectedGatling", choice) end
-        Logger:Info("Selected Gatling Script: " .. tostring(choice))
+        local val = (choice == "Railgun" or choice == "Gatlify") and "Default" or choice
+        State.Utilities.SelectedGatling = val
+        if State.AdvancFunc then State.AdvancFunc.SelectedGatling = val end
+        Globals.SelectedGatling = val
+        if Settings then Settings:Set("SelectedGatling", val) end
+        Logger:Info("Selected Gatling Script: " .. tostring(val))
     end,
 })
 end
@@ -11372,7 +11371,7 @@ task.spawn(function()
 
                     startStrat()
 
-                    -- Gatling Loader Routine (Railgun or Gatlify)
+                    -- Gatling Loader Routine (Default)
                     -- Automatically loads for Win conditions or Trials matches in Currency modes, or if Auto Gatling is explicitly enabled
                     local isAutoGatlingOn = (State and State.Utilities and State.Utilities.AutoGatling)
                         or (Globals and Globals.AutoGatling) == true
@@ -11544,7 +11543,7 @@ task.spawn(function()
                             matchStartTime = tick()
                             snapshotStartCurrency()
 
-                            -- Reset Gatling execution flag so Gatling/Railgun loads for the new restarted match!
+                            -- Reset Gatling execution flag so Gatling loads for the new restarted match!
                             GatlingExecuted = false
                             local isAutoGatlingOn = (State and State.Utilities and State.Utilities.AutoGatling)
                                 or (Globals and Globals.AutoGatling) == true
