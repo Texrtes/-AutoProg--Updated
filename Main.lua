@@ -49,19 +49,12 @@ if not LocalPlayer then
 end
 local PlayerGui = (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 20)) or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
 
--- Filter placement, upgrade, and nil tower retry warning spam from console
+-- Silenced warnings temporarily for release upload
 do
     local rawWarn = warn
     local function cleanWarn(...)
-        local msg = ...
-        if type(msg) == "string" then
-            if msg:find("%[TDS:Place%]") or msg:find("%[TDS:Upgrade%]")
-                or msg:find("Waiting to place") or msg:find("Waiting to upgrade")
-                or msg:find("Attempted to upgrade a nil tower") then
-                return
-            end
-        end
-        return rawWarn(...)
+        -- Temporarily removed/silenced for upload
+        return
     end
     warn = cleanWarn
     if getgenv then
@@ -70,10 +63,10 @@ do
 end
 
 local Logger = {
-    Info = function(self, msg) warn("[INFO] " .. tostring(msg)) end,
+    Info = function(self, msg) print("[INFO] " .. tostring(msg)) end,
     Success = function(self, msg) print("[SUCCESS] " .. tostring(msg)) end,
-    Warn = function(self, msg) warn("[WARN] " .. tostring(msg)) end,
-    Error = function(self, msg) warn("[ERROR] " .. tostring(msg)) end,
+    Warn = function(self, msg) --[[ Temporarily silenced for upload ]] end,
+    Error = function(self, msg) print("[ERROR] " .. tostring(msg)) end,
 }
 
 local RunVoteSkip = function()
@@ -7165,7 +7158,7 @@ executeGatlingScript = function()
     local url = (chosen == "Gatlify")
         and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
         or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
-    Logger:Info(string.format("Auto Gatling: Loading %s script from %s...", tostring(chosen), url))
+    Logger:Info("Loaded Gatling")
     pcall(function()
         loadstring(game:HttpGet(url))()
     end)
@@ -11211,7 +11204,7 @@ task.spawn(function()
                         if not scriptUrl or scriptUrl == "" then
                             local isLoseCondition = (condition == "Lose") or (activeMode == "Progress")
                             if isLoseCondition and (game.PlaceId ~= LOBBY_PLACE_ID) then
-                                Logger:Warn("Auto Currency: Strategy script URL missing for " .. tostring(activeMap) .. ". Lose condition detected; waiting for base defeat to preserve match rewards before smartLobby...")
+                                Logger:Warn("Auto Currency: Strategy script missing for " .. tostring(activeMap) .. ". Lose condition detected; waiting for base defeat to preserve match rewards before smartLobby...")
                                 if Window and typeof(Window.Notify) == "function" then
                                     Window:Notify({
                                         Title = "Strategy Script Missing",
@@ -11238,7 +11231,7 @@ task.spawn(function()
                                 return
                             end
 
-                            Logger:Warn("Auto Currency: Strategy script URL is missing for map: " .. tostring(activeMap) .. "! Returning to lobby in 3s via smartLobby...")
+                            Logger:Warn("Auto Currency: Strategy script is missing for map: " .. tostring(activeMap) .. "! Returning to lobby in 3s via smartLobby...")
                             if Window and typeof(Window.Notify) == "function" then
                                 Window:Notify({
                                     Title = "Strategy Script Missing",
@@ -11301,9 +11294,10 @@ task.spawn(function()
                                 end
                             end)
                             if not ok then
+                                local cleanErr = tostring(sErr):gsub("https?://[%w-_%.%?%.:/%+=&]+", "[HIDDEN]")
                                 local isLoseCondition = (condition == "Lose") or (activeMode == "Progress")
                                 if isLoseCondition and (game.PlaceId ~= LOBBY_PLACE_ID) then
-                                    Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr) .. ". Lose condition detected; waiting up to 80s for base defeat to preserve match rewards...")
+                                    Logger:Warn("Auto Currency: Strategy execution error: " .. cleanErr .. ". Lose condition detected; waiting up to 80s for base defeat to preserve match rewards...")
                                     if Window and typeof(Window.Notify) == "function" then
                                         Window:Notify({
                                             Title = "Strategy Script Error",
@@ -11328,7 +11322,7 @@ task.spawn(function()
                                         end
                                     end)
                                 else
-                                    Logger:Warn("Auto Currency: Strategy execution error: " .. tostring(sErr) .. ". Returning to lobby in 4s via smartLobby...")
+                                    Logger:Warn("Auto Currency: Strategy execution error: " .. cleanErr .. ". Returning to lobby in 4s via smartLobby...")
                                     if Window and typeof(Window.Notify) == "function" then
                                         Window:Notify({
                                             Title = "Strategy Script Error",

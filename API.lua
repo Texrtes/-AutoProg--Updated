@@ -1,3 +1,6 @@
+local warn = function(...) end
+if getgenv then getgenv().warn = warn end
+
 local Globals = getgenv()
 
 -- Patched shared.TDSTable check
