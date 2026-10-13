@@ -37,12 +37,12 @@ Library.Assets = {
     Search          = "rbxassetid://121018724060431",
     Textbox         = "rbxassetid://13868675087",
     GlowDot         = "rbxassetid://105506802034513",
-    ImageLogo       = "xtreme_logo.png",
-    Logo            = "xtreme_logo.png",
-    XtremeLogo      = "xtreme_logo.png",
-    FloatingToggle  = "xtreme_floating_icon.png",
-    FloatingBadge   = "xtreme_floating_icon.png",
-    XtremeFloating  = "xtreme_floating_icon.png",
+    ImageLogo       = "rbxassetid://101582291591349",
+    Logo            = "rbxassetid://101582291591349",
+    XtremeLogo      = "rbxassetid://101582291591349",
+    FloatingToggle  = "rbxassetid://101582291591349",
+    FloatingBadge   = "rbxassetid://101582291591349",
+    XtremeFloating  = "rbxassetid://101582291591349",
     Discord         = "rbxassetid://119690296342461",
     Theme           = "rbxassetid://80758916183665",
     Home            = "rbxassetid://10734950309",
@@ -668,7 +668,6 @@ end
 
 local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
     local dragging = false
-    local dragInput: InputObject? = nil
     local dragStart: Vector3? = nil
     local startPosition: UDim2? = nil
 
@@ -683,31 +682,20 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                 if posOk and posVal then
                     startPosition = posVal
                 end
-                input.Changed:Connect(function()
-                    elevateThread()
-                    pcall(function()
-                        if input.UserInputState == Enum.UserInputState.End then
-                            dragging = false
-                        end
-                    end)
-                end)
             end
         end)
     end)
 
-    handle.InputChanged:Connect(function(input)
-        elevateThread()
-        pcall(function()
-            local inputType = input.UserInputType
-            if inputType == Enum.UserInputType.MouseMovement or inputType == Enum.UserInputType.Touch then
-                dragInput = input
-            end
-        end)
+    UserInputService.InputEnded:Connect(function(input)
+        local inputType = input.UserInputType
+        if inputType == Enum.UserInputType.MouseButton1 or inputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
         elevateThread()
-        if dragging and input == dragInput and dragStart and startPosition then
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragStart and startPosition then
             pcall(function()
                 local delta = input.Position - dragStart
                 local scale = 1
@@ -4639,6 +4627,7 @@ function Library:Window(props: { [string]: any })
         BackgroundTransparency = 0.20,
         BorderSizePixel = 0,
         ClipsDescendants = true,
+        Active = true,
         ZIndex = 10,
         Parent = sidebar,
     })
@@ -4931,6 +4920,8 @@ function Library:Window(props: { [string]: any })
         Position = UDim2.new(0, sidebarWidth, 0, 0),
         Size = UDim2.new(1, -sidebarWidth, 0, 68),
         BackgroundTransparency = 1,
+        Active = true,
+        ZIndex = 20,
         Parent = root,
     })
     bindDrag(topBar, shadow, uiScale)
@@ -4963,8 +4954,11 @@ function Library:Window(props: { [string]: any })
         Position = UDim2.new(0, 18, 0.5, 0),
         Size = UDim2.new(1, -135, 0, 44),
         BackgroundTransparency = 1,
+        Active = true,
+        ZIndex = 21,
         Parent = topBar,
     })
+    bindDrag(breadcrumbWrap, shadow, uiScale)
     local bLayout = list(breadcrumbWrap, 3)
     bLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
