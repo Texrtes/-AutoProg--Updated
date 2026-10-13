@@ -8629,24 +8629,22 @@ ProductLicense:Button({
 
 ProductLicense:Button({
     Title = "Get Key",
-    Desc = "Copies Junkie key link to clipboard",
+    Desc = "Copies Premium purchase link to clipboard",
     Image = "Link",
     Callback = function()
-        local Junkie = getJunkieSDK()
-        local link = (Junkie and typeof(Junkie.get_key_link) == "function" and Junkie.get_key_link())
-            or "https://jnkie.com"
+        local link = "https://xtreme-hub.mysellauth.com/"
         if setclipboard then
             setclipboard(link)
             Window:Notify({
                 Title = "Key Link Copied",
-                Desc = "Junkie key link copied to clipboard!",
+                Desc = "Premium store link copied to clipboard!",
                 Duration = 3,
             })
         elseif toclipboard then
             toclipboard(link)
             Window:Notify({
                 Title = "Key Link Copied",
-                Desc = "Junkie key link copied to clipboard!",
+                Desc = "Premium store link copied to clipboard!",
                 Duration = 3,
             })
         else
