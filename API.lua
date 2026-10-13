@@ -51,17 +51,35 @@ local function SmartTeleportToLobby()
     end)
 end
 
-local function Reconnect()
-    local initialCode = GuiService:GetErrorCode()
+local function isMigrationOrCodeMinusOne(source: string?, msg: string?, code: any): boolean
+    local s = tostring(source or ""):lower()
+    local m = tostring(msg or ""):lower()
+    local c = tostring(code or ""):lower()
+    local full = s .. " " .. m .. " " .. c
+
+    -- 1. "Failed To Migrate Data" / migration
+    if full:find("failed to migrate data") or full:find("migrate data") or full:find("migration") then
+        return true
+    end
+
+    -- 2. Error code -1
+    if full:find("error code:? %-1") or full:find("error code %-1") or full:find("%(error code:? %-1%)")
+        or full:find("%-1")
+        or (type(code) == "number" and code == -1)
+        or c == "-1" then
+        return true
+    end
+
+    return false
+end
+
+local function Reconnect(msg: string?)
+    local initialCode = nil
+    pcall(function() initialCode = GuiService:GetErrorCode() end)
     
-    if initialCode and initialCode ~= Enum.ConnectionError.OK then
-        task.wait(5)
-        
-        if GuiService:GetErrorCode() == initialCode then
-            pcall(function()
-                TeleportService:TeleportReconnect()
-            end)
-        end
+    if isMigrationOrCodeMinusOne("Reconnect", msg, initialCode) then
+        task.wait(1)
+        pcall(SmartTeleportToLobby)
     end
 end
 
@@ -71,11 +89,13 @@ local function AntiStuck()
 
         while true do 
             task.wait(1)
+            local lp = LocalPlayer or Players.LocalPlayer
+            local notLoaded = (not game:IsLoaded()) or (not lp)
             
-            local attrLoading = LocalPlayer:GetAttribute("Loading") == true
-            local attrTeleporting = LocalPlayer:GetAttribute("Teleporting") == true
+            local attrLoading = lp and lp:GetAttribute("Loading") == true
+            local attrTeleporting = lp and lp:GetAttribute("Teleporting") == true
             
-            local pg = LocalPlayer:FindFirstChild("PlayerGui")
+            local pg = lp and lp:FindFirstChild("PlayerGui")
             local loadScreen = pg and pg:FindFirstChild("LoadingScreen")
             local loadContent = loadScreen and loadScreen:FindFirstChild("content")
             local isLoadVisible = loadContent and loadContent.Visible == true
@@ -84,9 +104,9 @@ local function AntiStuck()
             local countFrame = countScreen and countScreen:FindFirstChild("Frame")
             local isCountVisible = countFrame and countFrame.Visible == true
 
-            if attrLoading or attrTeleporting or isLoadVisible or isCountVisible then
+            if notLoaded or attrLoading or attrTeleporting or isLoadVisible or isCountVisible then
                 secondsStuck = secondsStuck + 1
-                if secondsStuck >= 60 then
+                if secondsStuck >= 40 then
                     pcall(SmartTeleportToLobby)
                     secondsStuck = 0 
                 end
@@ -98,7 +118,7 @@ local function AntiStuck()
 end
 
 AntiStuck()
-task.spawn(Reconnect)
+task.spawn(function() Reconnect() end)
 GuiService.ErrorMessageChanged:Connect(Reconnect)
 
 if not game:IsLoaded() then game.Loaded:Wait() end

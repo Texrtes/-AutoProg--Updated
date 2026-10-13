@@ -22,33 +22,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 local PathfindingService = game:GetService("PathfindingService")
 
-if not game:IsLoaded() then
-    local loaded = false
-    local conn
-    conn = game.Loaded:Connect(function()
-        loaded = true
-        if conn then conn:Disconnect() end
-    end)
-    while not game:IsLoaded() and not loaded do
-        task.wait(0.2)
-    end
-    if conn then conn:Disconnect() end
-end
-
-local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    pcall(function()
-        LocalPlayer = Players.PlayerAdded:Wait()
-    end)
-    if not LocalPlayer then
-        while not Players.LocalPlayer do
-            task.wait(0.2)
-            LocalPlayer = Players.LocalPlayer
-        end
-    end
-end
-local PlayerGui = (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 20)) or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
-
 -- Silenced warnings temporarily for release upload
 do
     local rawWarn = warn
@@ -69,28 +42,9 @@ local Logger = {
     Error = function(self, msg) print("[ERROR] " .. tostring(msg)) end,
 }
 
-local RunVoteSkip = function()
-    local success = false
-    pcall(function()
-        local rf = ReplicatedStorage:FindFirstChild("RemoteFunction")
-        if rf and rf:IsA("RemoteFunction") then
-            rf:InvokeServer("Voting", "Skip")
-            success = true
-        end
-    end)
-    pcall(function()
-        local re = ReplicatedStorage:FindFirstChild("RemoteEvent")
-        if re and re:IsA("RemoteEvent") then
-            re:FireServer("Voting", "Skip")
-            success = true
-        end
-    end)
-    return success
-end
-
 --==============================================================================
 -- Early Boot: Anti-Stuck Monitor & Disconnect Auto-Recovery
--- (Fires first before loading UI or rest of features)
+-- (STARTS FIRST ALWAYS: Hooked and running before game loading checks / UI)
 --==============================================================================
 local LOBBY_PLACE_ID = 3260590327
 
@@ -126,6 +80,29 @@ local function isMobileDevice(): boolean
             return true
         end
     end
+    return false
+end
+
+-- Filter: Error handling will ONLY trigger if "Failed To Migrate Data" or error code -1
+local function isMigrationOrCodeMinusOne(source: string?, msg: string?, code: any): boolean
+    local s = tostring(source or ""):lower()
+    local m = tostring(msg or ""):lower()
+    local c = tostring(code or ""):lower()
+    local full = s .. " " .. m .. " " .. c
+
+    -- 1. "Failed To Migrate Data" / migration
+    if full:find("failed to migrate data") or full:find("migrate data") or full:find("migration") then
+        return true
+    end
+
+    -- 2. Error code -1
+    if full:find("error code:? %-1") or full:find("error code %-1") or full:find("%(error code:? %-1%)")
+        or full:find("%-1")
+        or (type(code) == "number" and code == -1)
+        or c == "-1" then
+        return true
+    end
+
     return false
 end
 
@@ -175,8 +152,13 @@ errorSmartLobby = function(reason: string?, force: boolean?)
     end
 
     -- 2. Fallback: Directly teleport to public lobby
+    local lp = Players.LocalPlayer
     pcall(function()
-        TeleportService:Teleport(lobbyId, LocalPlayer)
+        if lp then
+            TeleportService:Teleport(lobbyId, lp)
+        else
+            TeleportService:Teleport(lobbyId)
+        end
     end)
     pcall(function()
         TeleportService:Teleport(lobbyId)
@@ -190,6 +172,17 @@ _G.errorSmartLobby = errorSmartLobby
 
 local isHandlingError = false
 handleDetectedError = function(errorSource: string, errorMsg: string?)
+    local isAntiStuck = (errorSource == "AntiStuck")
+    local code = nil
+    pcall(function() code = GuiService:GetErrorCode() end)
+
+    -- Strict error gate: Only AntiStuck OR (Failed To Migrate Data / error code -1)
+    if not isAntiStuck then
+        if not isMigrationOrCodeMinusOne(errorSource, errorMsg, code) then
+            return
+        end
+    end
+
     if isHandlingError then return end
     isHandlingError = true
     warn(string.format("[errorSmartLobby] Error detected (%s: %s). Initiating SmartLobby recovery...", tostring(errorSource), tostring(errorMsg or "Error")))
@@ -229,13 +222,12 @@ handleDetectedError = function(errorSource: string, errorMsg: string?)
     end)
 end
 
--- Continuous Error & Prompt Listeners (Hooked immediately)
+-- Continuous Error & Prompt Listeners (Hooked FIRST ALWAYS)
 pcall(function()
     GuiService.ErrorMessageChanged:Connect(function(msg)
         local code = nil
         pcall(function() code = GuiService:GetErrorCode() end)
-        local hasErr = (msg and msg ~= "") or (code and code ~= Enum.ConnectionError.OK)
-        if hasErr then
+        if isMigrationOrCodeMinusOne("GuiService.ErrorMessageChanged", msg, code) then
             handleDetectedError("GuiService.ErrorMessageChanged", msg or tostring(code))
         end
     end)
@@ -249,8 +241,13 @@ pcall(function()
         local function checkPrompt(child)
             if child and (child.Name == "ErrorPrompt" or child:FindFirstChild("ErrorMessage", true) or child:FindFirstChild("ErrorTitle", true)) then
                 local msgLabel = child:FindFirstChild("ErrorMessage", true)
-                local reason = msgLabel and msgLabel.Text or "Roblox ErrorPrompt"
-                handleDetectedError("promptOverlay", reason)
+                local titleLabel = child:FindFirstChild("ErrorTitle", true)
+                local reason = (msgLabel and msgLabel.Text or "") .. " " .. (titleLabel and titleLabel.Text or "")
+                local code = nil
+                pcall(function() code = GuiService:GetErrorCode() end)
+                if isMigrationOrCodeMinusOne("promptOverlay", reason, code) then
+                    handleDetectedError("promptOverlay", reason)
+                end
             end
         end
         promptOverlay.ChildAdded:Connect(checkPrompt)
@@ -262,7 +259,10 @@ end)
 
 pcall(function()
     TeleportService.TeleportInitFailed:Connect(function(player, teleportResult, errorMessage)
-        handleDetectedError("TeleportInitFailed", string.format("%s (%s)", tostring(errorMessage or "Failed"), tostring(teleportResult)))
+        local errText = string.format("%s (%s)", tostring(errorMessage or "Failed"), tostring(teleportResult))
+        if isMigrationOrCodeMinusOne("TeleportInitFailed", errText, nil) then
+            handleDetectedError("TeleportInitFailed", errText)
+        end
     end)
 end)
 
@@ -270,8 +270,7 @@ pcall(function()
     local sc = game:GetService("ScriptContext")
     if sc and sc.Error then
         sc.Error:Connect(function(message, stack, script)
-            local low = tostring(message):lower()
-            if low:find("failed to migrate data") or low:find("migration") or low:find("teleport failed") then
+            if isMigrationOrCodeMinusOne("DataMigrationError", tostring(message), nil) then
                 handleDetectedError("DataMigrationError", tostring(message))
             end
         end)
@@ -281,21 +280,26 @@ end)
 pcall(function()
     local initialCode = GuiService:GetErrorCode()
     if initialCode and initialCode ~= Enum.ConnectionError.OK then
-        task.wait(1)
-        handleDetectedError("InitialErrorCode", tostring(initialCode))
+        if isMigrationOrCodeMinusOne("InitialErrorCode", tostring(initialCode), initialCode) then
+            task.wait(1)
+            handleDetectedError("InitialErrorCode", tostring(initialCode))
+        end
     end
 end)
 
--- Anti-Stuck Monitor (Starts immediately)
+-- Anti-Stuck Monitor (Starts FIRST ALWAYS in background)
 local function earlyAntiStuck()
     task.spawn(function()
         local secondsStuck = 0
         while true do 
             task.wait(1)
-            local attrLoading = LocalPlayer and LocalPlayer:GetAttribute("Loading") == true
-            local attrTeleporting = LocalPlayer and LocalPlayer:GetAttribute("Teleporting") == true
+            local lp = Players.LocalPlayer
+            local notLoaded = (not game:IsLoaded()) or (not lp)
+
+            local attrLoading = lp and lp:GetAttribute("Loading") == true
+            local attrTeleporting = lp and lp:GetAttribute("Teleporting") == true
             
-            local pg = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+            local pg = lp and lp:FindFirstChild("PlayerGui")
             local loadScreen = pg and pg:FindFirstChild("LoadingScreen")
             local loadContent = loadScreen and loadScreen:FindFirstChild("content")
             local isLoadVisible = loadContent and loadContent.Visible == true
@@ -304,7 +308,7 @@ local function earlyAntiStuck()
             local countFrame = countScreen and countScreen:FindFirstChild("Frame")
             local isCountVisible = countFrame and countFrame.Visible == true
 
-            if attrLoading or attrTeleporting or isLoadVisible or isCountVisible then
+            if notLoaded or attrLoading or attrTeleporting or isLoadVisible or isCountVisible then
                 secondsStuck = secondsStuck + 1
                 if secondsStuck >= 40 then
                     handleDetectedError("AntiStuck", "Player stuck on loading screen / countdown > 40s")
@@ -319,6 +323,55 @@ end
 
 -- Fire Anti-Stuck immediately at script start!
 earlyAntiStuck()
+
+--==============================================================================
+-- Game Load & Player Initialization
+--==============================================================================
+if not game:IsLoaded() then
+    local loaded = false
+    local conn
+    conn = game.Loaded:Connect(function()
+        loaded = true
+        if conn then conn:Disconnect() end
+    end)
+    while not game:IsLoaded() and not loaded do
+        task.wait(0.2)
+    end
+    if conn then conn:Disconnect() end
+end
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    pcall(function()
+        LocalPlayer = Players.PlayerAdded:Wait()
+    end)
+    if not LocalPlayer then
+        while not Players.LocalPlayer do
+            task.wait(0.2)
+            LocalPlayer = Players.LocalPlayer
+        end
+    end
+end
+local PlayerGui = (LocalPlayer and LocalPlayer:WaitForChild("PlayerGui", 20)) or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
+
+local RunVoteSkip = function()
+    local success = false
+    pcall(function()
+        local rf = ReplicatedStorage:FindFirstChild("RemoteFunction")
+        if rf and rf:IsA("RemoteFunction") then
+            rf:InvokeServer("Voting", "Skip")
+            success = true
+        end
+    end)
+    pcall(function()
+        local re = ReplicatedStorage:FindFirstChild("RemoteEvent")
+        if re and re:IsA("RemoteEvent") then
+            re:FireServer("Voting", "Skip")
+            success = true
+        end
+    end)
+    return success
+end
 
 --==============================================================================
 -- GitHub Configuration & Remote Asset Loader
