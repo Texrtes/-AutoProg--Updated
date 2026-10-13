@@ -3829,7 +3829,7 @@ Logger = LoggerSection:LogConsole({
 })
 
 Logger:Success("CoreRevamp Glassmorphism API mounted successfully.")
-Logger:Info("SomethingNew Hub initialized on " .. ((LocalPlayer and LocalPlayer.Name) or "Player") .. ".")
+Logger:Info("Xtreme Hub initialized on " .. ((LocalPlayer and LocalPlayer.Name) or "Player") .. ".")
 
 --==============================================================================
 -- 5. AUTO PROGRESS TAB
@@ -8903,7 +8903,7 @@ Apply3dRendering = function()
 
             local textLabel = Instance.new("TextLabel")
             textLabel.Name = "BigTitle"
-            textLabel.Text = "Something new hub"
+            textLabel.Text = "XTremeHub"
             textLabel.Font = Enum.Font.GothamBold
             textLabel.TextSize = 44
             textLabel.TextColor3 = Color3.fromRGB(0, 245, 212)
@@ -12423,7 +12423,7 @@ end)
 Window:SelectTab("Overview")
 
 Window:Notify({
-    Title = "SomethingNew Hub Ready",
+    Title = "Xtreme Hub Ready",
     Desc = "Initialized 5 tabs with full glassmorphism suite.",
     Duration = 3,
 })
