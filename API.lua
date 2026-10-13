@@ -1,6 +1,3 @@
-local warn = function(...) end
-if getgenv then getgenv().warn = warn end
-
 local Globals = getgenv()
 
 -- Patched shared.TDSTable check
@@ -51,35 +48,17 @@ local function SmartTeleportToLobby()
     end)
 end
 
-local function isMigrationOrCodeMinusOne(source: string?, msg: string?, code: any): boolean
-    local s = tostring(source or ""):lower()
-    local m = tostring(msg or ""):lower()
-    local c = tostring(code or ""):lower()
-    local full = s .. " " .. m .. " " .. c
-
-    -- 1. "Failed To Migrate Data" / migration
-    if full:find("failed to migrate data") or full:find("migrate data") or full:find("migration") then
-        return true
-    end
-
-    -- 2. Error code -1
-    if full:find("error code:? %-1") or full:find("error code %-1") or full:find("%(error code:? %-1%)")
-        or full:find("%-1")
-        or (type(code) == "number" and code == -1)
-        or c == "-1" then
-        return true
-    end
-
-    return false
-end
-
-local function Reconnect(msg: string?)
-    local initialCode = nil
-    pcall(function() initialCode = GuiService:GetErrorCode() end)
+local function Reconnect()
+    local initialCode = GuiService:GetErrorCode()
     
-    if isMigrationOrCodeMinusOne("Reconnect", msg, initialCode) then
-        task.wait(1)
-        pcall(SmartTeleportToLobby)
+    if initialCode and initialCode ~= Enum.ConnectionError.OK then
+        task.wait(5)
+        
+        if GuiService:GetErrorCode() == initialCode then
+            pcall(function()
+                TeleportService:TeleportReconnect()
+            end)
+        end
     end
 end
 
@@ -89,13 +68,11 @@ local function AntiStuck()
 
         while true do 
             task.wait(1)
-            local lp = LocalPlayer or Players.LocalPlayer
-            local notLoaded = (not game:IsLoaded()) or (not lp)
             
-            local attrLoading = lp and lp:GetAttribute("Loading") == true
-            local attrTeleporting = lp and lp:GetAttribute("Teleporting") == true
+            local attrLoading = LocalPlayer:GetAttribute("Loading") == true
+            local attrTeleporting = LocalPlayer:GetAttribute("Teleporting") == true
             
-            local pg = lp and lp:FindFirstChild("PlayerGui")
+            local pg = LocalPlayer:FindFirstChild("PlayerGui")
             local loadScreen = pg and pg:FindFirstChild("LoadingScreen")
             local loadContent = loadScreen and loadScreen:FindFirstChild("content")
             local isLoadVisible = loadContent and loadContent.Visible == true
@@ -104,9 +81,9 @@ local function AntiStuck()
             local countFrame = countScreen and countScreen:FindFirstChild("Frame")
             local isCountVisible = countFrame and countFrame.Visible == true
 
-            if notLoaded or attrLoading or attrTeleporting or isLoadVisible or isCountVisible then
+            if attrLoading or attrTeleporting or isLoadVisible or isCountVisible then
                 secondsStuck = secondsStuck + 1
-                if secondsStuck >= 40 then
+                if secondsStuck >= 60 then
                     pcall(SmartTeleportToLobby)
                     secondsStuck = 0 
                 end
@@ -118,7 +95,7 @@ local function AntiStuck()
 end
 
 AntiStuck()
-task.spawn(function() Reconnect() end)
+task.spawn(Reconnect)
 GuiService.ErrorMessageChanged:Connect(Reconnect)
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -1054,65 +1031,17 @@ function TDS:Loadout(...)
     IsEquippingLoadout = true
     self.IsEquippingLoadout = true
 
-    local function isIgnoredPlaceholder(t: any): boolean
-        if type(t) ~= "string" then return true end
-        local s = t:gsub("^%s+", ""):gsub("%s+$", ""):lower()
-        return s == "" or s == "none" or s == "empty" or s == "nil" or s == "false"
-    end
-
-    local TOWER_ALIASES = {
-        ["crook"] = "Crook Boss",
-        ["crookboss"] = "Crook Boss",
-        ["kingpin"] = "Crook Boss",
-        ["evolvedkingpin"] = "Crook Boss",
-        ["gatling"] = "Gatling Gun",
-        ["gatlinggun"] = "Gatling Gun",
-        ["mini"] = "Minigunner",
-        ["minigunner"] = "Minigunner",
-        ["juggernaut"] = "Minigunner",
-        ["evolvedjuggernaut"] = "Minigunner",
-        ["mili"] = "Military Base",
-        ["military"] = "Military Base",
-        ["militarybase"] = "Military Base",
-        ["merc"] = "Mercenary Base",
-        ["mercenary"] = "Mercenary Base",
-        ["mercenarybase"] = "Mercenary Base",
-        ["ace"] = "Ace Pilot",
-        ["acepilot"] = "Ace Pilot",
-        ["electro"] = "Electroshocker",
-        ["electroshocker"] = "Electroshocker",
-        ["shotgun"] = "Shotgunner",
-        ["shotgunner"] = "Shotgunner",
-        ["enforcer"] = "Shotgunner",
-        ["evolvedenforcer"] = "Shotgunner",
-        ["slime"] = "Slime Trooper",
-        ["slimetrooper"] = "Slime Trooper",
-        ["dj"] = "DJ Booth",
-        ["djbooth"] = "DJ Booth",
-        ["pyro"] = "Pyromancer",
-        ["pyromancer"] = "Pyromancer",
-        ["acc"] = "Accelerator",
-        ["accel"] = "Accelerator",
-        ["accelerator"] = "Accelerator",
-        ["necro"] = "Necromancer",
-        ["necromancer"] = "Necromancer",
-        ["engi"] = "Engineer",
-        ["engineer"] = "Engineer",
-        ["operator"] = "Scout",
-        ["evolvedoperator"] = "Scout",
-    }
-
     local rawArgs = {...}
     local towers = {}
     if #rawArgs == 1 and type(rawArgs[1]) == "table" then
         for _, t in ipairs(rawArgs[1]) do
-            if not isIgnoredPlaceholder(t) then
+            if type(t) == "string" and t ~= "" and t ~= "None" then
                 table.insert(towers, t)
             end
         end
     else
         for _, t in ipairs(rawArgs) do
-            if not isIgnoredPlaceholder(t) then
+            if type(t) == "string" and t ~= "" and t ~= "None" then
                 table.insert(towers, t)
             end
         end
@@ -1122,15 +1051,11 @@ function TDS:Loadout(...)
     local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
 
     local function normalizeTower(name: any): (string, string)
-        if type(name) ~= "string" or isIgnoredPlaceholder(name) then return "", "" end
+        if type(name) ~= "string" then return "", "" end
         local trimmed = name:gsub("^%s*(.-)%s*$", "%1")
         local lower = trimmed:lower()
         local base = lower:gsub("^golden%s+", "")
-        local cleanKey = base:gsub("%s+", "")
-        if TOWER_ALIASES[cleanKey] then
-            base = TOWER_ALIASES[cleanKey]:lower()
-        end
-        return base, base
+        return lower, base
     end
 
     local function readEquipped(): {string}
@@ -1244,14 +1169,9 @@ function TDS:Loadout(...)
         end
 
         local function getExactTowerName(tName)
-            if not tName or isIgnoredPlaceholder(tName) then return tName end
-            local trimmed = tostring(tName):gsub("^%s*(.-)%s*$", "%1")
-            local cleanKey = trimmed:lower():gsub("^golden%s+", ""):gsub("%s+", "")
-            if TOWER_ALIASES[cleanKey] then
-                trimmed = TOWER_ALIASES[cleanKey]
-            end
-            local lowerT = string.lower(trimmed)
-            local resolved = trimmed
+            if not tName or tName == "" or tName == "None" then return tName end
+            local lowerT = string.lower(tostring(tName))
+            local resolved = tName
             pcall(function()
                 local client = ReplicatedStorage:FindFirstChild("Client")
                 local modules = client and client:FindFirstChild("Modules")
@@ -1262,7 +1182,7 @@ function TDS:Loadout(...)
                     local troops = atom and atom:GetValue()
                     if type(troops) == "table" then
                         for realName, _ in pairs(troops) do
-                            if string.lower(tostring(realName)) == lowerT or string.lower(tostring(realName)):gsub("%s+", "") == cleanKey then
+                            if string.lower(tostring(realName)) == lowerT then
                                 resolved = realName
                                 return
                             end
@@ -2111,7 +2031,10 @@ local function StartAutoGatling()
                     GatlingExecuted = true 
                     task.spawn(function()
                         task.wait(2)
-                        local url = "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
+                        local selected = Globals.SelectedGatling or "Railgun"
+                        local url = (selected == "Gatlify")
+                            and "https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"
+                            or "https://raw.githubusercontent.com/avtryxz/autogutlin/refs/heads/main/autogutlin.lua"
                         pcall(function()
                             loadstring(game:HttpGet(url))()
                         end)
