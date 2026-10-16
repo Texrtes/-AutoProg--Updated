@@ -133,7 +133,7 @@ return {
                 SkillTree = {},
                 Maps = {"Wretched Front"},
                 Scripts = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Gems/Lose/WretchedFront.lua", -- done
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Hardcore/WretchedForest.lua", -- done
                 },
             },
             Win = {
