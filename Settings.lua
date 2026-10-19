@@ -133,7 +133,7 @@ return {
                 SkillTree = {},
                 Maps = {"Wretched Front"},
                 Scripts = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/Hardcore/WretchedForest.lua", -- done
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/AutoCurrency/EXP/EvoShotgunner.lua", -- done
                 },
             },
             Win = {
@@ -384,49 +384,39 @@ return {
 },
 
 AutoEvoConfigs = {
-	           Coins = {
-            Lose = {
-                Level_0 = {
-                    Level = 0,
-                    Mode = "Casual",
-                    TowerRequirments = {"Scout", "Sniper"},
-                    Towers = {"Scout", "Soldier"},
-                    Golden = {},
-                    SkillTree = {},
-                    Maps = {"Simplicity", "Winter Abyss"},
-                    Scripts = {
-                        ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/Simplicity.lua",
-                        ["Winter Abyss"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/WinterAbyss.lua",
-                    },
-                },
-                Level_5 = {
-                    Level = 5,
-                    Mode = "Intermediate",
-                    TowerRequirments = {"Scout", "Sniper"},
-                    Towers = {"Scout", "Sniper"},
-                    Golden = {},
-                    SkillTree = {},
-                    Maps = {"Simplicity", "Winter Abyss"},
-                    Scripts = {
-                        ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/Simplicity.lua",
-                        ["Winter Abyss"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/WinterAbyss.lua",
-                    },
-                },
-                Level_15 = {
-                    Level = 15,
-                    Mode = "Molten",
-                    TowerRequirments = {"Assassin", "Soldier"},
-                    Towers = {"Assassin", "Soldier"},
-                    Golden = {},
-                    SkillTree = {},
-                    Maps = {"Simplicity", "Winter Abyss"},
-                    Scripts = {
-                        ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/Simplicity.lua",
-                        ["Winter Abyss"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Currency/Coins/Lose/WinterAbyss.lua",
-                    },
-                },
+	   Coins = {
+        Lose = {
+            Level = 15,
+            Mode = "Molten",
+            Golden = {},
+            SkillTree = {},
+            Maps = {"Simplicity"},
+            
+            -- You can now customize the Towers for each specific Evo target!
+            Towers = {
+                ["Scout"] = {"Assassin", "Soldier"},
+                ["Shotgunner"] = {"Assassin", "Soldier"},
+                ["Crook Boss"] = {"Assassin", "Soldier"},
+                ["Minigunner"] = {"Assassin", "Soldier"}
             },
-            Win = {
+            
+            -- Dynamic scripts based on the active tower you are farming
+          Scripts = {
+                ["Scout"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Operator.lua",--done
+                },
+                ["Shotgunner"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Enforcer.lua",--done
+                },
+                ["Crook Boss"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Kingpin.lua",--done
+                },
+                ["Minigunner"] = {
+                    ["Simplicity"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Coins/Lose/Juggernaut.lua",--done
+                }
+            }
+        },
+        Win = {
             Level = 50,
             Mode = "Fallen",
             Golden = {},
@@ -492,7 +482,6 @@ AutoEvoConfigs = {
         }
     }
 },
-
 	    TowerList = {
         ["Coins"] = {
             { Name = "Scout", Cost = 0, Type = "Coins", Action = "Buy" },
