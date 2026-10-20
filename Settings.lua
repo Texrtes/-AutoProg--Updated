@@ -116,8 +116,11 @@ return {
                 HiddenEnemies = true, 
                 Fog = true, 
                 Limitation = true, 
-                Committed = false, 
-                ExplodingEnemies = true
+                Committed = true, 
+                Quarantine = true, 
+                ExplodingEnemies = true,
+				SpeedyEnemies = true,
+				Broke = true,
             },
                 Scripts = {
                     ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Trials/Fallbacks/FallenLayby.lua", -- done
@@ -342,12 +345,13 @@ return {
             Maps = {"Lay By"},
              Modifiers = {
                 HiddenEnemies = true, 
-                Glass = false, 
                 Fog = true, 
                 Limitation = true, 
                 Committed = true, 
                 Quarantine = true, 
-                ExplodingEnemies = true
+                ExplodingEnemies = true,
+				SpeedyEnemies = true,
+				Broke = true,
             },
             Scripts = {
                 ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Trials/Fallbacks/MoltenLayby.lua", -- done
@@ -361,12 +365,13 @@ return {
             Maps = {"Lay By"},
              Modifiers = {
                 HiddenEnemies = true, 
-                Broke = true, 
                 Fog = true, 
                 Limitation = true, 
                 Committed = true, 
                 Quarantine = true, 
-                ExplodingEnemies = true
+                ExplodingEnemies = true,
+				SpeedyEnemies = true,
+				Broke = true,
             },
             Scripts = {
                 ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Trials/Fallbacks/FallenLayby.lua", --done
@@ -428,7 +433,9 @@ AutoEvoConfigs = {
                 Limitation = true, 
                 Committed = true, 
                 Quarantine = true, 
-                ExplodingEnemies = true
+                ExplodingEnemies = true,
+				SpeedyEnemies = true,
+				Broke = true,
             },
             Towers = {
                 ["Scout"] = {"Gatling Gun", "Trapper", "Hacker"},
