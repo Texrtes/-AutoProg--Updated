@@ -48,13 +48,35 @@ local function SmartTeleportToLobby()
     end)
 end
 
-local function Reconnect()
-    local initialCode = GuiService:GetErrorCode()
-    
-    if initialCode and initialCode ~= Enum.ConnectionError.OK then
+local function getErrorCodeSafe()
+    local ok, code = pcall(function()
+        return GuiService:GetErrorCode()
+    end)
+    if ok and code then
+        return code
+    end
+    return nil
+end
+
+local function Reconnect(msg: string?)
+    local initialCode = getErrorCodeSafe()
+    local hasError = false
+    pcall(function()
+        if initialCode and initialCode ~= Enum.ConnectionError.OK then
+            hasError = true
+        end
+    end)
+    if not hasError and type(msg) == "string" and #msg > 0 then
+        hasError = true
+    end
+
+    if hasError then
         task.wait(5)
-        
-        if GuiService:GetErrorCode() == initialCode then
+        local currentCode = getErrorCodeSafe()
+        if (currentCode and currentCode == initialCode) or (type(msg) == "string" and #msg > 0) then
+            pcall(function()
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end)
             pcall(function()
                 TeleportService:TeleportReconnect()
             end)
@@ -111,7 +133,19 @@ local mouse = LocalPlayer:GetMouse()
 local RemoteFunc = ReplicatedStorage:WaitForChild("RemoteFunction")
 local RemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent")
 local FileName = "APIS.json"
-local Logger
+local Logger = {
+    Log = function(self, ...)
+        pcall(print, "[API]", ...)
+    end,
+    Warn = function(self, ...)
+        pcall(warn, "[API]", ...)
+    end,
+    Error = function(self, ...)
+        pcall(warn, "[API ERROR]", ...)
+    end,
+    Clear = function(self)
+    end,
+}
 local StartBackToLobby
 local platform = UserInputService:GetPlatform()
 local IsMobile = (platform == Enum.Platform.IOS or platform == Enum.Platform.Android)
@@ -279,6 +313,12 @@ function TDS:ResetAllStates()
 end
 
 function TDS:RunStrategy()
+    local currentMatchId = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceInstanceId or "MatchInstance")
+    if getgenv and getgenv().__WIN_STRAT_EXECUTED_JOB_ID == currentMatchId then
+        warn("[TDS:RunStrategy] BLOCKED: Win condition single-execution locked for match " .. tostring(currentMatchId))
+        return
+    end
+
     if Globals.activeStrategyThread then
         pcall(task.cancel, Globals.activeStrategyThread)
         Globals.activeStrategyThread = nil
@@ -1991,7 +2031,11 @@ end
 function TDS:SetOption(idx, name, val, ReqWave)
     local t = self.PlacedTowers[idx]
     if t then
-        Logger:Log("Setting option '" .. name .. "' for tower index: " .. idx)
+        pcall(function()
+            if Logger and type(Logger.Log) == "function" then
+                Logger:Log("Setting option '" .. tostring(name) .. "' for tower index: " .. tostring(idx))
+            end
+        end)
         return DoSetOption(t, name, val, ReqWave)
     end
     return false
@@ -2002,14 +2046,17 @@ if GameState == "LOBBY" and Globals.AutoRejoin and isfile("ADS_LastStrat.lua") t
 end
 
 if GameState == "GAME" and Globals.AutoRejoin and isfile("ADS_LastStrat.lua") then
-    local stratContent = pcall(readfile, "ADS_LastStrat.lua") and readfile("ADS_LastStrat.lua") or ""
-    if stratContent:find(":Loadout%(") then
-        TDS.LoadoutPending = true
+    local currentMatchId = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceInstanceId or "MatchInstance")
+    if not (getgenv and getgenv().__WIN_STRAT_EXECUTED_JOB_ID == currentMatchId) then
+        local stratContent = pcall(readfile, "ADS_LastStrat.lua") and readfile("ADS_LastStrat.lua") or ""
+        if stratContent:find(":Loadout%(") then
+            TDS.LoadoutPending = true
+        end
+        task.spawn(function()
+            task.wait(2)
+            TDS:RunStrategy()
+        end)
     end
-    task.spawn(function()
-        task.wait(2)
-        TDS:RunStrategy()
-    end)
 end
 
 local function IsVoidCharm(obj)
@@ -2138,16 +2185,19 @@ function StartBackToLobby()
                         if not Globals.AutoRestart then break end
                         
                         if isfile("ADS_LastStrat.lua") then
-                            task.spawn(function()
-                                repeat
-                                    task.wait(0.1)
-                                    local towersFolder = workspace:FindFirstChild("Towers")
-                                until (towersFolder and #towersFolder:GetChildren() == 0) or not Globals.AutoRestart
-                                
-                                if not Globals.AutoRestart then return end
-                                TDS:ResetAllStates()
-                                TDS:RunStrategy()
-                            end)
+                            local currentMatchId = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceInstanceId or "MatchInstance")
+                            if not (getgenv and getgenv().__WIN_STRAT_EXECUTED_JOB_ID == currentMatchId) then
+                                task.spawn(function()
+                                    repeat
+                                        task.wait(0.1)
+                                        local towersFolder = workspace:FindFirstChild("Towers")
+                                    until (towersFolder and #towersFolder:GetChildren() == 0) or not Globals.AutoRestart
+                                    
+                                    if not Globals.AutoRestart then return end
+                                    TDS:ResetAllStates()
+                                    TDS:RunStrategy()
+                                end)
+                            end
                         end
                         
                         repeat task.wait(1) until gameStateReplicator:GetAttribute("GameOver") == false or not Globals.AutoRestart
