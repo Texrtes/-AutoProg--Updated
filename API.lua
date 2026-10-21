@@ -24,30 +24,29 @@ local function SmartTeleportToLobby()
         pcall(shared.SmartTeleportToLobby)
         return
     end
-
     local lobbyId = 3260590327
+    local platform = UserInputService:GetPlatform()
+    local IsMobile = (platform == Enum.Platform.IOS or platform == Enum.Platform.Android)
+    local privCode = (Globals and (Globals.PrivateCode or Globals.PrivateServerCode)) or ""
+
+    if not IsMobile and privCode ~= "" then
+        pcall(function()
+            game:GetService("ExperienceService"):LaunchExperience({
+                placeId = lobbyId, 
+                linkCode = privCode
+            })
+        end)
+        return
+    end
+
+    -- If mobile or empty private server code, directly teleport to lobby
     pcall(function()
-        local platform = UserInputService:GetPlatform()
-        local IsMobile = (platform == Enum.Platform.IOS or platform == Enum.Platform.Android)
-        
-        if not IsMobile and Globals and Globals.PrivateCode and Globals.PrivateCode ~= "" then
-            local expService = nil
-            pcall(function() expService = game:GetService("ExperienceService") end)
-            if expService and typeof(expService.LaunchExperience) == "function" then
-                expService:LaunchExperience({
-                    placeId = lobbyId, 
-                    linkCode = Globals.PrivateCode
-                })
-            else
-                TeleportService:Teleport(lobbyId)
-            end
-        else
-            TeleportService:Teleport(lobbyId)
-        end
+        TeleportService:Teleport(lobbyId, LocalPlayer)
+    end)
+    pcall(function()
+        TeleportService:Teleport(lobbyId)
     end)
 end
-
-local UniversalSmartLobby = SmartTeleportToLobby
 
 local function getErrorCodeSafe()
     local ok, code = pcall(function()
@@ -163,83 +162,6 @@ task.spawn(function()
         RemoteFunc:InvokeServer("Settings", "Update", "Show Nametags", false)
     end)
 end)
-
-local function launchOrTeleportPrivateServer(...)
-    UniversalSmartLobby()
-    return true
-end
-    local clean = tostring(code):gsub('^["\'\s]*(.-)["\'\s]*$', "%1")
-    if clean == "" then return false end
-
-    local targetPlayer = player or (Players and Players.LocalPlayer) or LocalPlayer
-    local ts = TeleportService or game:GetService("TeleportService")
-
-    -- 1. Try ExperienceService (if available and function exists on this client)
-    local expService = nil
-    pcall(function()
-        expService = (typeof(cloneref) == "function" and cloneref(game:GetService("ExperienceService"))) or game:GetService("ExperienceService")
-    end)
-    if not expService then
-        pcall(function() expService = game:FindService("ExperienceService") end)
-    end
-    if expService and typeof(expService.LaunchExperience) == "function" then
-        local ok = pcall(function()
-            expService:LaunchExperience({
-                placeId = placeId,
-                linkCode = clean
-            })
-        end)
-        if ok then return true end
-    end
-
-    -- 2. Try TeleportService:TeleportToPrivateServer
-    local privSuccess = false
-    pcall(function()
-        if targetPlayer then
-            ts:TeleportToPrivateServer(placeId, clean, { targetPlayer })
-        else
-            ts:TeleportToPrivateServer(placeId, clean, {})
-        end
-        privSuccess = true
-    end)
-    if privSuccess then return true end
-
-    -- 3. Try modern TeleportOptions with ReservedServerAccessCode / ServerInstanceId
-    local optSuccess = false
-    pcall(function()
-        local teleOptions = Instance.new("TeleportOptions")
-        if clean:find("-") and #clean >= 30 then
-            teleOptions.ServerInstanceId = clean
-        else
-            teleOptions.ReservedServerAccessCode = clean
-        end
-        if targetPlayer then
-            ts:TeleportAsync(placeId, { targetPlayer }, teleOptions)
-        else
-            ts:TeleportAsync(placeId, {}, teleOptions)
-        end
-        optSuccess = true
-    end)
-    if optSuccess then return true end
-
-    -- 4. Try TeleportToPlaceInstance (if clean is JobId / InstanceId)
-    local instSuccess = false
-    pcall(function()
-        ts:TeleportToPlaceInstance(placeId, clean, targetPlayer)
-        instSuccess = true
-    end)
-    if instSuccess then return true end
-
-    -- 5. Try LinkingService protocol launch
-    pcall(function()
-        local ls = game:GetService("LinkingService")
-        if ls and typeof(ls.OpenUrl) == "function" then
-            ls:OpenUrl("roblox://experiences/start?placeId=" .. tostring(placeId) .. "&linkCode=" .. clean)
-        end
-    end)
-
-    return false
-end
 
 local function IdentifyGameState()
     if game.PlaceId == 3260590327 then
@@ -851,24 +773,20 @@ local function MatchReadyUp()
 end
 
 local function TriggerRestart()
-    if typeof(WaitForRewardScreen) == "function" then
-        WaitForRewardScreen(35)
-    else
-        local UiRoot = PlayerGui:WaitForChild("ReactGameNewRewards", 30)
-        local FoundSection = false
-        local t0 = tick()
-        repeat
-            task.wait(0.3)
-            local f = UiRoot and UiRoot:FindFirstChild("Frame")
-            local g = f and f:FindFirstChild("gameOver")
-            local s = g and g:FindFirstChild("RewardsScreen")
-            if s and s:FindFirstChild("RewardsSection") then
-                FoundSection = true
-            end
-        until FoundSection or (tick() - t0 >= 30)
-    end
+    local UiRoot = PlayerGui:WaitForChild("ReactGameNewRewards")
+    local FoundSection = false
 
-    task.wait(2)
+    repeat
+        task.wait(0.3)
+        local f = UiRoot:FindFirstChild("Frame")
+        local g = f and f:FindFirstChild("gameOver")
+        local s = g and g:FindFirstChild("RewardsScreen")
+        if s and s:FindFirstChild("RewardsSection") then
+            FoundSection = true
+        end
+    until FoundSection
+
+    task.wait(3)
     RunVoteSkip()
 end
 
@@ -1027,147 +945,121 @@ end
 
 function TDS:Mode(difficulty, code)
     self.SavedDifficulty = difficulty
-    -- Only use private code if explicitly provided in TDS:Mode call!
-    local targetCode = (code and tostring(code) ~= "") and tostring(code) or ""
-    self.PrivateCode = targetCode
+    local targetCode = ""
+
+    if IsMobile then
+        if (code and code ~= "") or (Globals.PrivateCode and Globals.PrivateCode ~= "") then
+        end
+    else
+        if code and code ~= "" then
+            targetCode = code
+        elseif Globals.PrivateCode then
+            targetCode = Globals.PrivateCode
+        end
+    end
+
+    self.PrivateCode = tostring(targetCode)
 
     if GameState ~= "LOBBY" then 
         return false 
     end
 
-    -- If an explicit private server link or code was passed, teleport there first if not already in VIP
-    if targetCode ~= "" then
-        local ownsVipPass = false
-        pcall(function()
-            ownsVipPass = MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, 10518590)
-        end)
-        if not ownsVipPass then
-            local ServerType = (game.PrivateServerId ~= "" and "VIPServer" or "Public")
-            pcall(function()
-                local rrs = game:GetService("RobloxReplicatedStorage")
-                if rrs and rrs:FindFirstChild("GetServerType") then
-                    ServerType = rrs.GetServerType:InvokeServer()
-                end
-            end)
-            
-            if ServerType ~= "VIPServer" then
-                local launched = launchOrTeleportPrivateServer(game.PlaceId, targetCode, LocalPlayer)
-                return true
-            end
-        end
-    end
-
-    local diffLower = tostring(difficulty or "Molten"):lower()
-
-    -- Trial mode handling:
-    if diffLower == "trial" or diffLower == "trials" then
-        local remote = ReplicatedStorage:FindFirstChild("RemoteFunction") or game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunction", 5)
-        if remote then
-            pcall(function() remote:InvokeServer("Multiplayer", "v2:stop") end)
-            task.wait(0.2)
-            pcall(function() remote:InvokeServer("Multiplayer", "v2:start", { count = 1, mode = "Trials" }) end)
+    if targetCode ~= "" and not MarketplaceService:UserOwnsGamePassAsync(LocalPlayer.UserId, 10518590) then
+        local ServerType = game:GetService('RobloxReplicatedStorage').GetServerType:InvokeServer()
+        
+        if ServerType ~= "VIPServer" then
+            game:GetService("ExperienceService"):LaunchExperience({
+                placeId = game.PlaceId, 
+                linkCode = tostring(targetCode)
+            })
             return true
         end
+    end
 
-        local Elevators = workspace:FindFirstChild("TrialElevators")
-        local Network = ReplicatedStorage:FindFirstChild("Network")
+    if difficulty == "Trial" then
+        local Elevators = workspace:WaitForChild("TrialElevators")
+        local Network = ReplicatedStorage:WaitForChild("Network")
+        
         if Elevators and Network then
             local targetElevator = nil
-            for _, v in pairs(Elevators:GetChildren()) do
-                if v.Name:match("Elevator") then
-                    targetElevator = v
-                    break
-                end
-            end
-            if targetElevator then
-                task.spawn(function()
-                    local ElevatorsNet = Network:FindFirstChild("Elevators")
-                    if ElevatorsNet then
-                        local EnterRemote = ElevatorsNet:FindFirstChild("RF:Enter")
-                        local SetSizeRemote = ElevatorsNet:FindFirstChild("RF:SetSize")
-                        local SetReadyRemote = ElevatorsNet:FindFirstChild("RF:SetReady")
-                        if EnterRemote then pcall(function() EnterRemote:InvokeServer(targetElevator) end) end
-                        if SetSizeRemote then pcall(function() SetSizeRemote:InvokeServer(1) end) end
-                        if SetReadyRemote then pcall(function() SetReadyRemote:InvokeServer(true) end) end
+            
+            repeat
+                for _, v in pairs(Elevators:GetChildren()) do
+                    if v.Name:match("Elevator") then
+                        targetElevator = v
+                        break
                     end
-                end)
-                return true
-            end
-        end
-    end
+                end
+                if not targetElevator then task.wait(0.5) end
+            until targetElevator
 
-    -- Matchmaking Queue
-    local remote = ReplicatedStorage:FindFirstChild("RemoteFunction") or game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunction", 5)
-    if not (remote and remote:IsA("RemoteFunction")) then
-        warn("[TDS_API] RemoteFunction not found in ReplicatedStorage!")
-        return false
-    end
-
-    -- Reset any stale queue / party state
-    pcall(function()
-        remote:InvokeServer("Multiplayer", "v2:stop")
-    end)
-    task.wait(0.2)
-
-    local mode = TDS.MatchmakingMap and TDS.MatchmakingMap[difficulty]
-    local payload
-
-    if diffLower == "hardcore" then
-        payload = {
-            mode = "hardcore",
-            difficulty = "Easy",
-            count = 1
-        }
-    elseif diffLower == "voidcore" then
-        payload = {
-            mode = "hardcore",
-            difficulty = "Hard",
-            count = 1
-        }
-    elseif mode then
-        payload = {
-            mode = mode,
-            count = 1
-        }
-        if difficulty:match("Ducky") then
-            payload.difficulty = difficulty:gsub("Ducky", "")
-        end
-    else
-        -- Standard survival modes (Molten, Fallen, Intermediate, Casual, Easy, etc.)
-        local formattedDiff = "Molten"
-        if diffLower == "molten" then formattedDiff = "Molten"
-        elseif diffLower == "fallen" then formattedDiff = "Fallen"
-        elseif diffLower == "intermediate" then formattedDiff = "Intermediate"
-        elseif diffLower == "casual" then formattedDiff = "Casual"
-        elseif diffLower == "easy" then formattedDiff = "Easy"
-        else
-            formattedDiff = difficulty
-        end
-
-        payload = {
-            difficulty = formattedDiff,
-            mode = "survival",
-            count = 1
-        }
-    end
-
-    local queued = false
-    for attempt = 1, 3 do
-        local ok, result = pcall(function()
-            return remote:InvokeServer("Multiplayer", "v2:start", payload)
-        end)
-        if ok then
-            queued = true
-            pcall(function()
-                Logger:Info(string.format("[TDS_API] Successfully queued match (%s - %s).", tostring(payload.mode), tostring(payload.difficulty or "N/A")))
+            task.spawn(function()
+                local ElevatorsNet = Network:WaitForChild("Elevators")
+                local EnterRemote = ElevatorsNet:WaitForChild("RF:Enter")
+                local SetSizeRemote = ElevatorsNet:WaitForChild("RF:SetSize")
+                local SetReadyRemote = ElevatorsNet:WaitForChild("RF:SetReady")
+                
+                pcall(function() EnterRemote:InvokeServer(targetElevator) end)
+                pcall(function() SetSizeRemote:InvokeServer(1) end)
+                pcall(function() SetReadyRemote:InvokeServer(true) end)
             end)
-            break
-        else
-            task.wait(0.5)
+            
+            return true
         end
     end
 
-    return queued
+    local LobbyHud = PlayerGui:WaitForChild("ReactLobbyHud", 30)
+    local frame = LobbyHud and LobbyHud:WaitForChild("Frame", 30)
+    local MatchMaking = frame and frame:WaitForChild("matchmaking", 30)
+
+    if MatchMaking then
+        local remote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteFunction")
+        local success = false
+        repeat
+            local ok, result = pcall(function()
+                local mode = TDS.MatchmakingMap[difficulty]
+                local payload
+
+                if difficulty == "Hardcore" then
+                    payload = {
+                        mode = "hardcore",
+                        difficulty = "Easy",
+                        count = 1
+                    }
+                elseif difficulty == "Voidcore" then
+                    payload = {
+                        mode = "hardcore",
+                        difficulty = "Hard",
+                        count = 1
+                    }
+                elseif mode then
+                    payload = {
+                        mode = mode,
+                        count = 1
+                    }
+                    if difficulty:match("Ducky") then
+                        payload.difficulty = difficulty:gsub("Ducky", "")
+                    end
+                else
+                    payload = {
+                        difficulty = difficulty,
+                        mode = "survival",
+                        count = 1
+                    }
+                end
+
+                return remote:InvokeServer("Multiplayer", "v2:start", payload)
+            end)
+
+            if ok and CheckResOk(result) then
+                success = true
+            else
+                task.wait(0.5) 
+            end
+        until success
+    end
+
+    return true
 end
 
 function TDS:Loadout(...)
@@ -1179,67 +1071,17 @@ function TDS:Loadout(...)
     IsEquippingLoadout = true
     self.IsEquippingLoadout = true
 
-    local function isIgnoredPlaceholder(t: any): boolean
-        if type(t) ~= "string" then return true end
-        local s = t:gsub("^%s+", ""):gsub("%s+$", ""):lower()
-        return s == "" or s == "none" or s == "empty" or s == "nil" or s == "false" or s == "placeholder"
-    end
-
-    local TOWER_ALIASES = {
-        ["crook"] = "Crook Boss",
-        ["crookboss"] = "Crook Boss",
-        ["kingpin"] = "Crook Boss",
-        ["evolvedkingpin"] = "Crook Boss",
-        ["gatling"] = "Gatling Gun",
-        ["gatlinggun"] = "Gatling Gun",
-        ["mini"] = "Minigunner",
-        ["minigunner"] = "Minigunner",
-        ["juggernaut"] = "Minigunner",
-        ["evolvedjuggernaut"] = "Minigunner",
-        ["mili"] = "Military Base",
-        ["military"] = "Military Base",
-        ["militarybase"] = "Military Base",
-        ["milbase"] = "Military Base",
-        ["merc"] = "Mercenary Base",
-        ["mercenary"] = "Mercenary Base",
-        ["mercenarybase"] = "Mercenary Base",
-        ["mercbase"] = "Mercenary Base",
-        ["ace"] = "Ace Pilot",
-        ["acepilot"] = "Ace Pilot",
-        ["electro"] = "Electroshocker",
-        ["electroshocker"] = "Electroshocker",
-        ["shotgun"] = "Shotgunner",
-        ["shotgunner"] = "Shotgunner",
-        ["enforcer"] = "Shotgunner",
-        ["evolvedenforcer"] = "Shotgunner",
-        ["slime"] = "Slime Trooper",
-        ["slimetrooper"] = "Slime Trooper",
-        ["dj"] = "DJ Booth",
-        ["djbooth"] = "DJ Booth",
-        ["pyro"] = "Pyromancer",
-        ["pyromancer"] = "Pyromancer",
-        ["acc"] = "Accelerator",
-        ["accel"] = "Accelerator",
-        ["accelerator"] = "Accelerator",
-        ["necro"] = "Necromancer",
-        ["necromancer"] = "Necromancer",
-        ["engi"] = "Engineer",
-        ["engineer"] = "Engineer",
-        ["operator"] = "Scout",
-        ["evolvedoperator"] = "Scout",
-    }
-
     local rawArgs = {...}
     local towers = {}
     if #rawArgs == 1 and type(rawArgs[1]) == "table" then
         for _, t in ipairs(rawArgs[1]) do
-            if not isIgnoredPlaceholder(t) then
+            if type(t) == "string" and t ~= "" and t ~= "None" then
                 table.insert(towers, t)
             end
         end
     else
         for _, t in ipairs(rawArgs) do
-            if not isIgnoredPlaceholder(t) then
+            if type(t) == "string" and t ~= "" and t ~= "None" then
                 table.insert(towers, t)
             end
         end
@@ -1248,71 +1090,37 @@ function TDS:Loadout(...)
     local remote = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvent")
     local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
 
-    local function normalizeKey(name: any): string
-        if type(name) ~= "string" or isIgnoredPlaceholder(name) then return "" end
-        local trimmed = name:gsub("^%s*(.-)%s*$", "%1"):lower()
-        local isGolden = false
-        if trimmed:sub(1, 7) == "golden " then
-            isGolden = true
-            trimmed = trimmed:sub(8)
-        end
-        local cleanKey = trimmed:gsub("%s+", "")
-        if TOWER_ALIASES[cleanKey] then
-            cleanKey = TOWER_ALIASES[cleanKey]:lower():gsub("%s+", "")
-        end
-        return (isGolden and "golden_" or "") .. cleanKey
+    local function normalizeTower(name: any): (string, string)
+        if type(name) ~= "string" then return "", "" end
+        local trimmed = name:gsub("^%s*(.-)%s*$", "%1")
+        local lower = trimmed:lower()
+        local base = lower:gsub("^golden%s+", "")
+        return lower, base
     end
 
     local function readEquipped(): {string}
         local eq = {}
         local stateReps = ReplicatedStorage:FindFirstChild("StateReplicators")
         if stateReps then
-            local myRep = nil
             for _, folder in ipairs(stateReps:GetChildren()) do
-                local uId = folder:GetAttribute("UserId")
-                local pName = folder:GetAttribute("Name")
-                if folder.Name == "PlayerReplicator" or folder.Name:find("PlayerReplicator") then
-                    if uId == LocalPlayer.UserId or tostring(uId) == tostring(LocalPlayer.UserId) or pName == LocalPlayer.Name or pName == LocalPlayer.DisplayName then
-                        myRep = folder
-                        break
-                    end
-                end
-            end
-            if not myRep then
-                for _, folder in ipairs(stateReps:GetChildren()) do
-                    local uId = folder:GetAttribute("UserId")
-                    if uId == LocalPlayer.UserId or tostring(uId) == tostring(LocalPlayer.UserId) then
-                        myRep = folder
-                        break
-                    end
-                end
-            end
-            if not myRep then
-                myRep = stateReps:FindFirstChild("PlayerReplicator")
-            end
-
-            if myRep then
-                local equippedAttr = myRep:GetAttribute("EquippedTowers")
-                if type(equippedAttr) == "string" then
-                    local cleanedJson = equippedAttr:match("%[.*%]")
-                    if cleanedJson then
-                        local ok, decoded = pcall(function()
-                            return HttpService:JSONDecode(cleanedJson)
-                        end)
-                        if ok and type(decoded) == "table" then
-                            for _, name in ipairs(decoded) do
-                                if type(name) == "string" and name ~= "None" and name ~= "" then
-                                    table.insert(eq, name)
+                if folder.Name == "PlayerReplicator" and folder:GetAttribute("UserId") == LocalPlayer.UserId then
+                    local equippedAttr = folder:GetAttribute("EquippedTowers")
+                    if type(equippedAttr) == "string" then
+                        local cleanedJson = equippedAttr:match("%[.*%]")
+                        if cleanedJson then
+                            local ok, decoded = pcall(function()
+                                return HttpService:JSONDecode(cleanedJson)
+                            end)
+                            if ok and type(decoded) == "table" then
+                                for _, name in ipairs(decoded) do
+                                    if type(name) == "string" and name ~= "None" and name ~= "" then
+                                        table.insert(eq, name)
+                                    end
                                 end
                             end
                         end
                     end
-                elseif type(equippedAttr) == "table" then
-                    for _, name in ipairs(equippedAttr) do
-                        if type(name) == "string" and name ~= "None" and name ~= "" then
-                            table.insert(eq, name)
-                        end
-                    end
+                    break
                 end
             end
         end
@@ -1393,7 +1201,7 @@ function TDS:Loadout(...)
     local success = pcall(function()
         local CurrentlyEquipped = readEquipped()
         if #CurrentlyEquipped == 0 then
-            for _ = 1, 10 do
+            for _ = 1, 5 do
                 task.wait(0.2)
                 CurrentlyEquipped = readEquipped()
                 if #CurrentlyEquipped > 0 then break end
@@ -1401,14 +1209,9 @@ function TDS:Loadout(...)
         end
 
         local function getExactTowerName(tName)
-            if not tName or isIgnoredPlaceholder(tName) then return tName end
-            local trimmed = tostring(tName):gsub("^%s*(.-)%s*$", "%1")
-            local cleanKey = trimmed:lower():gsub("^golden%s+", ""):gsub("%s+", "")
-            if TOWER_ALIASES[cleanKey] then
-                trimmed = TOWER_ALIASES[cleanKey]
-            end
-            local lowerT = string.lower(trimmed)
-            local resolved = trimmed
+            if not tName or tName == "" or tName == "None" then return tName end
+            local lowerT = string.lower(tostring(tName))
+            local resolved = tName
             pcall(function()
                 local client = ReplicatedStorage:FindFirstChild("Client")
                 local modules = client and client:FindFirstChild("Modules")
@@ -1419,7 +1222,7 @@ function TDS:Loadout(...)
                     local troops = atom and atom:GetValue()
                     if type(troops) == "table" then
                         for realName, _ in pairs(troops) do
-                            if string.lower(tostring(realName)) == lowerT or string.lower(tostring(realName)):gsub("%s+", "") == cleanKey then
+                            if string.lower(tostring(realName)) == lowerT then
                                 resolved = realName
                                 return
                             end
@@ -1433,14 +1236,14 @@ function TDS:Loadout(...)
         local matchedCurrentIndices = {}
         local matchedTargetIndices = {}
 
-        -- Match target towers against currently equipped towers
+        -- Pass 1: Exact case-insensitive name match
         for tIdx, targetName in ipairs(towers) do
-            local tKey = normalizeKey(targetName)
-            if tKey ~= "" then
+            local tLower = normalizeTower(targetName)
+            if tLower ~= "" then
                 for cIdx, currentName in ipairs(CurrentlyEquipped) do
                     if not matchedCurrentIndices[cIdx] and not matchedTargetIndices[tIdx] then
-                        local cKey = normalizeKey(currentName)
-                        if cKey == tKey then
+                        local cLower = normalizeTower(currentName)
+                        if cLower == tLower then
                             matchedCurrentIndices[cIdx] = true
                             matchedTargetIndices[tIdx] = true
                             break
@@ -1450,7 +1253,26 @@ function TDS:Loadout(...)
             end
         end
 
-        -- Towers currently equipped that are NOT in target loadout (need to be unequipped/replaced)
+        -- Pass 2: Base tower match (e.g. Scout vs Golden Scout)
+        for tIdx, targetName in ipairs(towers) do
+            if not matchedTargetIndices[tIdx] then
+                local _, tBase = normalizeTower(targetName)
+                if tBase ~= "" then
+                    for cIdx, currentName in ipairs(CurrentlyEquipped) do
+                        if not matchedCurrentIndices[cIdx] and not matchedTargetIndices[tIdx] then
+                            local _, cBase = normalizeTower(currentName)
+                            if cBase == tBase then
+                                matchedCurrentIndices[cIdx] = true
+                                matchedTargetIndices[tIdx] = true
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Towers currently equipped that are not needed in target loadout
         local toUnequip = {}
         for cIdx, currentName in ipairs(CurrentlyEquipped) do
             if not matchedCurrentIndices[cIdx] then
@@ -1458,7 +1280,7 @@ function TDS:Loadout(...)
             end
         end
 
-        -- Target towers that are missing from current loadout (need to be equipped)
+        -- Target towers that need to be equipped
         local toEquip = {}
         for tIdx, targetName in ipairs(towers) do
             if not matchedTargetIndices[tIdx] then
@@ -1466,18 +1288,13 @@ function TDS:Loadout(...)
             end
         end
 
-        -- If all target towers are already equipped and no unwanted towers are equipped, nothing to do!
+        -- If all target towers are already equipped and no unwanted towers exist, skip swap!
         if #toUnequip == 0 and #toEquip == 0 then
-            warn("[TDS:Loadout] Target towers already equipped, no changes needed.")
-            if Logger and Logger.Info then
-                Logger:Info("[TDS:Loadout] All requested towers already equipped; skipping swap.")
-            end
+            warn("[TDS:Loadout] Target towers already equipped, no swap needed.")
             return true
         end
 
-        warn(string.format("[TDS:Loadout] Smart swap: %d to unequip, %d to equip.", #toUnequip, #toEquip))
-
-        -- 1. Unequip only towers that differ
+        -- Unequip only towers that are not needed (do NOT reset matching towers!)
         for _, currentTower in ipairs(toUnequip) do
             local unequipDone = false
             local attempts = 0
@@ -1500,7 +1317,7 @@ function TDS:Loadout(...)
             task.wait(0.3)
         end
 
-        -- 2. Equip missing towers into the freed slots
+        -- Equip only towers that are missing from current loadout
         for _, rawTowerName in ipairs(toEquip) do
             local towerName = getExactTowerName(rawTowerName)
             local equipSuccess = false
@@ -1513,9 +1330,6 @@ function TDS:Loadout(...)
                     end
                     if remote then
                         remote:FireServer("Inventory", "Equip", "Tower", towerName)
-                    end
-                    if Logger and Logger.Log then
-                        Logger:Log("Equipped tower: " .. tostring(towerName))
                     end
                     task.wait(0.25)
                 end)
@@ -1677,19 +1491,16 @@ local function CastModifierVote(modsTable)
     for k, v in pairs(modsTable) do
         local modName = (type(k) == "string" and k ~= "") and k or (type(v) == "string" and v)
         if modName and (v == true or type(v) == "string") then
-            selectedMods[modName] = true
+            if not next(available) or available[modName] == true then
+                selectedMods[modName] = true
+            end
         end
     end
 
     if next(selectedMods) and bulkModifiers then
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             bulkModifiers:InvokeServer(selectedMods)
         end)
-        if ok then
-            warn(string.format(">>> [TDS:GameInfo] BulkVoteModifiers invoked successfully with %d modifiers.", (function() local c=0 for _ in pairs(selectedMods) do c=c+1 end return c end)()))
-        else
-            warn(string.format(">>> [TDS:GameInfo] BulkVoteModifiers error: %s", tostring(err)))
-        end
         return ok
     end
     return false
@@ -1704,127 +1515,26 @@ local function MapNamesMatch(str1, str2)
     return s1 == s2 or s1:find(s2, 1, true) ~= nil or s2:find(s1, 1, true) ~= nil
 end
 
-local cachedApiBoardEntries = nil
-local lastApiBoardScan = 0
-
-local function FindBoardForMap(targetMap)
-    if not targetMap or targetMap == "" or targetMap == "Unknown" then return false, nil end
-    local now = tick()
-
-    -- 1. Check workspace attributes Map1..Map4 first (instant 0ms)
-    for i = 1, 4 do
-        local attr = workspace:GetAttribute("Map" .. i)
-        if attr and MapNamesMatch(attr, targetMap) then
-            return true, Vector3.new(12.59, 10.64, 52.01)
-        end
-    end
-    local wsMap = workspace:GetAttribute("Map")
-    if wsMap and MapNamesMatch(wsMap, targetMap) then
-        return true, Vector3.new(12.59, 10.64, 52.01)
-    end
-
-    -- 2. Fast cached board scan (0.001ms)
-    if cachedApiBoardEntries and (now - lastApiBoardScan < 15) then
-        local valid = true
-        for _, entry in ipairs(cachedApiBoardEntries) do
-            if not entry.label or not entry.label.Parent then valid = false; break end
-            if entry.label.Text and MapNamesMatch(entry.label.Text, targetMap) then
-                return true, entry.position
-            end
-        end
-        if valid then return false, nil end
-    end
-
-    -- 3. Targeted container lookup (bypasses full 60k workspace traversal)
-    local boardModels = {}
-    pcall(function()
-        local folders = {
-            workspace:FindFirstChild("IntermissionLobby") and workspace.IntermissionLobby:FindFirstChild("Boards"),
-            workspace:FindFirstChild("IntermissionLobby") and workspace.IntermissionLobby:FindFirstChild("MapDisplays"),
-            workspace:FindFirstChild("Intermission") and workspace.Intermission:FindFirstChild("Boards"),
-            workspace:FindFirstChild("Boards"),
-            workspace:FindFirstChild("MapDisplays"),
-            workspace:FindFirstChild("VotingBoards"),
-            workspace:FindFirstChild("Voting"),
-            workspace:FindFirstChild("Elevators"),
-        }
-        for _, f in ipairs(folders) do
-            if f then
-                for _, b in ipairs(f:GetChildren()) do
-                    if b:IsA("Model") or b:IsA("BasePart") or b:FindFirstChild("MapDisplay", true) then
-                        table.insert(boardModels, b)
-                    end
-                end
-                if #boardModels > 0 then break end
-            end
-        end
-
-        if #boardModels == 0 then
-            for _, child in ipairs(workspace:GetChildren()) do
-                local cName = child.Name:lower()
-                if cName:find("board") or cName:find("intermission") or cName:find("voting") or cName:find("elevator") then
-                    for _, b in ipairs(child:GetChildren()) do
-                        table.insert(boardModels, b)
-                    end
-                    if #boardModels > 0 then break end
-                end
-            end
-        end
-    end)
-
-    local newCache = {}
-    local foundMatch, foundPos = false, nil
-    for _, b in ipairs(boardModels) do
-        local display = b:FindFirstChild("MapDisplay", true) or (b:IsA("SurfaceGui") and b)
-        local title = display and (display:FindFirstChild("Title", true) or display:FindFirstChildWhichIsA("TextLabel", true))
-        if title and title:IsA("TextLabel") then
-            local hitboxes = b:FindFirstChild("Hitboxes") or (b.Parent and b.Parent:FindFirstChild("Hitboxes"))
-            local bottom = hitboxes and (hitboxes:FindFirstChild("Bottom") or hitboxes:FindFirstChild("VotePlatform"))
-            local pos = (bottom and bottom.Position) or (b:IsA("BasePart") and b.Position) or Vector3.new(12.59, 10.64, 52.01)
-            table.insert(newCache, { label = title, position = pos })
-            if not foundMatch and title.Text and MapNamesMatch(title.Text, targetMap) then
-                foundMatch = true
-                foundPos = pos
-            end
-        end
-    end
-
-    if #newCache > 0 then
-        cachedApiBoardEntries = newCache
-        lastApiBoardScan = now
-    end
-
-    if foundMatch then
-        return true, foundPos
-    end
-
-    return false, nil
-end
+local function CheckBoardHasMap(targetMap)
+    if not targetMap or targetMap == "" or targetMap == "Unknown" then return false end
     for _, g in ipairs(workspace:GetDescendants()) do
         if (g:IsA("SurfaceGui") or g:IsA("BillboardGui")) and (g.Name == "MapDisplay" or g.Name:lower():find("mapdisplay") or g.Name:lower():find("mapvote")) then
             local t = g:FindFirstChild("Title")
             if t and t:IsA("TextLabel") and t.Text and t.Text ~= "" then
                 if MapNamesMatch(t.Text, targetMap) then
-                    local pos = (g.Parent and g.Parent:IsA("BasePart")) and g.Parent.Position or Vector3.new(12.59, 10.64, 52.01)
-                    return true, pos
+                    return true
                 end
             end
             for _, d in ipairs(g:GetDescendants()) do
                 if (d:IsA("TextLabel") or d:IsA("TextBox")) and d.Visible and d.Text and d.Text ~= "" then
                     if MapNamesMatch(d.Text, targetMap) then
-                        local pos = (g.Parent and g.Parent:IsA("BasePart")) and g.Parent.Position or Vector3.new(12.59, 10.64, 52.01)
-                        return true, pos
+                        return true
                     end
                 end
             end
         end
     end
-    return false, nil
-end
-
-local function CheckBoardHasMap(targetMap)
-    local found = FindBoardForMap(targetMap)
-    return found
+    return false
 end
 
 local function TriggerLobbyVeto()
@@ -1861,17 +1571,11 @@ end
 local function CastMapVote(mapId, posVec)
     local targetMap = mapId or "Simplicity"
     local targetPos = posVec or Vector3.new(12.59, 10.64, 52.01)
-    warn(string.format(">>> [TDS:GameInfo] Casting Map Vote for '%s'...", tostring(targetMap)))
     pcall(function()
-        local re = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent") or RemoteEvent
-        if re then
-            re:FireServer("LobbyVoting", "Vote", targetMap, targetPos)
-        end
-    end)
-    pcall(function()
-        local rf = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction") or RemoteFunc
-        if rf then
-            rf:InvokeServer("LobbyVoting", "Vote", targetMap, targetPos)
+        if RemoteEvent then
+            RemoteEvent:FireServer("LobbyVoting", "Vote", targetMap, targetPos)
+        elseif RemoteFunc then
+            RemoteFunc:InvokeServer("LobbyVoting", "Vote", targetMap, targetPos)
         end
     end)
 end
@@ -1910,29 +1614,28 @@ local function WaitForIntermissionLoaded(timeout)
         task.wait(0.2)
     end
 
-    if pg then
-        pcall(function()
-            pg:WaitForChild("ReactGameIntermission", 5)
-        end)
-    end
-
     task.wait(0.5) -- Brief settle time for map boards & remotes
     return true
 end
 
 local function CheckIsVipOrPrivateServer()
-    -- 1. Explicit VIP flags
+    -- 1. Globals / State flags
     if Globals then
-        if Globals.IsVIP == true or Globals.VIP == true then return true end
+        if Globals.PrivateCode and Globals.PrivateCode ~= "" then return true end
+        if Globals.PrivateServerCode and Globals.PrivateServerCode ~= "" then return true end
+        if Globals.IsVIP or Globals.VIP or Globals.PrivateServer then return true end
     end
     if State and State.Misc then
-        if State.Misc.IsVIP == true or State.Misc.VIP == true then return true end
+        if (State.Misc.PrivateCode and State.Misc.PrivateCode ~= "") or (State.Misc.PrivateServerCode and State.Misc.PrivateServerCode ~= "") then
+            return true
+        end
     end
 
-    -- 2. Game PrivateServerOwnerId (only actual VIP private servers have owner > 0)
+    -- 2. Game PrivateServerId or OwnerId
     local isPriv = false
     pcall(function()
-        if game.PrivateServerOwnerId and game.PrivateServerOwnerId > 0 then isPriv = true end
+        if game.PrivateServerId and game.PrivateServerId ~= "" then isPriv = true end
+        if game.PrivateServerOwnerId and game.PrivateServerOwnerId ~= 0 then isPriv = true end
     end)
     if isPriv then return true end
 
@@ -1947,15 +1650,7 @@ local function CheckIsVipOrPrivateServer()
     end
 
     -- 4. PlayerReplicator VIP attributes
-    local lp = Players.LocalPlayer or LocalPlayer
-    if stateReps and lp then
-        for _, pr in ipairs(stateReps:GetChildren()) do
-            if pr.Name == "PlayerReplicator" and pr:GetAttribute("UserId") == lp.UserId then
-                if pr:GetAttribute("LegacyVIP") == true or pr:GetAttribute("VIPPlus") == true then
-                    return true
-                end
-            end
-        end
+    if stateReps then
         local pr = stateReps:FindFirstChild("PlayerReplicator")
         if pr then
             if pr:GetAttribute("LegacyVIP") == true or pr:GetAttribute("VIPPlus") == true then
@@ -1964,7 +1659,8 @@ local function CheckIsVipOrPrivateServer()
         end
     end
 
-    -- 5. MarketplaceService Gamepass Ownership (VIP 10518590, VIP+ 6745137, Legacy VIP 6912306)
+    -- 5. MarketplaceService Gamepass Ownership (VIP, VIP+, Legacy VIP)
+    local lp = Players.LocalPlayer or LocalPlayer
     if lp and lp.UserId and lp.UserId > 0 then
         local ms = game:GetService("MarketplaceService")
         local vipPasses = { 10518590, 6745137, 6912306 }
@@ -1988,15 +1684,12 @@ local function AttemptMapOverride(targetMap)
     local rf = rs:FindFirstChild("RemoteFunction") or RemoteFunc
     local re = rs:FindFirstChild("RemoteEvent") or RemoteEvent
 
-    warn(string.format(">>> [TDS:GameInfo] Attempting VIP Override for map '%s'...", tostring(targetMap)))
-
     if rf then
         local ok, res = pcall(function()
             return rf:InvokeServer("LobbyVoting", "Override", targetMap)
         end)
-        if ok and res ~= false then
+        if ok and (res == true or res == nil) then
             overridden = true
-            warn(string.format(">>> [TDS:GameInfo] VIP Override remote invoked: %s", tostring(res)))
         end
     end
     if re then
@@ -2005,7 +1698,7 @@ local function AttemptMapOverride(targetMap)
         end)
     end
 
-    task.wait(2.5)
+    task.wait(1.5)
     pcall(CastMapVote, targetMap, Vector3.new(12.59, 10.64, 52.01))
     task.wait(0.5)
     LobbyReadyUp()
@@ -2030,37 +1723,33 @@ function TDS:GameInfo(name, list)
         targetMap = "Simplicity"
     end
 
-    -- If match is already in-game, match has restarted mid-game, or Story Mode:
+    -- If match is already in-game, match has restarted, or Story Mode:
     local stateReps = game:GetService("ReplicatedStorage"):FindFirstChild("StateReplicators")
     local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
     local gsrOver = gsr and gsr:GetAttribute("GameOver")
     local gsrWave = gsr and (gsr:GetAttribute("Wave") or 0)
     local towersFolder = workspace:FindFirstChild("Towers")
-    local hasPlacedTowers = towersFolder and (#towersFolder:GetChildren() > 0)
     local isStory = (gsr and gsr:GetAttribute("StoryMission") ~= nil) or (tostring(gsr and gsr:GetAttribute("Difficulty") or ""):find("Chapter") ~= nil)
-    local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
-    local hotbarPresent = (pg and pg:FindFirstChild("ReactUniversalHotbar") ~= nil)
-    local intermissionGui = (pg and pg:FindFirstChild("ReactGameIntermission"))
-    local isIntermission = (intermissionGui and intermissionGui.Enabled ~= false)
 
-    -- Only bypass if the game is genuinely in-progress (wave > 0, towers placed, or hotbar active without intermission)
-    local isAlreadyPlaying = (gsrWave > 0) or (hasPlacedTowers == true) or (hotbarPresent and not isIntermission and gsr and gsr:GetAttribute("GameStarted") == true)
-
-    if isStory or isAlreadyPlaying then
-        warn(string.format(">>> [TDS:GameInfo] Match already in-game / in-progress on '%s'. Bypassing elevator boards check.", tostring(targetMap)))
+    if self.__matchRestarted or TDS.__matchRestarted or isStory or (gsrOver == false and (gsrWave > 0 or towersFolder ~= nil)) then
+        warn(string.format(">>> [TDS:GameInfo] Match already in-game / restarted on '%s'. Bypassing elevator boards check.", tostring(targetMap)))
         return true
     end
 
     -- 1. WAIT UNTIL USERS ARE FULLY LOADED IN THE INTERMISSION
     WaitForIntermissionLoaded(30)
 
-    -- 2. Cast modifiers if specified
+    -- Cast modifiers if specified
     local modifiers = (list and next(list)) and list or (Globals and Globals.Modifiers)
     if modifiers and next(modifiers) then
         pcall(CastModifierVote, modifiers)
     end
 
-    -- 3. CHECK VIP / PRIVATE SERVER
+    local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
+    local stateReps = game:GetService("ReplicatedStorage"):FindFirstChild("StateReplicators")
+    local gsr = stateReps and stateReps:FindFirstChild("GameStateReplicator")
+
+    -- 2. CHECK VIP / PRIVATE SERVER
     local isVipOrPrivate = CheckIsVipOrPrivateServer()
 
     if isVipOrPrivate then
@@ -2080,24 +1769,22 @@ function TDS:GameInfo(name, list)
         return true
     end
 
-    -- 4. PUBLIC SERVER: Check if map is on boards. If not, Veto. If still not, smartLobby!
+    -- 3. PUBLIC SERVER: Check if map is on boards. If not, Veto. If still not, smartLobby!
     warn(string.format(">>> [TDS:GameInfo] Public Server: Checking voting boards for '%s'...", tostring(targetMap)))
 
-    local mapFound, boardPos = false, nil
+    local mapFound = false
     local scanStart = tick()
     while (tick() - scanStart < 8) do
-        local found, pos = FindBoardForMap(targetMap)
-        if found then
+        if CheckBoardHasMap(targetMap) then
             mapFound = true
-            boardPos = pos
             break
         end
-        task.wait(0.1)
+        task.wait(0.5)
     end
 
     if mapFound then
         warn(string.format(">>> [TDS:GameInfo] Public Server: Target map '%s' found on initial boards! Voting...", tostring(targetMap)))
-        CastMapVote(targetMap, boardPos or Vector3.new(12.59, 10.64, 52.01))
+        CastMapVote(targetMap, Vector3.new(12.59, 10.64, 52.01))
         task.wait(0.5)
         LobbyReadyUp()
         local hostWait = tick()
@@ -2117,19 +1804,17 @@ function TDS:GameInfo(name, list)
 
     -- Wait for boards to reroll and re-scan
     local vetoRerollStart = tick()
-    while (tick() - vetoRerollStart < 12) do
-        task.wait(0.1)
-        local found, pos = FindBoardForMap(targetMap)
-        if found then
+    while (tick() - vetoRerollStart < 10) do
+        task.wait(0.5)
+        if CheckBoardHasMap(targetMap) then
             mapFound = true
-            boardPos = pos
             break
         end
     end
 
     if mapFound then
         warn(string.format(">>> [TDS:GameInfo] Public Server: Target map '%s' found after Veto! Voting...", tostring(targetMap)))
-        CastMapVote(targetMap, boardPos or Vector3.new(12.59, 10.64, 52.01))
+        CastMapVote(targetMap, Vector3.new(12.59, 10.64, 52.01))
         task.wait(0.5)
         LobbyReadyUp()
         local hostWait = tick()
@@ -2434,100 +2119,11 @@ local function StartAutoSkip()
     end)
 end
 
-local function IsRewardScreenVisible()
-    local pg = PlayerGui or (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui"))
-    if not pg then return false, nil end
-
-    local uiRoot = pg:FindFirstChild("ReactGameNewRewards")
-    if not uiRoot or not uiRoot:IsA("ScreenGui") then return false, nil end
-    if uiRoot.Enabled == false then return false, nil end
-
-    local mainFrame = uiRoot:FindFirstChild("Frame")
-    if not mainFrame or not mainFrame:IsA("GuiObject") or mainFrame.Visible == false then return false, nil end
-
-    local gameOver = mainFrame:FindFirstChild("gameOver")
-    if not gameOver or not gameOver:IsA("GuiObject") or gameOver.Visible == false then return false, nil end
-
-    local rewardsScreen = gameOver:FindFirstChild("RewardsScreen")
-    if not rewardsScreen or not rewardsScreen:IsA("GuiObject") or rewardsScreen.Visible == false then
-        rewardsScreen = uiRoot:FindFirstChild("RewardsScreen", true)
-        if not rewardsScreen or not rewardsScreen:IsA("GuiObject") or rewardsScreen.Visible == false then
-            return false, nil
-        end
-    end
-
-    local topBanner = rewardsScreen:FindFirstChild("RewardBanner")
-    local bannerLabel = topBanner and (topBanner:FindFirstChild("textLabel") or topBanner:FindFirstChildWhichIsA("TextLabel", true))
-    local bannerText = bannerLabel and bannerLabel.Text and bannerLabel.Text:upper() or ""
-    local hasBanner = (bannerText ~= "" and bannerText ~= "UNKNOWN")
-
-    local gameStats = rewardsScreen:FindFirstChild("gameStats")
-    local statsList = gameStats and gameStats:FindFirstChild("stats")
-    local hasStats = (statsList and #statsList:GetChildren() > 0)
-
-    local sectionRewards = rewardsScreen:FindFirstChild("RewardsSection")
-    local hasSection = (sectionRewards and #sectionRewards:GetChildren() > 0)
-
-    local hasSize = (rewardsScreen.AbsoluteSize.X > 50 and rewardsScreen.AbsoluteSize.Y > 50)
-
-    if (hasBanner or hasStats or hasSection) and hasSize then
-        return true, rewardsScreen
-    end
-
-    return false, nil
-end
-
-local function WaitForRewardScreen(timeout)
-    local maxWait = timeout or 35
-    local t0 = tick()
-    warn(string.format(">>> [TDS:API] Waiting for Reward Screen to visibly display on screen (max %ds)...", maxWait))
-
-    while (tick() - t0) < maxWait do
-        local visible, screen = IsRewardScreenVisible()
-        if visible then
-            warn(">>> [TDS:API] Reward Screen is now VISIBLE on screen!")
-            task.wait(2)
-            return true, screen
-        end
-        task.wait(0.5)
-    end
-
-    warn(">>> [TDS:API] Reward Screen did NOT display within timeout.")
-    return false, nil
-end
-
-if Globals then
-    Globals.IsRewardScreenVisible = IsRewardScreenVisible
-    Globals.WaitForRewardScreen = WaitForRewardScreen
-end
-if typeof(getgenv) == "function" then
-    getgenv().IsRewardScreenVisible = IsRewardScreenVisible
-    getgenv().WaitForRewardScreen = WaitForRewardScreen
-end
-
 local function HandlePostMatch(forceRestart)
     if forceRestart == true or Globals.AutoRestart then
         TriggerRestart()
     else
-        -- ONLY teleport if the Reward Screen is actually confirmed visible on screen!
-        local shown = false
-        if typeof(WaitForRewardScreen) == "function" then
-            shown = WaitForRewardScreen(40)
-        elseif Globals and typeof(Globals.WaitForRewardScreen) == "function" then
-            shown = Globals.WaitForRewardScreen(40)
-        elseif typeof(IsRewardScreenVisible) == "function" then
-            shown = IsRewardScreenVisible()
-        elseif Globals and typeof(Globals.IsRewardScreenVisible) == "function" then
-            shown = Globals.IsRewardScreenVisible()
-        end
-
-        if shown then
-            warn(">>> [TDS:API] Reward screen confirmed visible! Teleporting to lobby in 3 seconds...")
-            task.wait(3)
-            SmartTeleportToLobby()
-        else
-            warn(">>> [TDS:API] Reward screen was NOT visible or did not display. Teleport aborted to prevent premature rejoin.")
-        end
+        SmartTeleportToLobby()
     end
 end
 
@@ -2537,11 +2133,16 @@ function StartBackToLobby()
     BackToLobbyRunning = true
 
     task.spawn(function()
-        local stateReps = ReplicatedStorage:WaitForChild("StateReplicators", 30)
-        local gameStateReplicator = stateReps and stateReps:WaitForChild("GameStateReplicator", 30)
+        local stateReplicators = ReplicatedStorage:WaitForChild("StateReplicators", 30)
+        local gameStateReplicator = stateReplicators and stateReplicators:WaitForChild("GameStateReplicator", 30)
+        local voteReplicator = stateReplicators and stateReplicators:WaitForChild("VoteReplicator", 30)
         
-        -- If GameStateReplicator is missing, do NOT blindly teleport!
-        if not gameStateReplicator then
+        if not gameStateReplicator or not voteReplicator then
+            while true do
+                if not Globals.AutoRejoin and not Globals.AutoRestart then break end
+                pcall(HandlePostMatch)
+                task.wait(1)
+            end
             BackToLobbyRunning = false
             return
         end
@@ -2560,15 +2161,11 @@ function StartBackToLobby()
                     end
                 else
                     if Globals.AutoRestart then
-                        if typeof(WaitForRewardScreen) == "function" then
-                            WaitForRewardScreen(35)
-                        end
                         task.spawn(pcall, HandlePostMatch, true)
                         local lastVoteTime = 0
-                        local voteReplicator = stateReps and stateReps:FindFirstChild("VoteReplicator")
                         while Globals.AutoRestart do
-                            local title = voteReplicator and voteReplicator:GetAttribute("Title")
-                            local enabled = voteReplicator and voteReplicator:GetAttribute("Enabled")
+                            local title = voteReplicator:GetAttribute("Title")
+                            local enabled = voteReplicator:GetAttribute("Enabled")
                             
                             if enabled == true and title == "Restart?" then
                                 if os.clock() - lastVoteTime > 3 then
@@ -2582,22 +2179,25 @@ function StartBackToLobby()
                             if title == "Ready?" or gameStateReplicator:GetAttribute("GameOver") == false then
                                 break
                             end
-                            task.wait(0.1)
+                            task.wait(0.5)
                         end
                         
                         if not Globals.AutoRestart then break end
                         
                         if isfile("ADS_LastStrat.lua") then
-                            task.spawn(function()
-                                repeat
-                                    task.wait(0.1)
-                                    local towersFolder = workspace:FindFirstChild("Towers")
-                                until (towersFolder and #towersFolder:GetChildren() == 0) or not Globals.AutoRestart
-                                
-                                if not Globals.AutoRestart then return end
-                                TDS:ResetAllStates()
-                                TDS:RunStrategy()
-                            end)
+                            local currentMatchId = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceInstanceId or "MatchInstance")
+                            if not (getgenv and getgenv().__WIN_STRAT_EXECUTED_JOB_ID == currentMatchId) then
+                                task.spawn(function()
+                                    repeat
+                                        task.wait(0.1)
+                                        local towersFolder = workspace:FindFirstChild("Towers")
+                                    until (towersFolder and #towersFolder:GetChildren() == 0) or not Globals.AutoRestart
+                                    
+                                    if not Globals.AutoRestart then return end
+                                    TDS:ResetAllStates()
+                                    TDS:RunStrategy()
+                                end)
+                            end
                         end
                         
                         repeat task.wait(1) until gameStateReplicator:GetAttribute("GameOver") == false or not Globals.AutoRestart
