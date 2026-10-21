@@ -37,12 +37,12 @@ Library.Assets = {
     Search          = "rbxassetid://121018724060431",
     Textbox         = "rbxassetid://13868675087",
     GlowDot         = "rbxassetid://105506802034513",
-    ImageLogo       = "rbxassetid://101582291591349",
-    Logo            = "rbxassetid://101582291591349",
-    XtremeLogo      = "rbxassetid://101582291591349",
-    FloatingToggle  = "rbxassetid://101582291591349",
-    FloatingBadge   = "rbxassetid://101582291591349",
-    XtremeFloating  = "rbxassetid://101582291591349",
+    ImageLogo       = "xtreme_logo.png",
+    Logo            = "xtreme_logo.png",
+    XtremeLogo      = "xtreme_logo.png",
+    FloatingToggle  = "xtreme_floating_icon.png",
+    FloatingBadge   = "xtreme_floating_icon.png",
+    XtremeFloating  = "xtreme_floating_icon.png",
     Discord         = "rbxassetid://119690296342461",
     Theme           = "rbxassetid://80758916183665",
     Home            = "rbxassetid://10734950309",
@@ -335,6 +335,9 @@ local function detectDeviceType(): string
     end
     local camera = workspace.CurrentCamera
     local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+    if not vp or vp.X < 200 or vp.Y < 200 then
+        vp = Vector2.new(1920, 1080)
+    end
     local minDim = math.min(vp.X, vp.Y)
     local maxDim = math.max(vp.X, vp.Y)
     local isTouch = UserInputService.TouchEnabled
@@ -589,6 +592,9 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
     elevateThread()
     local camera = workspace.CurrentCamera
     local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+    if not vp or vp.X < 200 or vp.Y < 200 then
+        vp = Vector2.new(1920, 1080)
+    end
     local scale = 1
     pcall(function()
         if uiScale then
@@ -633,6 +639,9 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
 
     local minOffsetX = (-(vp.X * 0.5) + 60) / scale
     local maxOffsetX = ((vp.X * 0.5) - 60) / scale
+    if maxOffsetX < minOffsetX then
+        maxOffsetX = minOffsetX
+    end
 
     local currentOffsetY = candidateY
     if not currentOffsetY then
@@ -654,6 +663,8 @@ local function clampWindowPosition(target: GuiObject, uiScale: UIScale?, customH
     end
     currentOffsetX = currentOffsetX or 0
 
+    if minOffsetY > maxOffsetY then minOffsetY, maxOffsetY = maxOffsetY, minOffsetY end
+    if minOffsetX > maxOffsetX then minOffsetX, maxOffsetX = maxOffsetX, minOffsetX end
     local clampedY = math.clamp(currentOffsetY, minOffsetY, maxOffsetY)
     local clampedX = math.clamp(currentOffsetX, minOffsetX, maxOffsetX)
 
@@ -706,6 +717,9 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
                 end)
                 local camera = workspace.CurrentCamera
                 local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+    if not vp or vp.X < 200 or vp.Y < 200 then
+        vp = Vector2.new(1920, 1080)
+    end
                 local topInset = getTopInset()
 
                 local rawOffsetX = startPosition.X.Offset + (delta.X / scale)
@@ -728,6 +742,9 @@ local function bindDrag(handle: GuiObject, target: GuiObject, uiScale: UIScale?)
 
                 local minOffsetX = (-(vp.X * 0.5) + 60) / scale
                 local maxOffsetX = ((vp.X * 0.5) - 60) / scale
+                if maxOffsetX < minOffsetX then maxOffsetX = minOffsetX end
+                if minOffsetY > maxOffsetY then minOffsetY, maxOffsetY = maxOffsetY, minOffsetY end
+                if minOffsetX > maxOffsetX then minOffsetX, maxOffsetX = maxOffsetX, minOffsetX end
 
                 local clampedY = math.clamp(rawOffsetY, minOffsetY, maxOffsetY)
                 local clampedX = math.clamp(rawOffsetX, minOffsetX, maxOffsetX)
@@ -783,6 +800,9 @@ local function bindFloatingDrag(btn: GuiObject)
                     local delta = input.Position - dragStart
                     local camera = workspace.CurrentCamera
                     local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+    if not vp or vp.X < 200 or vp.Y < 200 then
+        vp = Vector2.new(1920, 1080)
+    end
                     local btnW = 50
                     local btnH = 50
                     pcall(function()
@@ -794,8 +814,10 @@ local function bindFloatingDrag(btn: GuiObject)
                     local currentAbsY = (startPos.Y.Scale * vp.Y) + startPos.Y.Offset + delta.Y
 
                     -- Allows dragging anywhere: from Y = 4 at the very top of screen to bottom
-                    local clampedX = math.clamp(currentAbsX, 4, vp.X - btnW - 4)
-                    local clampedY = math.clamp(currentAbsY, 4, vp.Y - btnH - 4)
+                    local maxX = math.max(4, vp.X - btnW - 4)
+                    local maxY = math.max(4, vp.Y - btnH - 4)
+                    local clampedX = math.clamp(currentAbsX, 4, maxX)
+                    local clampedY = math.clamp(currentAbsY, 4, maxY)
 
                     btn.AnchorPoint = Vector2.new(0, 0)
                     btn.Position = UDim2.fromOffset(clampedX, clampedY)
@@ -4489,6 +4511,9 @@ function Library:Window(props: { [string]: any })
     local function getBaseScale(): number
         local camera = workspace.CurrentCamera
         local vp = (camera and camera.ViewportSize) or Vector2.new(1920, 1080)
+    if not vp or vp.X < 200 or vp.Y < 200 then
+        vp = Vector2.new(1920, 1080)
+    end
         return self.ManualScale or calculateDeviceScale(self.DeviceType, vp, getTopInset())
     end
 
@@ -5582,7 +5607,7 @@ function Library:Window(props: { [string]: any })
     -- Outside Frosted Glass Notification Toast
     function self:Notify(toastProps: { [string]: any })
         toastProps = toastProps or {}
-        local duration = tonumber(toastProps.Duration) or 3.5
+        local duration = tonumber(toastProps.Duration) or tonumber(toastProps.Time) or 3.5
 
         local toast = make("Frame", {
             Name = "Toast",
