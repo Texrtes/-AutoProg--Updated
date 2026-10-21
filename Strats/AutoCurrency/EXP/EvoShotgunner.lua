@@ -1,5 +1,5 @@
 TDS:RemoveIndex()
-TDS:Loadout("Farm", "Boomerang", "Crook Boss", "Shotgunner", "None")
+TDS:Loadout("Farm", "Boomerang", "Crook Boss", "Shotgunner", "Minigunner")
 TDS:Mode("Easy")
 TDS:GameInfo("Wretched Front", {})
 
