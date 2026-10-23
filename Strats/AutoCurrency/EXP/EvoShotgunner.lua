@@ -1,5 +1,5 @@
 TDS:RemoveIndex()
-TDS:Loadout("Farm", "Boomerang", "Crook Boss", "Shotgunner", "EvolvedKingpin")
+TDS:Loadout("Farm", "Boomerang", "Crook Boss", "", "")
 TDS:Mode("Easy")
 TDS:GameInfo("Wretched Front", {})
 
@@ -171,8 +171,6 @@ TDS:Upgrade(4)
 -- [ Wave 28 ] --
 TDS:Upgrade(19)
 TDS:Sell(17)
-TDS:Place("Shotgunner", 6.643827438354492, 1.2097293138504028, 20.901866912841797, true)
-TDS:Place("EvolvedKingpin", 6.643827438354492, 1.2097293138504028, 20.901866912841797, true)
 TDS:VoteSkip(28)
 TDS:VoteSkip(29)
 TDS:Sell(16)
