@@ -1148,69 +1148,42 @@ function TDS:Loadout(...)
     IsEquippingLoadout = true
     self.IsEquippingLoadout = true
 
+    local function extractTowerName(t: any): string?
+        if type(t) == "string" then
+            return t
+        elseif type(t) == "table" then
+            if type(t.Name) == "string" then return t.Name end
+            if type(t.name) == "string" then return t.name end
+            if type(t[1]) == "string" then return t[1] end
+        end
+        return nil
+    end
+
     local function isIgnoredPlaceholder(t: any): boolean
-        if type(t) ~= "string" then return true end
-        local s = t:gsub("^%s+", ""):gsub("%s+$", ""):lower()
+        local s = extractTowerName(t)
+        if not s then return true end
+        s = s:gsub("^%s+", ""):gsub("%s+$", ""):lower()
         return s == "" or s == "none" or s == "empty" or s == "nil" or s == "false" or s == "placeholder"
     end
 
-    local TOWER_ALIASES = {
-        ["crook"] = "Crook Boss",
-        ["crookboss"] = "Crook Boss",
-        ["kingpin"] = "Crook Boss",
-        ["evolvedkingpin"] = "Crook Boss",
-        ["gatling"] = "Gatling Gun",
-        ["gatlinggun"] = "Gatling Gun",
-        ["mini"] = "Minigunner",
-        ["minigunner"] = "Minigunner",
-        ["juggernaut"] = "Minigunner",
-        ["evolvedjuggernaut"] = "Minigunner",
-        ["mili"] = "Military Base",
-        ["military"] = "Military Base",
-        ["militarybase"] = "Military Base",
-        ["milbase"] = "Military Base",
-        ["merc"] = "Mercenary Base",
-        ["mercenary"] = "Mercenary Base",
-        ["mercenarybase"] = "Mercenary Base",
-        ["mercbase"] = "Mercenary Base",
-        ["ace"] = "Ace Pilot",
-        ["acepilot"] = "Ace Pilot",
-        ["electro"] = "Electroshocker",
-        ["electroshocker"] = "Electroshocker",
-        ["shotgun"] = "Shotgunner",
-        ["shotgunner"] = "Shotgunner",
-        ["enforcer"] = "Shotgunner",
-        ["evolvedenforcer"] = "Shotgunner",
-        ["slime"] = "Slime Trooper",
-        ["slimetrooper"] = "Slime Trooper",
-        ["dj"] = "DJ Booth",
-        ["djbooth"] = "DJ Booth",
-        ["pyro"] = "Pyromancer",
-        ["pyromancer"] = "Pyromancer",
-        ["acc"] = "Accelerator",
-        ["accel"] = "Accelerator",
-        ["accelerator"] = "Accelerator",
-        ["necro"] = "Necromancer",
-        ["necromancer"] = "Necromancer",
-        ["engi"] = "Engineer",
-        ["engineer"] = "Engineer",
-        ["operator"] = "Scout",
-        ["evolvedoperator"] = "Scout",
-    }
-
     local rawArgs = {...}
     local towers = {}
-    if #rawArgs == 1 and type(rawArgs[1]) == "table" then
-        for _, t in ipairs(rawArgs[1]) do
-            if not isIgnoredPlaceholder(t) then
-                table.insert(towers, t)
+    local function addTower(item)
+        if not isIgnoredPlaceholder(item) then
+            local tName = extractTowerName(item)
+            if tName then
+                table.insert(towers, tName)
             end
+        end
+    end
+
+    if #rawArgs == 1 and type(rawArgs[1]) == "table" and (rawArgs[1].Name == nil and rawArgs[1].name == nil) then
+        for _, t in ipairs(rawArgs[1]) do
+            addTower(t)
         end
     else
         for _, t in ipairs(rawArgs) do
-            if not isIgnoredPlaceholder(t) then
-                table.insert(towers, t)
-            end
+            addTower(t)
         end
     end
 
@@ -1218,17 +1191,15 @@ function TDS:Loadout(...)
     local remoteFunc = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteFunction")
 
     local function normalizeKey(name: any): string
-        if type(name) ~= "string" or isIgnoredPlaceholder(name) then return "" end
-        local trimmed = name:gsub("^%s*(.-)%s*$", "%1"):lower()
+        local raw = extractTowerName(name)
+        if not raw or isIgnoredPlaceholder(raw) then return "" end
+        local trimmed = raw:gsub("^%s*(.-)%s*$", "%1"):lower()
         local isGolden = false
         if trimmed:sub(1, 7) == "golden " then
             isGolden = true
             trimmed = trimmed:sub(8)
         end
         local cleanKey = trimmed:gsub("%s+", "")
-        if TOWER_ALIASES[cleanKey] then
-            cleanKey = TOWER_ALIASES[cleanKey]:lower():gsub("%s+", "")
-        end
         return (isGolden and "golden_" or "") .. cleanKey
     end
 
@@ -1370,14 +1341,13 @@ function TDS:Loadout(...)
         end
 
         local function getExactTowerName(tName)
-            if not tName or isIgnoredPlaceholder(tName) then return tName end
-            local trimmed = tostring(tName):gsub("^%s*(.-)%s*$", "%1")
+            local raw = extractTowerName(tName)
+            if not raw or isIgnoredPlaceholder(raw) then return tostring(tName or "") end
+            local trimmed = tostring(raw):gsub("^%s*(.-)%s*$", "%1")
             local cleanKey = trimmed:lower():gsub("^golden%s+", ""):gsub("%s+", "")
-            if TOWER_ALIASES[cleanKey] then
-                trimmed = TOWER_ALIASES[cleanKey]
-            end
             local lowerT = string.lower(trimmed)
             local resolved = trimmed
+
             pcall(function()
                 local client = ReplicatedStorage:FindFirstChild("Client")
                 local modules = client and client:FindFirstChild("Modules")
@@ -1388,7 +1358,8 @@ function TDS:Loadout(...)
                     local troops = atom and atom:GetValue()
                     if type(troops) == "table" then
                         for realName, _ in pairs(troops) do
-                            if string.lower(tostring(realName)) == lowerT or string.lower(tostring(realName)):gsub("%s+", "") == cleanKey then
+                            local realClean = string.lower(tostring(realName)):gsub("%s+", "")
+                            if realClean == cleanKey or string.lower(tostring(realName)) == lowerT then
                                 resolved = realName
                                 return
                             end
@@ -1396,6 +1367,45 @@ function TDS:Loadout(...)
                     end
                 end
             end)
+
+            if resolved == trimmed then
+                pcall(function()
+                    local client = ReplicatedStorage:FindFirstChild("Client")
+                    local interfaces = client and client:FindFirstChild("Interfaces")
+                    local legacy = interfaces and interfaces:FindFirstChild("LegacyInterface")
+                    local controllers = legacy and legacy:FindFirstChild("Controllers")
+                    local invCtrlMod = controllers and controllers:FindFirstChild("InventoryController")
+                    if invCtrlMod then
+                        local InvCtrl = require(invCtrlMod)
+                        if InvCtrl and type(InvCtrl.getItems) == "function" then
+                            local items = InvCtrl:getItems()
+                            if items then
+                                for _, item in pairs(items) do
+                                    if type(item) == "table" and item.type == "tower" and item.name then
+                                        local rName = tostring(item.name)
+                                        local realClean = string.lower(rName):gsub("%s+", "")
+                                        if realClean == cleanKey or string.lower(rName) == lowerT then
+                                            resolved = rName
+                                            return
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+
+            if resolved == trimmed and DataHandler and type(DataHandler.ownedTowers) == "table" then
+                for realName, _ in pairs(DataHandler.ownedTowers) do
+                    local realClean = string.lower(tostring(realName)):gsub("%s+", "")
+                    if realClean == cleanKey or string.lower(tostring(realName)) == lowerT then
+                        resolved = realName
+                        break
+                    end
+                end
+            end
+
             return resolved
         end
 
@@ -1507,6 +1517,8 @@ function TDS:Loadout(...)
 
     return success
 end
+
+TDS.Loudout = TDS.Loadout
 
 function TDS:VoteSkip(StartWave, EndWave)
     task.spawn(function()
