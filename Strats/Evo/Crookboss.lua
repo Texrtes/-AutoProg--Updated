@@ -184,4 +184,5 @@ TDS:Sell(4)
 TDS:Sell(18)
 TDS:Sell(19)
 TDS:Sell(20)
+TDS:Place("Crook Boss", 6.4959869384765625, 1.3890023231506348, 28.03474998474121, true)
 -- [ Wave 30 ] --
