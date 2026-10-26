@@ -169,6 +169,8 @@ TDS:VoteSkip(27)
 TDS:Upgrade(4)
 
 -- [ Wave 28 ] --
+TDS:VoteSkip(28)
+TDS:VoteSkip(29)
 TDS:Upgrade(19)
 TDS:Sell(17)
 TDS:Sell(16)
@@ -180,7 +182,8 @@ TDS:Sell(4)
 TDS:Sell(18)
 TDS:Sell(19)
 TDS:Sell(20)
-TDS:VoteSkip(28)
-TDS:VoteSkip(29)
+TDS:Place("Crook Boss", 4.616013526916504, 1.4068493843078613, 27.99555778503418, true)
+
 -- [ Wave 30 ] --
+
 
