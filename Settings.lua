@@ -117,7 +117,11 @@ return {
                 Fog = true, 
                 Limitation = true, 
                 Committed = false, 
-                ExplodingEnemies = true
+                ExplodingEnemies = true, 
+
+				Quarantine = true,
+				Broke = true,
+				SpeedyEnemies = true,
             },
                 Scripts = {
                     ["Lay By"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Trials/Fallbacks/FallenLayby.lua", -- done
@@ -467,16 +471,16 @@ AutoEvoConfigs = {
             },
             Scripts = {
                 ["Scout"] = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Operator.lua",--done
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/Evo/Scout.lua",--done
                 },
                 ["Shotgunner"] = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Enforcer.lua",--done
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/Evo/Shotgunner.lua",--done
                 },
                 ["Crook Boss"] = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Kingpin.lua",--done
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/Evo/Crookboss.lua",--done
                 },
                 ["Minigunner"] = {
-                    ["Wretched Front"] = "https://raw.githubusercontent.com/Atxvy/Main/refs/heads/main/Evo/Gems/Lose/Juggernaut.lua",--done
+                    ["Wretched Front"] = "https://raw.githubusercontent.com/Texrtes/-AutoProg--Updated/refs/heads/main/Strats/Evo/Minigunner.lua",--done
                 }
             }
         }
