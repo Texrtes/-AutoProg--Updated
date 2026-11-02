@@ -15,7 +15,7 @@ TDS:Upgrade(1)
 
 -- [ Wave 8 ] --
 TDS:VoteSkip(8)
-TDS:VoteSkip(8)
+TDS:VoteSkip(9)
 TDS:Place("Gatling Gun", 3.021298408508301, 243, 156.37335205078125, true)
 
 -- [ Wave 10 ] --
